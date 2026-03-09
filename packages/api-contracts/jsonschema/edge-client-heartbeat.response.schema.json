@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://school-system.local/contracts/edge-client-heartbeat.response.schema.json",
+  "title": "Edge Client Heartbeat Response",
+  "type": "object",
+  "required": ["accepted", "edge_client", "server_now", "polling_hint_seconds"],
+  "properties": {
+    "accepted": {
+      "type": "boolean"
+    },
+    "edge_client": {
+      "type": "object",
+      "required": ["id", "client_key", "client_type", "label", "is_enabled"],
+      "properties": {
+        "id": { "type": "integer" },
+        "client_key": { "type": "string" },
+        "client_type": { "type": "string" },
+        "label": { "type": "string" },
+        "is_enabled": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "server_now": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "polling_hint_seconds": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "additionalProperties": false
+}

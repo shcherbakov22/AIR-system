@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://school-system.local/contracts/edge-client-heartbeat.request.schema.json",
+  "title": "Edge Client Heartbeat Request",
+  "type": "object",
+  "required": ["client_key", "client_type", "label"],
+  "properties": {
+    "client_key": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "client_type": {
+      "type": "string",
+      "enum": ["browser_extension", "hardware_bridge"]
+    },
+    "label": {
+      "type": "string",
+      "maxLength": 160
+    },
+    "version": {
+      "type": ["string", "null"],
+      "maxLength": 64
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 80
+      },
+      "maxItems": 30
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

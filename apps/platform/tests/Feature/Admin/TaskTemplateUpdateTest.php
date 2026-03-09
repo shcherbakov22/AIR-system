@@ -1,0 +1,106 @@
+<?php
+
+namespace Tests\Feature\Admin;
+
+use App\Enums\UserRole;
+use App\Models\TaskTemplate;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
+
+class TaskTemplateUpdateTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_admin_can_view_the_edit_task_template_screen(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_tasks_edit',
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Review',
+            'summary' => 'Reading summary task.',
+            'instructions' => 'Read and summarize.',
+            'default_duration_minutes' => 45,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.task-templates.edit', $taskTemplate))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/TaskTemplates/Edit')
+                ->where('taskTemplate.id', $taskTemplate->id)
+                ->where('taskTemplate.title', 'Reading Review')
+                ->where('taskTemplate.default_duration_minutes', 45)
+                ->where('taskTemplate.is_active', true)
+            );
+    }
+
+    public function test_admin_can_update_a_task_template(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_tasks_edit',
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Review',
+            'summary' => 'Reading summary task.',
+            'instructions' => 'Read and summarize.',
+            'default_duration_minutes' => 45,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->put(route('admin.task-templates.update', $taskTemplate), [
+            'title' => 'Reading Review Updated',
+            'summary' => 'Longer reading block.',
+            'instructions' => 'Read carefully and write a three-point recap.',
+            'default_duration_minutes' => 60,
+            'is_active' => false,
+        ]);
+
+        $response
+            ->assertRedirect(route('admin.task-templates.index', absolute: false))
+            ->assertSessionHas('success', 'Шаблон задания Reading Review Updated обновлён.');
+
+        $taskTemplate->refresh();
+
+        $this->assertSame('Reading Review Updated', $taskTemplate->title);
+        $this->assertSame('Longer reading block.', $taskTemplate->summary);
+        $this->assertSame('Read carefully and write a three-point recap.', $taskTemplate->instructions);
+        $this->assertSame(60, $taskTemplate->default_duration_minutes);
+        $this->assertFalse($taskTemplate->is_active);
+    }
+
+    public function test_students_are_redirected_away_from_the_edit_task_template_screen(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_tasks_edit',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_tasks_edit',
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Review',
+            'summary' => 'Reading summary task.',
+            'instructions' => 'Read and summarize.',
+            'default_duration_minutes' => 45,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('admin.task-templates.edit', $taskTemplate))
+            ->assertRedirect(route('dashboard', absolute: false));
+    }
+}

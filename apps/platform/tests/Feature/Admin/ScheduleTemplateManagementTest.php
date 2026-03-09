@@ -1,0 +1,497 @@
+<?php
+
+namespace Tests\Feature\Admin;
+
+use App\Enums\ScheduleWeekday;
+use App\Enums\UserRole;
+use App\Models\ScheduleTemplate;
+use App\Models\Student;
+use App\Models\TaskTemplate;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
+
+class ScheduleTemplateManagementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_admin_can_view_an_empty_schedule_list(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedules',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.schedule-templates.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/ScheduleTemplates/Index')
+                ->has('scheduleTemplates', 0)
+            );
+    }
+
+    public function test_admin_can_view_the_create_schedule_screen(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedules',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedules',
+        ]);
+
+        Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Schedules',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        TaskTemplate::create([
+            'title' => 'Reading Block',
+            'summary' => 'Read and summarize.',
+            'instructions' => 'Read the material and summarize it.',
+            'default_duration_minutes' => 40,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.schedule-templates.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/ScheduleTemplates/Create')
+                ->has('students', 1)
+                ->has('taskTemplates', 1)
+                ->has('weekdays', 7)
+            );
+    }
+
+    public function test_admin_can_create_a_schedule_template_with_an_initial_entry(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedules',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedules',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Schedules',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Block',
+            'summary' => 'Read and summarize.',
+            'instructions' => 'Read the material and summarize it.',
+            'default_duration_minutes' => 40,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.schedule-templates.store'), [
+            'student_id' => $student->id,
+            'name' => 'Monday Reading',
+            'weekday' => ScheduleWeekday::Monday->value,
+            'is_active' => true,
+            'notes' => 'Core literacy block.',
+            'task_template_id' => $taskTemplate->id,
+            'start_time' => '09:15',
+            'duration_minutes' => 40,
+            'entry_notes' => 'Bring the chapter notebook.',
+        ]);
+
+        $response
+            ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
+            ->assertSessionHas('success', 'Расписание Monday Reading создано.');
+
+        $this->assertDatabaseHas('schedule_templates', [
+            'student_id' => $student->id,
+            'name' => 'Monday Reading',
+            'weekday' => ScheduleWeekday::Monday->value,
+            'is_active' => true,
+            'notes' => 'Core literacy block.',
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate = ScheduleTemplate::query()->firstOrFail();
+
+        $this->assertDatabaseHas('schedule_entries', [
+            'schedule_template_id' => $scheduleTemplate->id,
+            'task_template_id' => $taskTemplate->id,
+            'position' => 1,
+            'duration_minutes' => 40,
+            'notes' => 'Bring the chapter notebook.',
+        ]);
+
+        $this->assertSame('09:15', substr((string) $scheduleTemplate->entries()->firstOrFail()->start_time, 0, 5));
+    }
+
+    public function test_admin_can_view_the_edit_schedule_screen(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedules',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedules',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Schedules',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Block',
+            'summary' => 'Read and summarize.',
+            'instructions' => 'Read the material and summarize it.',
+            'default_duration_minutes' => 40,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate = ScheduleTemplate::create([
+            'student_id' => $student->id,
+            'name' => 'Monday Reading',
+            'weekday' => ScheduleWeekday::Monday,
+            'is_active' => true,
+            'notes' => 'Core literacy block.',
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate->entries()->create([
+            'task_template_id' => $taskTemplate->id,
+            'position' => 1,
+            'start_time' => '09:15',
+            'duration_minutes' => 40,
+            'notes' => 'Bring the chapter notebook.',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.schedule-templates.edit', $scheduleTemplate))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/ScheduleTemplates/Edit')
+                ->where('scheduleTemplate.id', $scheduleTemplate->id)
+                ->where('scheduleTemplate.name', 'Monday Reading')
+                ->has('students', 1)
+                ->has('taskTemplates', 1)
+                ->has('weekdays', 7)
+            );
+    }
+
+    public function test_admin_can_update_a_schedule_template_and_its_single_entry(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedules',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedules',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Schedules',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $secondStudentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedules_two',
+        ]);
+
+        $secondStudent = Student::create([
+            'user_id' => $secondStudentUser->id,
+            'display_name' => 'Student Schedules Two',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Block',
+            'summary' => 'Read and summarize.',
+            'instructions' => 'Read the material and summarize it.',
+            'default_duration_minutes' => 40,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $secondTaskTemplate = TaskTemplate::create([
+            'title' => 'Writing Block',
+            'summary' => 'Write and revise.',
+            'instructions' => 'Write the response and revise it.',
+            'default_duration_minutes' => 50,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate = ScheduleTemplate::create([
+            'student_id' => $student->id,
+            'name' => 'Monday Reading',
+            'weekday' => ScheduleWeekday::Monday,
+            'is_active' => true,
+            'notes' => 'Core literacy block.',
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $entry = $scheduleTemplate->entries()->create([
+            'task_template_id' => $taskTemplate->id,
+            'position' => 1,
+            'start_time' => '09:15',
+            'duration_minutes' => 40,
+            'notes' => 'Bring the chapter notebook.',
+        ]);
+
+        $response = $this->actingAs($admin)->put(route('admin.schedule-templates.update', $scheduleTemplate), [
+            'student_id' => $secondStudent->id,
+            'name' => 'Wednesday Writing',
+            'weekday' => ScheduleWeekday::Wednesday->value,
+            'is_active' => false,
+            'notes' => 'Midweek writing focus.',
+            'task_template_id' => $secondTaskTemplate->id,
+            'start_time' => '10:30',
+            'duration_minutes' => 50,
+            'entry_notes' => 'Start with the outline.',
+        ]);
+
+        $response
+            ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
+            ->assertSessionHas('success', 'Расписание Wednesday Writing обновлено.');
+
+        $this->assertDatabaseHas('schedule_templates', [
+            'id' => $scheduleTemplate->id,
+            'student_id' => $secondStudent->id,
+            'name' => 'Wednesday Writing',
+            'weekday' => ScheduleWeekday::Wednesday->value,
+            'is_active' => false,
+            'notes' => 'Midweek writing focus.',
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->assertDatabaseHas('schedule_entries', [
+            'id' => $entry->id,
+            'schedule_template_id' => $scheduleTemplate->id,
+            'task_template_id' => $secondTaskTemplate->id,
+            'position' => 1,
+            'duration_minutes' => 50,
+            'notes' => 'Start with the outline.',
+        ]);
+
+        $entry->refresh();
+
+        $this->assertSame('10:30', substr((string) $entry->start_time, 0, 5));
+    }
+
+    public function test_admin_can_keep_an_inactive_current_task_template_when_updating_a_schedule(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedules',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedules',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Schedules',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $inactiveTaskTemplate = TaskTemplate::create([
+            'title' => 'Archived Reading Block',
+            'summary' => 'Legacy block.',
+            'instructions' => 'Keep the existing block intact.',
+            'default_duration_minutes' => 25,
+            'is_active' => false,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate = ScheduleTemplate::create([
+            'student_id' => $student->id,
+            'name' => 'Archived Monday Reading',
+            'weekday' => ScheduleWeekday::Monday,
+            'is_active' => true,
+            'notes' => 'Legacy schedule.',
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate->entries()->create([
+            'task_template_id' => $inactiveTaskTemplate->id,
+            'position' => 1,
+            'start_time' => '08:30',
+            'duration_minutes' => 25,
+            'notes' => 'Legacy note.',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.schedule-templates.edit', $scheduleTemplate))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/ScheduleTemplates/Edit')
+                ->has('taskTemplates', 1)
+                ->where('taskTemplates.0.id', $inactiveTaskTemplate->id)
+                ->where('taskTemplates.0.is_active', false)
+            );
+
+        $this->actingAs($admin)
+            ->put(route('admin.schedule-templates.update', $scheduleTemplate), [
+                'student_id' => $student->id,
+                'name' => 'Archived Monday Reading',
+                'weekday' => ScheduleWeekday::Monday->value,
+                'is_active' => true,
+                'notes' => 'Legacy schedule updated.',
+                'task_template_id' => $inactiveTaskTemplate->id,
+                'start_time' => '08:45',
+                'duration_minutes' => 25,
+                'entry_notes' => 'Still tied to the archived task.',
+            ])
+            ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
+            ->assertSessionHas('success', 'Расписание Archived Monday Reading обновлено.');
+
+        $scheduleTemplate->refresh();
+        $entry = $scheduleTemplate->entries()->firstOrFail();
+
+        $this->assertSame('Legacy schedule updated.', $scheduleTemplate->notes);
+        $this->assertSame('Still tied to the archived task.', $entry->notes);
+        $this->assertSame('08:45', substr((string) $entry->start_time, 0, 5));
+    }
+
+    public function test_admin_can_view_existing_schedule_templates(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedules',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedules',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Schedules',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Block',
+            'summary' => 'Read and summarize.',
+            'instructions' => 'Read the material and summarize it.',
+            'default_duration_minutes' => 40,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate = ScheduleTemplate::create([
+            'student_id' => $student->id,
+            'name' => 'Monday Reading',
+            'weekday' => ScheduleWeekday::Monday,
+            'is_active' => true,
+            'notes' => 'Core literacy block.',
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate->entries()->create([
+            'task_template_id' => $taskTemplate->id,
+            'position' => 1,
+            'start_time' => '09:15',
+            'duration_minutes' => 40,
+            'notes' => 'Bring the chapter notebook.',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.schedule-templates.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/ScheduleTemplates/Index')
+                ->has('scheduleTemplates', 1)
+                ->where('scheduleTemplates.0.name', 'Monday Reading')
+                ->where('scheduleTemplates.0.weekday.label', ScheduleWeekday::Monday->label())
+                ->where('scheduleTemplates.0.entries.0.task_template.title', 'Reading Block')
+                ->where('scheduleTemplates.0.entries.0.start_time', '09:15')
+            );
+    }
+
+    public function test_students_are_redirected_away_from_schedule_routes(): void
+    {
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedules',
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('admin.schedule-templates.index'))
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $this->actingAs($studentUser)
+            ->get(route('admin.schedule-templates.create'))
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedules_blocked',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Schedules',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Block',
+            'summary' => 'Read and summarize.',
+            'instructions' => 'Read the material and summarize it.',
+            'default_duration_minutes' => 40,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate = ScheduleTemplate::create([
+            'student_id' => $student->id,
+            'name' => 'Monday Reading',
+            'weekday' => ScheduleWeekday::Monday,
+            'is_active' => true,
+            'notes' => 'Core literacy block.',
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate->entries()->create([
+            'task_template_id' => $taskTemplate->id,
+            'position' => 1,
+            'start_time' => '09:15',
+            'duration_minutes' => 40,
+            'notes' => 'Bring the chapter notebook.',
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('admin.schedule-templates.edit', $scheduleTemplate))
+            ->assertRedirect(route('dashboard', absolute: false));
+    }
+}

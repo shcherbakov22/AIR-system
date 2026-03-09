@@ -1,0 +1,92 @@
+<?php
+
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ImportController as AdminImportController;
+use App\Http\Controllers\Admin\PenaltyLedgerController as AdminPenaltyLedgerController;
+use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
+use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
+use App\Http\Controllers\Admin\TaskAssignmentController as AdminTaskAssignmentController;
+use App\Http\Controllers\Admin\TaskSessionController as AdminTaskSessionController;
+use App\Http\Controllers\Admin\StudentController as AdminStudentController;
+use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
+use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Student\HomeController as StudentHomeController;
+use App\Http\Controllers\Student\PenaltyController as StudentPenaltyController;
+use App\Http\Controllers\Student\ScheduleRunController as StudentScheduleRunController;
+use App\Http\Controllers\Student\ScheduleRunTaskSessionController as StudentScheduleRunTaskSessionController;
+use App\Http\Controllers\Student\ScheduleController as StudentScheduleController;
+use App\Http\Controllers\Student\TaskSessionController as StudentTaskSessionController;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+
+Route::get('/', function () {
+    return Inertia::render('Welcome', [
+        'canLogin' => Route::has('login'),
+    ]);
+})->name('home');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
+        Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+        Route::get('/penalties', [AdminPenaltyLedgerController::class, 'index'])->name('penalties.index');
+        Route::get('/penalties/{student}', [AdminPenaltyLedgerController::class, 'show'])->name('penalties.show');
+        Route::post('/penalties/{student}/transactions', [AdminPenaltyLedgerController::class, 'store'])->name('penalties.transactions.store');
+        Route::get('/imports', [AdminImportController::class, 'index'])->name('imports.index');
+        Route::get('/rule-definitions', [AdminRuleDefinitionController::class, 'index'])->name('rule-definitions.index');
+        Route::get('/rule-definitions/create', [AdminRuleDefinitionController::class, 'create'])->name('rule-definitions.create');
+        Route::post('/rule-definitions', [AdminRuleDefinitionController::class, 'store'])->name('rule-definitions.store');
+        Route::get('/rule-definitions/{ruleDefinition}/edit', [AdminRuleDefinitionController::class, 'edit'])->name('rule-definitions.edit');
+        Route::put('/rule-definitions/{ruleDefinition}', [AdminRuleDefinitionController::class, 'update'])->name('rule-definitions.update');
+        Route::get('/violations', [AdminViolationController::class, 'index'])->name('violations.index');
+        Route::get('/violations/create', [AdminViolationController::class, 'create'])->name('violations.create');
+        Route::post('/violations', [AdminViolationController::class, 'store'])->name('violations.store');
+        Route::get('/violations/{violation}', [AdminViolationController::class, 'show'])->name('violations.show');
+        Route::patch('/violations/{violation}/resolve', [AdminViolationController::class, 'resolve'])->name('violations.resolve');
+        Route::get('/schedule-templates', [AdminScheduleTemplateController::class, 'index'])->name('schedule-templates.index');
+        Route::get('/schedule-templates/create', [AdminScheduleTemplateController::class, 'create'])->name('schedule-templates.create');
+        Route::post('/schedule-templates', [AdminScheduleTemplateController::class, 'store'])->name('schedule-templates.store');
+        Route::get('/schedule-templates/{scheduleTemplate}/edit', [AdminScheduleTemplateController::class, 'edit'])->name('schedule-templates.edit');
+        Route::put('/schedule-templates/{scheduleTemplate}', [AdminScheduleTemplateController::class, 'update'])->name('schedule-templates.update');
+        Route::get('/task-assignments', [AdminTaskAssignmentController::class, 'index'])->name('task-assignments.index');
+        Route::get('/task-assignments/create', [AdminTaskAssignmentController::class, 'create'])->name('task-assignments.create');
+        Route::post('/task-assignments', [AdminTaskAssignmentController::class, 'store'])->name('task-assignments.store');
+        Route::get('/task-assignments/{taskAssignment}/edit', [AdminTaskAssignmentController::class, 'edit'])->name('task-assignments.edit');
+        Route::put('/task-assignments/{taskAssignment}', [AdminTaskAssignmentController::class, 'update'])->name('task-assignments.update');
+        Route::get('/task-sessions', [AdminTaskSessionController::class, 'index'])->name('task-sessions.index');
+        Route::get('/task-templates', [AdminTaskTemplateController::class, 'index'])->name('task-templates.index');
+        Route::get('/task-templates/create', [AdminTaskTemplateController::class, 'create'])->name('task-templates.create');
+        Route::post('/task-templates', [AdminTaskTemplateController::class, 'store'])->name('task-templates.store');
+        Route::get('/task-templates/{taskTemplate}/edit', [AdminTaskTemplateController::class, 'edit'])->name('task-templates.edit');
+        Route::put('/task-templates/{taskTemplate}', [AdminTaskTemplateController::class, 'update'])->name('task-templates.update');
+        Route::get('/students/create', [AdminStudentController::class, 'create'])->name('students.create');
+        Route::post('/students', [AdminStudentController::class, 'store'])->name('students.store');
+        Route::get('/students/{student}/edit', [AdminStudentController::class, 'edit'])->name('students.edit');
+        Route::put('/students/{student}', [AdminStudentController::class, 'update'])->name('students.update');
+        Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
+    });
+
+    Route::prefix('student')->name('student.')->middleware('student')->group(function () {
+        Route::get('/home', StudentHomeController::class)->name('home');
+        Route::get('/penalties', StudentPenaltyController::class)->name('penalties.index');
+        Route::get('/schedules', [StudentScheduleController::class, 'index'])->name('schedules.index');
+        Route::get('/schedules/create', [StudentScheduleController::class, 'create'])->name('schedules.create');
+        Route::post('/schedules', [StudentScheduleController::class, 'store'])->name('schedules.store');
+        Route::get('/schedules/{scheduleTemplate}/edit', [StudentScheduleController::class, 'edit'])->name('schedules.edit');
+        Route::put('/schedules/{scheduleTemplate}', [StudentScheduleController::class, 'update'])->name('schedules.update');
+        Route::post('/schedules/{scheduleTemplate}/runs', [StudentScheduleRunController::class, 'store'])->name('schedule-runs.store');
+        Route::post('/schedule-runs/{scheduleRun}/pause', [StudentScheduleRunController::class, 'pause'])->name('schedule-runs.pause');
+        Route::post('/schedule-runs/{scheduleRun}/resume', [StudentScheduleRunController::class, 'resume'])->name('schedule-runs.resume');
+        Route::post('/schedule-runs/{scheduleRun}/blocks/{scheduleRunBlock}/start', [StudentScheduleRunTaskSessionController::class, 'store'])->name('schedule-run-blocks.start');
+        Route::post('/task-sessions', [StudentTaskSessionController::class, 'store'])->name('task-sessions.store');
+        Route::patch('/task-sessions/{taskSession}/stop', [StudentTaskSessionController::class, 'stop'])->name('task-sessions.stop');
+    });
+});
+
+require __DIR__.'/auth.php';
