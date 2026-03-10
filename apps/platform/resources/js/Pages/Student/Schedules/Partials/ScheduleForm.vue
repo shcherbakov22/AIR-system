@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -26,7 +25,6 @@ const props = defineProps<{
     scheduleTemplate?: {
         id: number;
         name: string;
-        is_active: boolean;
         notes: string;
         entries: Array<{
             task_template_id?: number | null;
@@ -62,7 +60,6 @@ const buildEntry = (
 
 const form = useForm({
     name: props.scheduleTemplate?.name ?? 'План на день',
-    is_active: props.scheduleTemplate?.is_active ?? true,
     notes: props.scheduleTemplate?.notes ?? '',
     entries: props.scheduleTemplate?.entries.map((entry) => buildEntry(entry)) ?? [buildEntry()],
 });
@@ -145,15 +142,6 @@ const submit = () => {
                 <InputError class="mt-2" :message="form.errors.notes" />
             </div>
 
-            <div class="md:col-span-2">
-                <label class="inline-flex items-center gap-3">
-                    <Checkbox v-model:checked="form.is_active" />
-                    <span class="text-sm text-stone-700">
-                        Оставить это расписание активным
-                    </span>
-                </label>
-                <InputError class="mt-2" :message="form.errors.is_active" />
-            </div>
         </div>
 
         <div class="rounded-[1.75rem] bg-stone-100 p-4 md:p-5">

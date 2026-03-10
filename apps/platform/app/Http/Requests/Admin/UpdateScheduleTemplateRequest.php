@@ -21,7 +21,6 @@ class UpdateScheduleTemplateRequest extends FormRequest
             'name' => $name,
             'notes' => $notes === '' ? null : $notes,
             'entry_notes' => $entryNotes === '' ? null : $entryNotes,
-            'is_active' => $this->boolean('is_active', true),
         ]);
     }
 
@@ -43,7 +42,6 @@ class UpdateScheduleTemplateRequest extends FormRequest
             ],
             'name' => ['required', 'string', 'max:120'],
             'weekday' => ['required', Rule::enum(ScheduleWeekday::class)],
-            'is_active' => ['required', 'boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'task_template_id' => [
                 'required',

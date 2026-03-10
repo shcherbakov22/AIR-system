@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -29,7 +28,6 @@ const form = useForm({
     student_id: props.students[0]?.id ? String(props.students[0].id) : '',
     name: 'Morning Block',
     weekday: props.weekdays[0]?.value ?? 'monday',
-    is_active: true,
     notes: '',
     task_template_id: props.taskTemplates[0]?.id ? String(props.taskTemplates[0].id) : '',
     start_time: '09:00',
@@ -203,15 +201,6 @@ const submit = () => {
                                     class="mt-2 block w-full rounded-xl border-stone-300 bg-white shadow-sm focus:border-amber-700 focus:ring-amber-700"
                                 />
                                 <InputError class="mt-2" :message="form.errors.duration_minutes" />
-                            </div>
-
-                            <div class="flex items-end">
-                                <label class="inline-flex items-center gap-3 pb-2">
-                                    <Checkbox v-model:checked="form.is_active" />
-                                    <span class="text-sm text-stone-700">
-                                        Оставить это расписание активным
-                                    </span>
-                                </label>
                             </div>
 
                             <div class="md:col-span-3">

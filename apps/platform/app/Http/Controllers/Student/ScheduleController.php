@@ -94,7 +94,6 @@ class ScheduleController extends Controller
         return [
             'id' => $scheduleTemplate->id,
             'name' => $scheduleTemplate->name,
-            'is_active' => $scheduleTemplate->is_active,
             'notes' => $scheduleTemplate->notes,
             'entries' => $scheduleTemplate->entries
                 ->map(fn ($entry) => [
@@ -123,7 +122,6 @@ class ScheduleController extends Controller
         return [
             'id' => $payload['id'],
             'name' => $payload['name'],
-            'is_active' => $payload['is_active'],
             'notes' => $payload['notes'] ?? '',
             'entries' => collect($payload['entries'])
                 ->map(fn (array $entry) => [
@@ -187,7 +185,6 @@ class ScheduleController extends Controller
                 'student_id' => $student->id,
                 'name' => $request->string('name')->toString(),
                 'weekday' => 'monday',
-                'is_active' => $request->boolean('is_active'),
                 'notes' => $request->input('notes'),
                 'created_by_user_id' => $request->user()->id,
             ]);
@@ -257,7 +254,6 @@ class ScheduleController extends Controller
 
             $scheduleTemplate->update([
                 'name' => $request->string('name')->toString(),
-                'is_active' => $request->boolean('is_active'),
                 'notes' => $request->input('notes'),
             ]);
 

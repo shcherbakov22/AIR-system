@@ -85,7 +85,6 @@ class ScheduleRunFlowTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Tuesday Run',
             'weekday' => ScheduleWeekday::Tuesday,
-            'is_active' => true,
             'notes' => 'Main weekday schedule.',
             'created_by_user_id' => $student->user_id,
         ]);
@@ -852,4 +851,3 @@ class ScheduleRunFlowTest extends TestCase
         Carbon::setTestNow();
     }
 }
-

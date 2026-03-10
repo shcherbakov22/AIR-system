@@ -68,7 +68,6 @@ class ScheduleManagementTest extends TestCase
         $response = $this->actingAs($studentUser)
             ->post(route('student.schedules.store'), [
                 'name' => 'Monday Plan',
-                'is_active' => true,
                 'notes' => 'Core morning plan.',
                 'entries' => [
                     [
@@ -93,7 +92,6 @@ class ScheduleManagementTest extends TestCase
 
         $this->assertSame('Monday Plan', $scheduleTemplate->name);
         $this->assertSame('monday', $scheduleTemplate->weekday);
-        $this->assertTrue($scheduleTemplate->is_active);
         $this->assertSame('Core morning plan.', $scheduleTemplate->notes);
         $this->assertCount(2, $scheduleTemplate->entries);
         $this->assertSame(
@@ -147,7 +145,6 @@ class ScheduleManagementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Monday Plan',
             'weekday' => 'monday',
-            'is_active' => true,
             'notes' => 'Original note.',
             'created_by_user_id' => $studentUser->id,
         ]);
@@ -163,7 +160,6 @@ class ScheduleManagementTest extends TestCase
         $response = $this->actingAs($studentUser)
             ->put(route('student.schedules.update', $scheduleTemplate), [
                 'name' => 'Tuesday Plan',
-                'is_active' => false,
                 'notes' => 'Updated note.',
                 'entries' => [
                     [
@@ -186,7 +182,6 @@ class ScheduleManagementTest extends TestCase
 
         $this->assertSame('Tuesday Plan', $scheduleTemplate->name);
         $this->assertSame('monday', $scheduleTemplate->weekday);
-        $this->assertFalse($scheduleTemplate->is_active);
         $this->assertSame('Updated note.', $scheduleTemplate->notes);
         $this->assertCount(2, $scheduleTemplate->entries);
         $this->assertSame(
@@ -233,7 +228,6 @@ class ScheduleManagementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Monday Plan',
             'weekday' => 'monday',
-            'is_active' => true,
             'notes' => 'Original note.',
             'created_by_user_id' => $studentUser->id,
         ]);
@@ -297,7 +291,6 @@ class ScheduleManagementTest extends TestCase
             'student_id' => $otherStudent->id,
             'name' => 'Private Plan',
             'weekday' => 'monday',
-            'is_active' => true,
             'notes' => null,
             'created_by_user_id' => $otherStudentUser->id,
         ]);
@@ -317,7 +310,6 @@ class ScheduleManagementTest extends TestCase
         $this->actingAs($studentUser)
             ->put(route('student.schedules.update', $scheduleTemplate), [
                 'name' => 'Stolen Plan',
-                'is_active' => true,
                 'notes' => null,
                 'entries' => [
                     [
@@ -362,7 +354,6 @@ class ScheduleManagementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Monday Plan',
             'weekday' => 'monday',
-            'is_active' => true,
             'notes' => 'Visible to the student.',
             'created_by_user_id' => $studentUser->id,
         ]);

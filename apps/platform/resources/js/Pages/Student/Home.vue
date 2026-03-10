@@ -85,7 +85,6 @@ const props = defineProps<{
             value: string;
             label: string;
         };
-        is_active: boolean;
         notes?: string | null;
         entries: Array<{
             id: number;
@@ -105,7 +104,6 @@ const props = defineProps<{
         summary?: string | null;
         instructions?: string | null;
         default_duration_minutes: number;
-        is_active: boolean;
     }>;
 }>();
 
@@ -775,7 +773,7 @@ const resumeScheduleRun = () => {
                     </p>
                     <div v-if="canStartScheduleRun" class="mt-5 grid gap-3 lg:grid-cols-2">
                         <button
-                            v-for="scheduleTemplate in weeklyScheduleTemplates.filter((item) => item.is_active)"
+                            v-for="scheduleTemplate in weeklyScheduleTemplates"
                             :key="scheduleTemplate.id"
                             type="button"
                             class="flex items-center justify-between rounded-[1.25rem] bg-white px-4 py-3 text-left ring-1 ring-stone-200 transition hover:ring-stone-400"
@@ -1028,17 +1026,6 @@ const resumeScheduleRun = () => {
                             </div>
 
                             <div class="flex flex-wrap items-center gap-3">
-                                <span
-                                    class="inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                    :class="
-                                        scheduleTemplate.is_active
-                                            ? 'bg-emerald-100 text-emerald-800'
-                                            : 'bg-stone-200 text-stone-700'
-                                    "
-                                >
-                                    {{ scheduleTemplate.is_active ? 'активно' : 'неактивно' }}
-                                </span>
-
                                 <button
                                     v-if="canStartScheduleRun"
                                     type="button"

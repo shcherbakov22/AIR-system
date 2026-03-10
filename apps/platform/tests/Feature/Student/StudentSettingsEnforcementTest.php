@@ -107,7 +107,6 @@ class StudentSettingsEnforcementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Monday Plan',
             'weekday' => ScheduleWeekday::Monday,
-            'is_active' => true,
             'notes' => null,
             'created_by_user_id' => $studentUser->id,
         ]);

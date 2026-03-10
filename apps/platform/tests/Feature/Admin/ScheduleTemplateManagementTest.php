@@ -103,7 +103,6 @@ class ScheduleTemplateManagementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Monday Reading',
             'weekday' => ScheduleWeekday::Monday->value,
-            'is_active' => true,
             'notes' => 'Core literacy block.',
             'task_template_id' => $taskTemplate->id,
             'start_time' => '09:15',
@@ -119,7 +118,6 @@ class ScheduleTemplateManagementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Monday Reading',
             'weekday' => ScheduleWeekday::Monday->value,
-            'is_active' => true,
             'notes' => 'Core literacy block.',
             'created_by_user_id' => $admin->id,
         ]);
@@ -169,7 +167,6 @@ class ScheduleTemplateManagementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Monday Reading',
             'weekday' => ScheduleWeekday::Monday,
-            'is_active' => true,
             'notes' => 'Core literacy block.',
             'created_by_user_id' => $admin->id,
         ]);
@@ -248,7 +245,6 @@ class ScheduleTemplateManagementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Monday Reading',
             'weekday' => ScheduleWeekday::Monday,
-            'is_active' => true,
             'notes' => 'Core literacy block.',
             'created_by_user_id' => $admin->id,
         ]);
@@ -330,7 +326,6 @@ class ScheduleTemplateManagementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Archived Monday Reading',
             'weekday' => ScheduleWeekday::Monday,
-            'is_active' => true,
             'notes' => 'Legacy schedule.',
             'created_by_user_id' => $admin->id,
         ]);
@@ -357,7 +352,6 @@ class ScheduleTemplateManagementTest extends TestCase
                 'student_id' => $student->id,
                 'name' => 'Archived Monday Reading',
                 'weekday' => ScheduleWeekday::Monday->value,
-                'is_active' => true,
                 'notes' => 'Legacy schedule updated.',
                 'task_template_id' => $currentTaskTemplate->id,
                 'start_time' => '08:45',
@@ -407,7 +401,6 @@ class ScheduleTemplateManagementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Monday Reading',
             'weekday' => ScheduleWeekday::Monday,
-            'is_active' => true,
             'notes' => 'Core literacy block.',
             'created_by_user_id' => $admin->id,
         ]);
@@ -473,7 +466,6 @@ class ScheduleTemplateManagementTest extends TestCase
             'student_id' => $student->id,
             'name' => 'Monday Reading',
             'weekday' => ScheduleWeekday::Monday,
-            'is_active' => true,
             'notes' => 'Core literacy block.',
             'created_by_user_id' => $admin->id,
         ]);

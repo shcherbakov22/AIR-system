@@ -8,7 +8,6 @@ defineProps<{
     scheduleTemplates: Array<{
         id: number;
         name: string;
-        is_active: boolean;
         notes?: string | null;
         entries: Array<{
             id: number;
@@ -127,17 +126,6 @@ const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
                             </div>
 
                             <div class="flex flex-wrap items-center gap-3">
-                                <span
-                                    class="inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                    :class="
-                                        scheduleTemplate.is_active
-                                            ? 'bg-emerald-100 text-emerald-800'
-                                            : 'bg-stone-200 text-stone-700'
-                                    "
-                                >
-                                    {{ scheduleTemplate.is_active ? 'активно' : 'неактивно' }}
-                                </span>
-
                                 <Link
                                     :href="route('student.schedules.edit', scheduleTemplate.id)"
                                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"

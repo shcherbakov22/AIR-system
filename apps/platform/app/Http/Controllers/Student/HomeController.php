@@ -197,7 +197,6 @@ class HomeController extends Controller
                 : null,
             'weeklyScheduleTemplates' => $student?->scheduleTemplates
                 ? $student->scheduleTemplates
-                    ->filter(fn (ScheduleTemplate $scheduleTemplate) => $scheduleTemplate->is_active)
                     ->sortBy(fn (ScheduleTemplate $scheduleTemplate) => sprintf(
                         '%02d-%s-%010d',
                         $this->scheduleWeekdaySortOrder($scheduleTemplate->weekday),
@@ -212,7 +211,6 @@ class HomeController extends Controller
                             'value' => $this->scheduleWeekdayValue($scheduleTemplate->weekday),
                             'label' => $this->scheduleWeekdayLabel($scheduleTemplate->weekday),
                         ],
-                        'is_active' => $scheduleTemplate->is_active,
                         'notes' => $scheduleTemplate->notes,
                         'entries' => $scheduleTemplate->entries
                             ->map(fn ($entry) => [

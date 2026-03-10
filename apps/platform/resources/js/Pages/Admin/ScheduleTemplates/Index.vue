@@ -12,7 +12,6 @@ const props = defineProps<{
             value: string;
             label: string;
         };
-        is_active: boolean;
         notes?: string | null;
         student: {
             id: number;
@@ -103,18 +102,6 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                             <p class="mt-2 text-sm text-stone-600">
                                 {{ scheduleTemplate.weekday.label }}
                             </p>
-                            <div class="mt-3 flex flex-wrap items-center gap-3">
-                                <span
-                                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                    :class="
-                                        scheduleTemplate.is_active
-                                            ? 'bg-emerald-100 text-emerald-800'
-                                            : 'bg-stone-200 text-stone-700'
-                                    "
-                                >
-                                    {{ scheduleTemplate.is_active ? 'активно' : 'неактивно' }}
-                                </span>
-                            </div>
                             <p class="mt-3 text-sm leading-6 text-stone-600">
                                 {{ scheduleTemplate.notes || 'Заметки к расписанию не указаны.' }}
                             </p>

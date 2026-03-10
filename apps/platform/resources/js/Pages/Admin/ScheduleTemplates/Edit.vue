@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -12,7 +11,6 @@ const props = defineProps<{
         student_id: string;
         name: string;
         weekday: string;
-        is_active: boolean;
         notes: string;
         entry: {
             task_template_id: string;
@@ -42,7 +40,6 @@ const form = useForm({
     student_id: props.scheduleTemplate.student_id,
     name: props.scheduleTemplate.name,
     weekday: props.scheduleTemplate.weekday,
-    is_active: props.scheduleTemplate.is_active,
     notes: props.scheduleTemplate.notes,
     task_template_id: props.scheduleTemplate.entry.task_template_id,
     start_time: props.scheduleTemplate.entry.start_time,
@@ -220,15 +217,6 @@ const submit = () => {
                                     class="mt-2 block w-full rounded-xl border-stone-300 bg-white shadow-sm focus:border-amber-700 focus:ring-amber-700"
                                 />
                                 <InputError class="mt-2" :message="form.errors.duration_minutes" />
-                            </div>
-
-                            <div class="flex items-end">
-                                <label class="inline-flex items-center gap-3 pb-2">
-                                    <Checkbox v-model:checked="form.is_active" />
-                                    <span class="text-sm text-stone-700">
-                                        Оставить это расписание активным
-                                    </span>
-                                </label>
                             </div>
 
                             <div class="md:col-span-3">

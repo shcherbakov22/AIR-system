@@ -15,17 +15,9 @@ class ScheduleTemplate extends Model
         'student_id',
         'name',
         'weekday',
-        'is_active',
         'notes',
         'created_by_user_id',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'is_active' => 'boolean',
-        ];
-    }
 
     public function student(): BelongsTo
     {

@@ -59,7 +59,6 @@ class ScheduleRunController extends Controller
                 ->with(['entries.taskTemplate'])
                 ->whereKey($scheduleTemplate->id)
                 ->where('student_id', $studentId)
-                ->where('is_active', true)
                 ->lockForUpdate()
                 ->firstOrFail();
 

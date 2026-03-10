@@ -7,7 +7,6 @@ defineProps<{
     scheduleTemplate: {
         id: number;
         name: string;
-        is_active: boolean;
         notes: string;
         entries: Array<{
             task_template_id?: number | null;
@@ -22,7 +21,6 @@ defineProps<{
         title: string;
         instructions?: string | null;
         default_duration_minutes: number;
-        is_active: boolean;
     }>;
 }>();
 </script>

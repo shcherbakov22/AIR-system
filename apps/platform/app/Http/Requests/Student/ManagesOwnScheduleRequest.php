@@ -28,7 +28,6 @@ abstract class ManagesOwnScheduleRequest extends FormRequest
         $this->merge([
             'name' => $name,
             'notes' => $notes === '' ? null : $notes,
-            'is_active' => $this->boolean('is_active', true),
             'entries' => $entries,
         ]);
     }
@@ -40,7 +39,6 @@ abstract class ManagesOwnScheduleRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'is_active' => ['required', 'boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'entries' => ['required', 'array', 'min:1', 'max:12'],
             'entries.*.task_template_id' => [

@@ -92,7 +92,6 @@ class ScheduleTemplateController extends Controller
                 'value' => $weekday?->value ?? (string) $scheduleTemplate->weekday,
                 'label' => $weekday?->label() ?? (string) $scheduleTemplate->weekday,
             ],
-            'is_active' => $scheduleTemplate->is_active,
             'notes' => $scheduleTemplate->notes,
             'student' => [
                 'id' => $scheduleTemplate->student->id,
@@ -148,7 +147,6 @@ class ScheduleTemplateController extends Controller
                 'student_id' => (int) $request->input('student_id'),
                 'name' => $request->string('name')->toString(),
                 'weekday' => $request->enum('weekday', ScheduleWeekday::class)?->value,
-                'is_active' => $request->boolean('is_active'),
                 'notes' => $request->input('notes'),
                 'created_by_user_id' => $request->user()->id,
             ]);
@@ -183,7 +181,6 @@ class ScheduleTemplateController extends Controller
                 'student_id' => (string) $scheduleTemplate->student_id,
                 'name' => $scheduleTemplate->name,
                 'weekday' => $weekday?->value ?? (string) $scheduleTemplate->weekday,
-                'is_active' => $scheduleTemplate->is_active,
                 'notes' => $scheduleTemplate->notes ?? '',
                 'entry' => [
                     'task_template_id' => (string) ($entry?->task_template_id ?? ''),
@@ -205,7 +202,6 @@ class ScheduleTemplateController extends Controller
                 'student_id' => (int) $request->input('student_id'),
                 'name' => $request->string('name')->toString(),
                 'weekday' => $request->enum('weekday', ScheduleWeekday::class)?->value,
-                'is_active' => $request->boolean('is_active'),
                 'notes' => $request->input('notes'),
             ]);
 
