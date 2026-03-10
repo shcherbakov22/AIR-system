@@ -714,63 +714,53 @@ const resumeScheduleRun = () => {
                             <span class="text-sm font-medium text-stone-600">Показать</span>
                         </summary>
 
-                        <div class="mt-4 space-y-4">
+                        <div class="mt-4 space-y-2">
                             <article
                                 v-for="block in activeScheduleRun.blocks"
                                 :key="block.id"
-                                class="grid gap-4 rounded-[1.25rem] bg-white px-5 py-4 md:grid-cols-[0.8fr_1.2fr]"
+                                class="flex flex-wrap items-center gap-3 rounded-[1rem] bg-white px-3 py-2 text-sm"
                             >
-                                <div>
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                            Блок {{ block.position }}
-                                        </p>
-                                        <span
-                                            class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                            :class="
-                                                block.status === 'completed'
-                                                    ? 'bg-emerald-100 text-emerald-800'
-                                                    : block.status === 'paused'
-                                                      ? 'bg-stone-200 text-stone-800'
-                                                    : block.status === 'in_progress'
-                                                      ? 'bg-amber-100 text-amber-800'
-                                                      : block.is_next
-                                                        ? 'bg-stone-900 text-white'
-                                                        : 'bg-stone-200 text-stone-700'
-                                            "
-                                        >
-                                            {{
-                                                block.status === 'completed'
-                                                    ? 'завершён'
-                                                    : block.status === 'paused'
-                                                      ? 'пауза'
-                                                    : block.status === 'in_progress'
-                                                      ? 'выполняется'
-                                                      : block.is_next
-                                                        ? 'следующий'
-                                                        : 'ожидает'
-                                            }}
-                                        </span>
-                                    </div>
-                                    <p class="mt-3 text-sm font-medium text-stone-500">
-                                        Длительность блока
-                                    </p>
-                                    <p class="mt-2 text-sm text-stone-600">
-                                        {{ block.duration_minutes }} минут
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <h5 class="text-lg font-semibold text-stone-950">
-                                        {{ block.task.title }}
-                                    </h5>
-                                    <p class="mt-2 text-sm leading-6 text-stone-600">
-                                        {{ block.task.summary || 'Описание задания не указано.' }}
-                                    </p>
-                                    <p class="mt-2 text-sm leading-6 text-stone-600">
-                                        {{ block.notes || 'Заметка для этого блока не указана.' }}
-                                    </p>
-                                </div>
+                                <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
+                                    Блок {{ block.position }}
+                                </p>
+                                <span
+                                    class="rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
+                                    :class="
+                                        block.status === 'completed'
+                                            ? 'bg-emerald-100 text-emerald-800'
+                                            : block.status === 'paused'
+                                              ? 'bg-stone-200 text-stone-800'
+                                            : block.status === 'in_progress'
+                                              ? 'bg-amber-100 text-amber-800'
+                                              : block.is_next
+                                                ? 'bg-stone-900 text-white'
+                                                : 'bg-stone-200 text-stone-700'
+                                    "
+                                >
+                                    {{
+                                        block.status === 'completed'
+                                            ? 'завершён'
+                                            : block.status === 'paused'
+                                              ? 'пауза'
+                                            : block.status === 'in_progress'
+                                              ? 'выполняется'
+                                              : block.is_next
+                                                ? 'следующий'
+                                                : 'ожидает'
+                                    }}
+                                </span>
+                                <p class="min-w-0 flex-1 truncate font-semibold text-stone-950">
+                                    {{ block.task.title }}
+                                </p>
+                                <p class="text-sm font-medium text-stone-600">
+                                    {{ block.duration_minutes }} минут
+                                </p>
+                                <p
+                                    v-if="block.notes"
+                                    class="w-full truncate text-xs text-stone-500 md:w-auto md:max-w-[18rem]"
+                                >
+                                    {{ block.notes }}
+                                </p>
                             </article>
                         </div>
                     </details>
@@ -1060,35 +1050,27 @@ const resumeScheduleRun = () => {
                             </div>
                         </div>
 
-                        <div class="mt-5 space-y-4">
+                        <div class="mt-5 space-y-2">
                             <article
                                 v-for="entry in scheduleTemplate.entries"
                                 :key="entry.id"
-                                class="grid gap-4 rounded-[1.5rem] bg-white px-5 py-4 md:grid-cols-[0.7fr_1.3fr]"
+                                class="flex flex-wrap items-center gap-3 rounded-[1rem] bg-white px-3 py-2 text-sm"
                             >
-                                <div>
-                                    <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                        Задание
-                                    </p>
-                                    <p class="mt-2 text-lg font-semibold text-stone-950">
-                                        {{ entry.task.title }}
-                                    </p>
-                                    <p class="mt-2 text-sm text-stone-600">
-                                        {{ entry.duration_minutes }} минут
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <h5 class="text-lg font-semibold text-stone-950">
-                                        {{ entry.task.title }}
-                                    </h5>
-                                    <p class="mt-2 text-sm leading-6 text-stone-600">
-                                        {{ entry.task.summary || 'Описание задания не указано.' }}
-                                    </p>
-                                    <p class="mt-2 text-sm leading-6 text-stone-600">
-                                        {{ entry.notes || 'Заметка для этого блока не указана.' }}
-                                    </p>
-                                </div>
+                                <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
+                                    {{ entry.start_time }}
+                                </p>
+                                <p class="min-w-0 flex-1 truncate font-semibold text-stone-950">
+                                    {{ entry.task.title }}
+                                </p>
+                                <p class="text-sm font-medium text-stone-600">
+                                    {{ entry.duration_minutes }} минут
+                                </p>
+                                <p
+                                    v-if="entry.notes"
+                                    class="w-full truncate text-xs text-stone-500 md:w-auto md:max-w-[18rem]"
+                                >
+                                    {{ entry.notes }}
+                                </p>
                             </article>
                         </div>
                     </article>

@@ -67,8 +67,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                     class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-between"
                 >
                     <p class="text-sm text-stone-600">
-                        Еженедельные шаблоны расписания размещают блоки заданий в определённые
-                        дни недели для конкретного ученика.
+                        Еженедельные шаблоны расписания размещают блоки заданий в определенные дни недели для конкретного ученика.
                     </p>
 
                     <Link
@@ -137,28 +136,26 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
                                 Блоки
                             </p>
-                            <div class="mt-3 space-y-4">
+                            <div class="mt-3 space-y-2">
                                 <article
                                     v-for="entry in scheduleTemplate.entries"
                                     :key="entry.id"
-                                    class="rounded-[1.5rem] bg-stone-100 px-5 py-4"
+                                    class="flex flex-wrap items-center gap-3 rounded-[1rem] bg-stone-100 px-3 py-2 text-sm"
                                 >
-                                    <div class="flex flex-wrap items-center justify-between gap-3">
-                                        <h4 class="text-lg font-semibold text-stone-950">
-                                            {{ entry.task_template.title }}
-                                        </h4>
-                                        <p class="text-sm font-medium text-stone-700">
-                                            {{ entry.start_time }}-{{ entry.end_time }}
-                                        </p>
-                                    </div>
-                                    <p class="mt-2 text-sm text-stone-600">
+                                    <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
+                                        {{ entry.start_time }}-{{ entry.end_time }}
+                                    </p>
+                                    <h4 class="min-w-0 flex-1 truncate text-sm font-semibold text-stone-950">
+                                        {{ entry.task_template.title }}
+                                    </h4>
+                                    <p class="text-sm font-medium text-stone-600">
                                         {{ entry.duration_minutes }} минут
                                     </p>
-                                    <p class="mt-2 text-sm leading-6 text-stone-600">
-                                        {{ entry.task_template.summary || 'Описание задания не указано.' }}
-                                    </p>
-                                    <p class="mt-2 text-sm leading-6 text-stone-600">
-                                        {{ entry.notes || 'Заметка для этого блока не указана.' }}
+                                    <p
+                                        v-if="entry.notes"
+                                        class="w-full truncate text-xs text-stone-500 md:w-auto md:max-w-[18rem]"
+                                    >
+                                        {{ entry.notes }}
                                     </p>
                                 </article>
                             </div>
@@ -171,8 +168,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                         Расписаний пока нет
                     </p>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Создайте первое еженедельное расписание, чтобы ученики видели повторяющиеся
-                        блоки работы в своём портале.
+                        Создайте первое еженедельное расписание, чтобы ученики видели повторяющиеся блоки работы в своем портале.
                     </p>
                 </div>
             </div>
