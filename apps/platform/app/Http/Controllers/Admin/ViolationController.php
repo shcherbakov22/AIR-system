@@ -224,6 +224,19 @@ class ViolationController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if ($lockedViolation->auto_generated_key) {
+                DB::table('dismissed_automatic_violations')->updateOrInsert(
+                    ['auto_generated_key' => $lockedViolation->auto_generated_key],
+                    [
+                        'student_id' => $lockedViolation->student_id,
+                        'dismissed_by_user_id' => auth()->id(),
+                        'dismissed_at' => now(),
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ],
+                );
+            }
+
             $lockedViolation->resolutions()->delete();
             $lockedViolation->delete();
         });

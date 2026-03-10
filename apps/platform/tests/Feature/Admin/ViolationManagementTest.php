@@ -8,6 +8,7 @@ use App\Models\Student;
 use App\Models\User;
 use App\Models\Violation;
 use App\Models\ViolationResolution;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -445,6 +446,77 @@ class ViolationManagementTest extends TestCase
         $this->assertDatabaseMissing('violations', [
             'id' => $violation->id,
         ]);
+    }
+
+    public function test_deleting_an_automatic_violation_keeps_it_off_the_student_home_page(): void
+    {
+        Carbon::setTestNow('2026-03-08 09:50:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_delete_auto_violation',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_delete_auto_violation',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Delete Auto Violation',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Observe the time',
+            'description' => 'Imported legacy rule.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Observe the time',
+            'penalty_units' => 0,
+            'occurred_at' => '2026-03-08 09:45:00',
+            'auto_generated_key' => 'observe-time:idle:run:5:anchor:2026-03-08T09:40:00+00:00',
+            'notes' => 'Automatic violation for staying outside any task for more than 5 minutes after the schedule started.',
+            'reported_by_user_id' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.violations.destroy', $violation))
+            ->assertRedirect(route('admin.violations.index', absolute: false));
+
+        $this->assertDatabaseMissing('violations', [
+            'id' => $violation->id,
+        ]);
+
+        $this->assertDatabaseHas('dismissed_automatic_violations', [
+            'student_id' => $student->id,
+            'auto_generated_key' => 'observe-time:idle:run:5:anchor:2026-03-08T09:40:00+00:00',
+            'dismissed_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/Home')
+                ->where('violationSummary.open_violations', 0)
+                ->has('openViolations', 0)
+            );
+
+        $this->assertDatabaseCount('violations', 0);
+
+        Carbon::setTestNow();
     }
 
     public function test_students_are_redirected_away_from_violation_routes(): void
