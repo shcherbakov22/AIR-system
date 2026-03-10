@@ -420,7 +420,7 @@ const resumeScheduleRun = () => {
             </div>
         </template>
 
-        <div class="mx-auto max-w-5xl px-6 py-10">
+        <div class="mx-auto max-w-6xl px-6 py-8">
             <div
                 v-if="flashSuccess"
                 class="mb-5 rounded-[1.5rem] bg-emerald-50 px-6 py-4 text-sm text-emerald-800 ring-1 ring-emerald-200"
@@ -435,24 +435,47 @@ const resumeScheduleRun = () => {
                 {{ flashError }}
             </div>
 
-            <section class="mt-5 rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
-                <div class="flex flex-col gap-2">
+            <section class="mt-5 rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200 md:p-7">
+                <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                     <p class="text-xs uppercase tracking-[0.3em] text-stone-500">
                         Выполнение расписания
                     </p>
                     <h3 class="font-serif text-3xl text-stone-950">
-                        Пошаговое выполнение
+                        Пульт ученика
                     </h3>
                 </div>
 
                 <div
+                    v-if="hasBlockingViolations"
+                    class="mt-5 rounded-[1.5rem] bg-rose-50 px-5 py-4 text-sm text-rose-900 ring-1 ring-rose-200"
+                >
+                    <p class="text-xs uppercase tracking-[0.22em] text-rose-700">
+                        Движение заблокировано
+                    </p>
+                    <div class="mt-2 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <p class="leading-6">
+                            Пока наставник не закроет нарушения, продолжать расписание и запускать свой таймер нельзя.
+                        </p>
+                        <div class="min-w-0 space-y-1 text-sm">
+                            <p
+                                v-for="violation in openViolations"
+                                :key="violation.id"
+                                class="truncate"
+                            >
+                                {{ violation.rule_title }}<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div
                     v-if="activeScheduleRun"
-                    class="mt-8 grid gap-6 lg:grid-cols-[1fr_0.9fr]"
+                    class="mt-6 grid gap-4 lg:grid-cols-[1fr_0.95fr]"
                 >
                     <div class="rounded-[1.75rem] bg-stone-100 p-6">
                         <div class="flex flex-wrap items-center gap-3">
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                ??????? ????
+                                Текущее состояние
                             </p>
                             <span
                                 class="inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
@@ -536,7 +559,7 @@ const resumeScheduleRun = () => {
 
                         <template v-else-if="activeScheduleRun.next_block">
                             <h4 class="mt-4 text-2xl font-semibold text-white">
-                                Block {{ activeScheduleRun.next_block.position }}
+                                Блок {{ activeScheduleRun.next_block.position }}
                             </h4>
                             <p class="mt-3 text-sm leading-7 text-stone-300">
                                 {{
@@ -566,14 +589,14 @@ const resumeScheduleRun = () => {
                                 :disabled="!hasTaskTemplates"
                                 @click="togglePauseOwnTimerForm"
                             >
-                                {{ pauseOwnTimerFormOpen ? 'Скрыть свой таймер' : 'Пауза для своего таймера' }}
+                                {{ pauseOwnTimerFormOpen ? 'Скрыть свой таймер' : 'Свой таймер' }}
                             </button>
 
                             <p
                                 v-if="!hasTaskTemplates"
                                 class="mt-4 rounded-[1.25rem] bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950 ring-1 ring-amber-200"
                             >
-                                ??? Нарушения ??????? ??? ????? ? Нарушения?? ????????.
+                                В библиотеке заданий пока ничего нет. Добавьте задания, чтобы включить свой таймер.
                             </p>
 
                             <form
@@ -664,12 +687,12 @@ const resumeScheduleRun = () => {
                                         for="own_timer_notes"
                                         class="block text-xs uppercase tracking-[0.25em] text-stone-400"
                                     >
-                                        Заметки (необязательно)
+                                        Заметки
                                     </label>
                                     <textarea
                                         id="own_timer_notes"
                                         v-model="pauseOwnTimerForm.notes"
-                                        rows="4"
+                                        rows="2"
                                         class="mt-2 block w-full rounded-[1.25rem] border-stone-700 bg-stone-900 text-stone-100 shadow-sm focus:border-amber-400 focus:ring-amber-400"
                                     />
                                     <InputError
@@ -683,18 +706,30 @@ const resumeScheduleRun = () => {
                                     :disabled="pauseOwnTimerForm.processing || !hasTaskTemplates"
                                     class="inline-flex rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-stone-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    Поставить на паузу и запустить таймер
+                                    Пауза и свой таймер
                                 </button>
                             </form>
                         </div>
                     </div>
 
-                    <div class="lg:col-span-2">
-                        <div class="space-y-4">
+                    <details class="lg:col-span-2 rounded-[1.5rem] bg-stone-100 p-5">
+                        <summary class="flex cursor-pointer list-none items-center justify-between gap-4">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
+                                    Текущее расписание
+                                </p>
+                                <p class="mt-2 text-lg font-semibold text-stone-950">
+                                    Блоки и подробности
+                                </p>
+                            </div>
+                            <span class="text-sm font-medium text-stone-600">Показать</span>
+                        </summary>
+
+                        <div class="mt-4 space-y-4">
                             <article
                                 v-for="block in activeScheduleRun.blocks"
                                 :key="block.id"
-                                class="grid gap-4 rounded-[1.5rem] bg-stone-100 px-5 py-4 md:grid-cols-[0.8fr_1.2fr]"
+                                class="grid gap-4 rounded-[1.25rem] bg-white px-5 py-4 md:grid-cols-[0.8fr_1.2fr]"
                             >
                                 <div>
                                     <div class="flex flex-wrap items-center gap-2">
@@ -729,7 +764,7 @@ const resumeScheduleRun = () => {
                                         </span>
                                     </div>
                                     <p class="mt-3 text-sm font-medium text-stone-500">
-                                        ??????? ??????????
+                                        Длительность блока
                                     </p>
                                     <p class="mt-2 text-sm text-stone-600">
                                         {{ block.duration_minutes }} минут
@@ -749,7 +784,7 @@ const resumeScheduleRun = () => {
                                 </div>
                             </article>
                         </div>
-                    </div>
+                    </details>
                 </div>
 
                 <div v-else class="mt-8 rounded-[1.5rem] bg-stone-100 px-6 py-8">
@@ -759,10 +794,29 @@ const resumeScheduleRun = () => {
                     <p class="mt-3 text-sm leading-7 text-stone-600">
                         Запустите одно из активных расписаний ниже, чтобы начать выполнение по порядку.
                     </p>
+                    <div v-if="canStartScheduleRun" class="mt-5 grid gap-3 lg:grid-cols-2">
+                        <button
+                            v-for="scheduleTemplate in weeklyScheduleTemplates.filter((item) => item.is_active)"
+                            :key="scheduleTemplate.id"
+                            type="button"
+                            class="flex items-center justify-between rounded-[1.25rem] bg-white px-4 py-3 text-left ring-1 ring-stone-200 transition hover:ring-stone-400"
+                            @click="startScheduleRun(scheduleTemplate.id)"
+                        >
+                            <span class="min-w-0">
+                                <span class="block truncate text-sm font-semibold text-stone-950">{{ scheduleTemplate.name }}</span>
+                                <span class="mt-1 block truncate text-xs uppercase tracking-[0.18em] text-stone-500">
+                                    {{ scheduleTemplate.weekday.label }}
+                                </span>
+                            </span>
+                            <span class="ml-4 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+                                Старт
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </section>
 
-            <section class="mt-5 rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
+            <section class="mt-5 rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200 md:p-7">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.3em] text-stone-500">
                         Текущий таймер
@@ -772,7 +826,7 @@ const resumeScheduleRun = () => {
                     </h3>
                 </div>
 
-                <div v-if="activeTaskSession" class="mt-8 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+                <div v-if="activeTaskSession" class="mt-6 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
                     <div class="rounded-[1.75rem] bg-stone-100 p-6">
                         <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
                             Активное задание
@@ -912,7 +966,7 @@ const resumeScheduleRun = () => {
                         <textarea
                             id="completion_notes"
                             v-model="stopTaskSessionForm.completion_notes"
-                            rows="5"
+                            rows="2"
                             class="mt-3 block w-full rounded-[1.25rem] border-stone-700 bg-stone-900 text-stone-100 shadow-sm focus:border-amber-400 focus:ring-amber-400"
                         />
                         <InputError
@@ -945,7 +999,7 @@ const resumeScheduleRun = () => {
                 </div>
             </section>
 
-            <section class="mt-5 rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
+            <section class="mt-5 rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200 md:p-7">
                 <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div class="flex flex-col gap-2">
                         <p class="text-xs uppercase tracking-[0.3em] text-stone-500">
@@ -965,7 +1019,15 @@ const resumeScheduleRun = () => {
                     </Link>
                 </div>
 
-                <div v-if="weeklyScheduleTemplates.length > 0" class="mt-8 space-y-5">
+                <details class="mt-6 rounded-[1.5rem] bg-stone-100 p-5" :open="!activeScheduleRun">
+                    <summary class="flex cursor-pointer list-none items-center justify-between gap-4">
+                        <p class="text-lg font-semibold text-stone-950">
+                            Доступные расписания
+                        </p>
+                        <span class="text-sm font-medium text-stone-600">Показать</span>
+                    </summary>
+
+                <div v-if="weeklyScheduleTemplates.length > 0" class="mt-5 space-y-5">
                     <article
                         v-for="scheduleTemplate in weeklyScheduleTemplates"
                         :key="scheduleTemplate.id"
@@ -976,7 +1038,7 @@ const resumeScheduleRun = () => {
                         >
                             <div>
                                 <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                    ??????????
+                                    Расписание
                                 </p>
                                 <h4 class="mt-2 text-2xl font-semibold text-stone-950">
                                     {{ scheduleTemplate.name }}
@@ -1017,7 +1079,7 @@ const resumeScheduleRun = () => {
                             >
                                 <div>
                                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                        ???????
+                                        Задание
                                     </p>
                                     <p class="mt-2 text-lg font-semibold text-stone-950">
                                         {{ entry.task.title }}
@@ -1043,7 +1105,7 @@ const resumeScheduleRun = () => {
                     </article>
                 </div>
 
-                <div v-else class="mt-8 rounded-[1.5rem] bg-stone-100 px-6 py-8">
+                <div v-else class="mt-5 rounded-[1.5rem] bg-white px-6 py-8">
                     <template v-if="studentCanManageOwnSchedule">
                         <p class="text-sm uppercase tracking-[0.25em] text-stone-500">
                             Расписание ещё не задано
@@ -1068,6 +1130,7 @@ const resumeScheduleRun = () => {
                         </p>
                     </template>
                 </div>
+                </details>
             </section>
         </div>
     </AuthenticatedLayout>
