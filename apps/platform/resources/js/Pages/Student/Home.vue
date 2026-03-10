@@ -409,18 +409,7 @@ const resumeScheduleRun = () => {
     <Head title="Портал ученика" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2">
-                <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Портал ученика
-                </p>
-                <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    {{ student.display_name }}
-                </h2>
-            </div>
-        </template>
-
-        <div class="mx-auto max-w-6xl px-6 py-8">
+        <div class="mx-auto max-w-6xl px-5 py-6">
             <div
                 v-if="flashSuccess"
                 class="mb-5 rounded-[1.5rem] bg-emerald-50 px-6 py-4 text-sm text-emerald-800 ring-1 ring-emerald-200"
@@ -435,7 +424,7 @@ const resumeScheduleRun = () => {
                 {{ flashError }}
             </div>
 
-            <section class="mt-5 rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200 md:p-7">
+            <section class="mt-4 rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-stone-200 md:p-6">
                 <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                     <p class="text-xs uppercase tracking-[0.3em] text-stone-500">
                         Выполнение расписания
@@ -447,7 +436,7 @@ const resumeScheduleRun = () => {
 
                 <div
                     v-if="hasBlockingViolations"
-                    class="mt-5 rounded-[1.5rem] bg-rose-50 px-5 py-4 text-sm text-rose-900 ring-1 ring-rose-200"
+                    class="mt-4 rounded-[1.5rem] bg-rose-50 px-4 py-3 text-sm text-rose-900 ring-1 ring-rose-200"
                 >
                     <p class="text-xs uppercase tracking-[0.22em] text-rose-700">
                         Движение заблокировано
@@ -470,7 +459,7 @@ const resumeScheduleRun = () => {
 
                 <div
                     v-if="activeScheduleRun"
-                    class="mt-6 grid gap-4 lg:grid-cols-[1fr_0.95fr]"
+                    class="mt-5 grid gap-4 lg:grid-cols-[1fr_0.95fr]"
                 >
                     <div class="rounded-[1.75rem] bg-stone-100 p-6">
                         <div class="flex flex-wrap items-center gap-3">
@@ -816,7 +805,7 @@ const resumeScheduleRun = () => {
                 </div>
             </section>
 
-            <section class="mt-5 rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200 md:p-7">
+            <section class="mt-4 rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-stone-200 md:p-6">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.3em] text-stone-500">
                         Текущий таймер
@@ -826,7 +815,7 @@ const resumeScheduleRun = () => {
                     </h3>
                 </div>
 
-                <div v-if="activeTaskSession" class="mt-6 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
+                <div v-if="activeTaskSession" class="mt-5 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
                     <div class="rounded-[1.75rem] bg-stone-100 p-6">
                         <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
                             Активное задание
@@ -999,7 +988,7 @@ const resumeScheduleRun = () => {
                 </div>
             </section>
 
-            <section class="mt-5 rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200 md:p-7">
+            <section class="mt-4 rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-stone-200 md:p-6">
                 <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div class="flex flex-col gap-2">
                         <p class="text-xs uppercase tracking-[0.3em] text-stone-500">

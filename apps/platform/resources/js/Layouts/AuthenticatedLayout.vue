@@ -96,10 +96,10 @@ const closeMobileNav = () => {
         />
 
         <aside
-            class="fixed inset-y-0 left-0 z-50 flex w-[18.5rem] max-w-[85vw] -translate-x-full flex-col border-r border-stone-200 bg-white transition-transform duration-200 lg:translate-x-0"
+            class="fixed inset-y-0 left-0 z-50 flex w-[15.5rem] max-w-[82vw] -translate-x-full flex-col border-r border-stone-200 bg-white transition-transform duration-200 lg:translate-x-0"
             :class="mobileNavOpen ? 'translate-x-0' : ''"
         >
-            <div class="flex items-center justify-end border-b border-stone-200 px-5 py-5 lg:hidden">
+            <div class="flex items-center justify-end border-b border-stone-200 px-4 py-4 lg:hidden">
                 <button
                     type="button"
                     class="rounded-full border border-stone-200 p-2 text-stone-500 transition hover:border-stone-400 hover:text-stone-900"
@@ -113,13 +113,13 @@ const closeMobileNav = () => {
                 </button>
             </div>
 
-            <nav class="flex-1 overflow-y-auto px-4 py-5">
+            <nav class="flex-1 overflow-y-auto px-3 py-4">
                 <div class="space-y-1">
                     <Link
                         v-for="item in navItems"
                         :key="item.label"
                         :href="item.href"
-                        class="flex items-center rounded-[1rem] px-4 py-3 text-sm font-medium transition"
+                        class="flex items-center rounded-[0.9rem] px-3 py-2.5 text-sm font-medium transition"
                         :class="navItemClasses(item.active)"
                         @click="closeMobileNav"
                     >
@@ -127,23 +127,25 @@ const closeMobileNav = () => {
                     </Link>
                 </div>
             </nav>
+
+            <div class="border-t border-stone-200 px-3 py-4">
+                <Link
+                    :href="route('logout')"
+                    method="post"
+                    as="button"
+                    class="flex w-full items-center justify-center rounded-[0.9rem] border border-stone-300 px-3 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+                >
+                    Выйти
+                </Link>
+            </div>
         </aside>
 
-        <div class="min-w-0 lg:pl-[18.5rem]">
-            <div class="border-b border-stone-200 bg-white/90 px-4 py-4 backdrop-blur">
-                <div class="flex items-center justify-end gap-3">
-                    <Link
-                        :href="route('logout')"
-                        method="post"
-                        as="button"
-                        class="inline-flex items-center rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
-                    >
-                        Выйти
-                    </Link>
-
+        <div class="min-w-0 lg:pl-[15.5rem]">
+            <div class="border-b border-stone-200 bg-white/90 px-3 py-3 backdrop-blur">
+                <div class="flex items-center justify-end gap-2">
                     <button
                         type="button"
-                        class="inline-flex items-center rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 lg:hidden"
+                        class="inline-flex items-center rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 lg:hidden"
                         @click="mobileNavOpen = true"
                     >
                         Меню
@@ -152,7 +154,7 @@ const closeMobileNav = () => {
             </div>
 
             <header v-if="$slots.header" class="border-b border-stone-200 bg-white">
-                <div class="mx-auto max-w-7xl px-6 py-8">
+                <div class="mx-auto max-w-7xl px-5 py-6">
                     <slot name="header" />
                 </div>
             </header>
