@@ -37,7 +37,7 @@ class StoreTaskAssignmentRequest extends FormRequest
             'task_template_id' => [
                 'required',
                 'integer',
-                Rule::exists(TaskTemplate::class, 'id')->where(fn ($query) => $query->where('is_active', true)),
+                Rule::exists(TaskTemplate::class, 'id'),
             ],
             'status' => ['required', 'string', Rule::in(['assigned', 'paused', 'completed'])],
             'due_on' => ['nullable', 'date'],

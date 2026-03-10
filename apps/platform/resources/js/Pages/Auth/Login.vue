@@ -30,19 +30,19 @@ const submit = () => {
     <GuestLayout>
         <Head title="Вход" />
 
-        <header class="mb-8">
+        <header class="mb-8 text-center">
             <p class="text-xs uppercase tracking-[0.3em] text-amber-700/80">
                 Вход
             </p>
             <h2 class="mt-3 font-serif text-4xl leading-none text-stone-950">
                 Доступ к платформе
             </h2>
-            <p class="mt-4 text-sm leading-6 text-stone-600">
-                Используйте выданные вам имя пользователя и пароль. Открытая регистрация отключена.
-            </p>
         </header>
 
-        <div v-if="status" class="mb-4 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+        <div
+            v-if="status"
+            class="mb-4 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700"
+        >
             {{ status }}
         </div>
 
@@ -52,9 +52,9 @@ const submit = () => {
 
                 <TextInput
                     id="username"
+                    v-model="form.username"
                     type="text"
                     class="mt-2 block w-full rounded-2xl border-stone-300"
-                    v-model="form.username"
                     required
                     autofocus
                     autocomplete="username"
@@ -68,9 +68,9 @@ const submit = () => {
 
                 <TextInput
                     id="password"
+                    v-model="form.password"
                     type="password"
                     class="mt-2 block w-full rounded-2xl border-stone-300"
-                    v-model="form.password"
                     required
                     autocomplete="current-password"
                 />

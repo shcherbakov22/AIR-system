@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import { computed } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
 import type { PageProps } from '@/types';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 const page = usePage<PageProps>();
 
 const user = computed(() => page.props.auth.user!);
 const studentSettings = computed(() => user.value.student?.settings ?? null);
+const mobileNavOpen = ref(false);
 
 const navItems = computed(() => {
     const items = [
@@ -27,49 +27,26 @@ const navItems = computed(() => {
             href: route('admin.students.index'),
             active: route().current('admin.students.*'),
         });
-
         items.push({
             label: 'Задания',
             href: route('admin.task-templates.index'),
             active: route().current('admin.task-templates.*'),
         });
-
         items.push({
             label: 'Правила',
             href: route('admin.rule-definitions.index'),
             active: route().current('admin.rule-definitions.*'),
         });
-
         items.push({
             label: 'Нарушения',
             href: route('admin.violations.index'),
             active: route().current('admin.violations.*'),
         });
-
-        items.push({
-            label: 'Штрафы',
-            href: route('admin.penalties.index'),
-            active: route().current('admin.penalties.*'),
-        });
-
-        items.push({
-            label: 'Импорт',
-            href: route('admin.imports.index'),
-            active: route().current('admin.imports.*'),
-        });
-
-        items.push({
-            label: 'Назначения',
-            href: route('admin.task-assignments.index'),
-            active: route().current('admin.task-assignments.*'),
-        });
-
         items.push({
             label: 'Сессии',
             href: route('admin.task-sessions.index'),
             active: route().current('admin.task-sessions.*'),
         });
-
         items.push({
             label: 'Расписания',
             href: route('admin.schedule-templates.index'),
@@ -77,9 +54,9 @@ const navItems = computed(() => {
         });
     } else {
         items.push({
-            label: 'Штрафы',
-            href: route('student.penalties.index'),
-            active: route().current('student.penalties.*'),
+            label: 'Правила',
+            href: route('student.rules.index'),
+            active: route().current('student.rules.*'),
         });
 
         if (studentSettings.value?.can_manage_own_schedule !== false) {
@@ -99,96 +76,90 @@ const navItems = computed(() => {
 
     return items;
 });
+
+const navItemClasses = (active: boolean): string =>
+    active
+        ? 'bg-amber-700 text-white shadow-sm'
+        : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900';
+
+const closeMobileNav = () => {
+    mobileNavOpen.value = false;
+};
 </script>
 
 <template>
     <div class="min-h-screen bg-stone-100 text-stone-900">
-        <nav class="border-b border-stone-200 bg-white/90 backdrop-blur">
-            <div class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-4">
-                <div class="flex items-center gap-4">
-                    <Link :href="route('dashboard')" class="flex items-center gap-3">
-                        <ApplicationLogo class="h-11 w-11 text-amber-700" />
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.3em] text-stone-500">
-                                Школьная система
-                            </p>
-                            <p class="text-sm font-semibold text-stone-900">
-                                {{ user.role === 'admin' ? 'Панель администратора' : 'Портал ученика' }}
-                            </p>
-                        </div>
-                    </Link>
+        <div
+            v-if="mobileNavOpen"
+            class="fixed inset-0 z-40 bg-stone-950/45 lg:hidden"
+            @click="closeMobileNav"
+        />
 
-                    <span
-                        class="hidden rounded-full bg-stone-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-stone-100 md:inline-flex"
-                    >
-                        {{ user.role_label }}
-                    </span>
-                </div>
+        <aside
+            class="fixed inset-y-0 left-0 z-50 flex w-[18.5rem] max-w-[85vw] -translate-x-full flex-col border-r border-stone-200 bg-white transition-transform duration-200 lg:translate-x-0"
+            :class="mobileNavOpen ? 'translate-x-0' : ''"
+        >
+            <div class="flex items-center justify-end border-b border-stone-200 px-5 py-5 lg:hidden">
+                <button
+                    type="button"
+                    class="rounded-full border border-stone-200 p-2 text-stone-500 transition hover:border-stone-400 hover:text-stone-900"
+                    @click="closeMobileNav"
+                >
+                    <span class="sr-only">Закрыть меню</span>
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M5 5L15 15" stroke-linecap="round" />
+                        <path d="M15 5L5 15" stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
 
-                <div class="hidden items-center gap-2 md:flex">
+            <nav class="flex-1 overflow-y-auto px-4 py-5">
+                <div class="space-y-1">
                     <Link
                         v-for="item in navItems"
                         :key="item.label"
                         :href="item.href"
-                        class="rounded-full px-4 py-2 text-sm font-medium transition"
-                        :class="
-                            item.active
-                                ? 'bg-amber-700 text-white'
-                                : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                        "
+                        class="flex items-center rounded-[1rem] px-4 py-3 text-sm font-medium transition"
+                        :class="navItemClasses(item.active)"
+                        @click="closeMobileNav"
                     >
                         {{ item.label }}
                     </Link>
                 </div>
+            </nav>
+        </aside>
 
-                <div class="flex items-center gap-4">
-                    <div class="hidden text-right sm:block">
-                        <p class="text-sm font-semibold text-stone-900">
-                            {{ user.name }}
-                        </p>
-                        <p class="text-xs uppercase tracking-[0.2em] text-stone-500">
-                            {{ user.username }}
-                        </p>
-                    </div>
-
+        <div class="min-w-0 lg:pl-[18.5rem]">
+            <div class="border-b border-stone-200 bg-white/90 px-4 py-4 backdrop-blur">
+                <div class="flex items-center justify-end gap-3">
                     <Link
                         :href="route('logout')"
                         method="post"
                         as="button"
-                        class="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+                        class="inline-flex items-center rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
                     >
                         Выйти
                     </Link>
-                </div>
-            </div>
 
-            <div class="border-t border-stone-200 px-6 py-3 md:hidden">
-                <div class="flex flex-wrap gap-2">
-                    <Link
-                        v-for="item in navItems"
-                        :key="item.label"
-                        :href="item.href"
-                        class="rounded-full px-3 py-2 text-sm font-medium transition"
-                        :class="
-                            item.active
-                                ? 'bg-amber-700 text-white'
-                                : 'bg-white text-stone-600 hover:text-stone-900'
-                        "
+                    <button
+                        type="button"
+                        class="inline-flex items-center rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 lg:hidden"
+                        @click="mobileNavOpen = true"
                     >
-                        {{ item.label }}
-                    </Link>
+                        Меню
+                    </button>
                 </div>
             </div>
-        </nav>
 
-        <header v-if="$slots.header" class="border-b border-stone-200 bg-white">
-            <div class="mx-auto max-w-7xl px-6 py-8">
-                <slot name="header" />
-            </div>
-        </header>
+            <header v-if="$slots.header" class="border-b border-stone-200 bg-white">
+                <div class="mx-auto max-w-7xl px-6 py-8">
+                    <slot name="header" />
+                </div>
+            </header>
 
-        <main>
-            <slot />
-        </main>
+            <main>
+                <slot />
+            </main>
+        </div>
     </div>
 </template>

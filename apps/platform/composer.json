@@ -51,6 +51,9 @@
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
+        "check:encoding": [
+            "@php scripts/check-encoding.php"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

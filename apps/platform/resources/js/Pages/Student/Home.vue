@@ -16,10 +16,14 @@ const props = defineProps<{
         can_manage_own_schedule: boolean;
         can_use_ad_hoc_timer: boolean;
     };
-    penaltySummary: {
-        current_balance_units: number;
+    violationSummary: {
         open_violations: number;
     };
+    openViolations: Array<{
+        id: number;
+        rule_title: string;
+        occurred_at_label?: string | null;
+    }>;
     activeScheduleRun: {
         id: number;
         status: string;
@@ -65,6 +69,7 @@ const props = defineProps<{
         task_instructions?: string | null;
         assignment_notes?: string | null;
         planned_duration_minutes?: number | null;
+        duration_seconds?: number | null;
         started_at?: string | null;
         started_at_label?: string | null;
         source_type: string;
@@ -94,6 +99,14 @@ const props = defineProps<{
             };
         }>;
     }>;
+    taskTemplates: Array<{
+        id: number;
+        title: string;
+        summary?: string | null;
+        instructions?: string | null;
+        default_duration_minutes: number;
+        is_active: boolean;
+    }>;
 }>();
 
 const page = usePage<PageProps>();
@@ -120,15 +133,19 @@ const canResumeScheduleRun = computed(
     () => props.activeScheduleRun !== null && props.activeScheduleRun.status === 'paused' && !props.activeTaskSession,
 );
 const pauseOwnTimerFormOpen = ref(false);
+const hasTaskTemplates = computed(() => props.taskTemplates.length > 0);
+const hasBlockingViolations = computed(() => props.openViolations.length > 0);
 
 const stopTaskSessionForm = useForm({
     completion_notes: '',
 });
 const pauseOwnTimerForm = useForm({
-    task_title: '',
-    duration_minutes: '15',
+    task_template_id: '',
     notes: '',
 });
+const selectedPauseTaskTemplate = computed(
+    () => props.taskTemplates.find((taskTemplate) => String(taskTemplate.id) === pauseOwnTimerForm.task_template_id) ?? null,
+);
 
 const parseTimestamp = (value?: string | null): number | null => {
     if (!value) {
@@ -196,12 +213,16 @@ onBeforeUnmount(() => {
 });
 
 const activeTaskStartedAtMs = computed(() => parseTimestamp(props.activeTaskSession?.started_at ?? null));
+const activeTaskElapsedBeforeCurrentSegment = computed(() => props.activeTaskSession?.duration_seconds ?? 0);
 const activeTaskElapsedSeconds = computed(() => {
     if (activeTaskStartedAtMs.value === null) {
-        return 0;
+        return activeTaskElapsedBeforeCurrentSegment.value;
     }
 
-    return Math.max(0, Math.floor((liveNowMs.value - activeTaskStartedAtMs.value) / 1000));
+    return Math.max(
+        activeTaskElapsedBeforeCurrentSegment.value,
+        activeTaskElapsedBeforeCurrentSegment.value + Math.floor((liveNowMs.value - activeTaskStartedAtMs.value) / 1000),
+    );
 });
 const activeTaskPlannedSeconds = computed(() =>
     props.activeTaskSession?.planned_duration_minutes
@@ -278,9 +299,9 @@ const activeTaskEndsAtLabel = computed(() => {
         return null;
     }
 
-    return formatClockTime(activeTaskStartedAtMs.value + activeTaskPlannedSeconds.value * 1000);
+    const remainingCurrentSegmentSeconds = Math.max(activeTaskPlannedSeconds.value - activeTaskElapsedBeforeCurrentSegment.value, 0);
+    return formatClockTime(activeTaskStartedAtMs.value + remainingCurrentSegmentSeconds * 1000);
 });
-
 const stopTaskSession = () => {
     if (!props.activeTaskSession) {
         return;
@@ -294,12 +315,39 @@ const stopTaskSession = () => {
     });
 };
 
+const showBlockingViolationDialog = () => {
+    if (!hasBlockingViolations.value) {
+        return false;
+    }
+
+    const lines = [
+        'Есть открытые нарушения:',
+        ...props.openViolations.map((violation) =>
+            `- ${violation.rule_title}${violation.occurred_at_label ? ` (${violation.occurred_at_label})` : ''}`,
+        ),
+        '',
+        'Пока наставник не закроет их, продолжать расписание и запускать свой таймер нельзя.',
+    ];
+
+    window.alert(lines.join('\n'));
+
+    return true;
+};
+
 const startScheduleRun = (scheduleTemplateId: number) => {
+    if (showBlockingViolationDialog()) {
+        return;
+    }
+
     router.post(route('student.schedule-runs.store', scheduleTemplateId), {}, { preserveScroll: true });
 };
 
 const startNextScheduleTask = () => {
     if (!props.activeScheduleRun?.next_block) {
+        return;
+    }
+
+    if (showBlockingViolationDialog()) {
         return;
     }
 
@@ -314,6 +362,10 @@ const startNextScheduleTask = () => {
 };
 
 const togglePauseOwnTimerForm = () => {
+    if (!pauseOwnTimerFormOpen.value && showBlockingViolationDialog()) {
+        return;
+    }
+
     pauseOwnTimerFormOpen.value = !pauseOwnTimerFormOpen.value;
 
     if (!pauseOwnTimerFormOpen.value) {
@@ -324,6 +376,10 @@ const togglePauseOwnTimerForm = () => {
 
 const pauseScheduleForOwnTimer = () => {
     if (!props.activeScheduleRun) {
+        return;
+    }
+
+    if (showBlockingViolationDialog()) {
         return;
     }
 
@@ -338,6 +394,10 @@ const pauseScheduleForOwnTimer = () => {
 
 const resumeScheduleRun = () => {
     if (!props.activeScheduleRun) {
+        return;
+    }
+
+    if (showBlockingViolationDialog()) {
         return;
     }
 
@@ -375,58 +435,6 @@ const resumeScheduleRun = () => {
                 {{ flashError }}
             </div>
 
-            <div class="grid gap-5 lg:grid-cols-3">
-                <section class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
-                    <p class="text-xs uppercase tracking-[0.3em] text-stone-500">
-                        Статус
-                    </p>
-                    <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        {{ student.status === 'active' ? 'активен' : student.status === 'paused' ? 'пауза' : student.status }}
-                    </h3>
-                    <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Этот портал нужен для запуска расписания, отслеживания текущего таймера
-                        и просмотра штрафов по вашей учётной записи.
-                    </p>
-                </section>
-
-                <section class="rounded-[2rem] bg-stone-950 p-8 text-white shadow-sm">
-                    <p class="text-xs uppercase tracking-[0.3em] text-amber-300/70">
-                        Заметки
-                    </p>
-                    <p class="mt-4 text-sm leading-7 text-stone-300">
-                        {{ student.notes || 'Заметки об ученике пока не добавлены.' }}
-                    </p>
-                </section>
-
-                <section class="rounded-[2rem] bg-amber-50 p-8 shadow-sm ring-1 ring-amber-200">
-                    <p class="text-xs uppercase tracking-[0.3em] text-amber-800/70">
-                        Штрафы
-                    </p>
-                    <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        {{ penaltySummary.current_balance_units }}
-                    </h3>
-                    <p class="mt-2 text-sm font-semibold text-stone-700">
-                        Текущий штрафной баланс
-                    </p>
-                    <p class="mt-4 text-sm leading-7 text-stone-700">
-                        {{
-                            penaltySummary.open_violations === 1
-                                ? '1 открытое нарушение'
-                                : `${penaltySummary.open_violations} открытых нарушений`
-                        }}
-                    </p>
-                    <p class="mt-3 text-sm leading-7 text-stone-600">
-                        Только администратор может уменьшить или очистить штрафы.
-                    </p>
-                    <Link
-                        :href="route('student.penalties.index')"
-                        class="mt-5 inline-flex rounded-full border border-amber-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                    >
-                        Открыть штрафы
-                    </Link>
-                </section>
-            </div>
-
             <section class="mt-5 rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.3em] text-stone-500">
@@ -444,7 +452,7 @@ const resumeScheduleRun = () => {
                     <div class="rounded-[1.75rem] bg-stone-100 p-6">
                         <div class="flex flex-wrap items-center gap-3">
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                {{ activeScheduleRun.weekday_label }}
+                                ??????? ????
                             </p>
                             <span
                                 class="inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
@@ -555,10 +563,18 @@ const resumeScheduleRun = () => {
                             <button
                                 type="button"
                                 class="inline-flex rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-stone-200 transition hover:border-amber-300 hover:text-white"
+                                :disabled="!hasTaskTemplates"
                                 @click="togglePauseOwnTimerForm"
                             >
                                 {{ pauseOwnTimerFormOpen ? 'Скрыть свой таймер' : 'Пауза для своего таймера' }}
                             </button>
+
+                            <p
+                                v-if="!hasTaskTemplates"
+                                class="mt-4 rounded-[1.25rem] bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950 ring-1 ring-amber-200"
+                            >
+                                ??? Нарушения ??????? ??? ????? ? Нарушения?? ????????.
+                            </p>
 
                             <form
                                 v-if="pauseOwnTimerFormOpen"
@@ -567,20 +583,30 @@ const resumeScheduleRun = () => {
                             >
                                 <div>
                                     <label
-                                        for="own_timer_task_title"
+                                        for="own_timer_task_template_id"
                                         class="block text-xs uppercase tracking-[0.25em] text-stone-400"
                                     >
-                                        Собственное задание
+                                        Задание
                                     </label>
-                                    <input
-                                        id="own_timer_task_title"
-                                        v-model="pauseOwnTimerForm.task_title"
-                                        type="text"
+                                    <select
+                                        id="own_timer_task_template_id"
+                                        v-model="pauseOwnTimerForm.task_template_id"
                                         class="mt-2 block w-full rounded-[1.25rem] border-stone-700 bg-stone-900 text-stone-100 shadow-sm focus:border-amber-400 focus:ring-amber-400"
-                                    />
+                                    >
+                                        <option value="">
+                                            Выберите задание
+                                        </option>
+                                        <option
+                                            v-for="taskTemplate in props.taskTemplates"
+                                            :key="taskTemplate.id"
+                                            :value="String(taskTemplate.id)"
+                                        >
+                                            {{ taskTemplate.title }}
+                                        </option>
+                                    </select>
                                     <InputError
                                         class="mt-2 text-rose-300"
-                                        :message="pauseOwnTimerForm.errors.task_title"
+                                        :message="pauseOwnTimerForm.errors.task_template_id"
                                     />
                                 </div>
 
@@ -589,20 +615,48 @@ const resumeScheduleRun = () => {
                                         for="own_timer_duration_minutes"
                                         class="block text-xs uppercase tracking-[0.25em] text-stone-400"
                                     >
-                                        Таймер (минуты)
+                                        Длительность
                                     </label>
-                                    <input
+                                    <div
                                         id="own_timer_duration_minutes"
-                                        v-model="pauseOwnTimerForm.duration_minutes"
-                                        type="number"
-                                        min="5"
-                                        max="480"
-                                        class="mt-2 block w-full rounded-[1.25rem] border-stone-700 bg-stone-900 text-stone-100 shadow-sm focus:border-amber-400 focus:ring-amber-400"
-                                    />
-                                    <InputError
-                                        class="mt-2 text-rose-300"
-                                        :message="pauseOwnTimerForm.errors.duration_minutes"
-                                    />
+                                        class="mt-2 flex min-h-11 items-center rounded-[1.25rem] border border-stone-700 bg-stone-900 px-4 text-sm font-medium text-stone-100"
+                                    >
+                                        {{
+                                            selectedPauseTaskTemplate
+                                                ? `${selectedPauseTaskTemplate.default_duration_minutes} минут`
+                                                : '—'
+                                        }}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label
+                                        for="own_timer_summary"
+                                        class="block text-xs uppercase tracking-[0.25em] text-stone-400"
+                                    >
+                                        Описание
+                                    </label>
+                                    <div
+                                        id="own_timer_summary"
+                                        class="mt-2 rounded-[1.25rem] border border-stone-700 bg-stone-900 px-4 py-4 text-sm leading-6 text-stone-200"
+                                    >
+                                        {{ selectedPauseTaskTemplate?.summary || 'Описание для этого задания пока не добавлено.' }}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label
+                                        for="own_timer_instructions"
+                                        class="block text-xs uppercase tracking-[0.25em] text-stone-400"
+                                    >
+                                        Инструкции
+                                    </label>
+                                    <div
+                                        id="own_timer_instructions"
+                                        class="mt-2 rounded-[1.25rem] border border-stone-700 bg-stone-900 px-4 py-4 text-sm leading-6 text-stone-200"
+                                    >
+                                        {{ selectedPauseTaskTemplate?.instructions || 'Инструкции для этого задания пока не добавлены.' }}
+                                    </div>
                                 </div>
 
                                 <div>
@@ -626,7 +680,7 @@ const resumeScheduleRun = () => {
 
                                 <button
                                     type="submit"
-                                    :disabled="pauseOwnTimerForm.processing"
+                                    :disabled="pauseOwnTimerForm.processing || !hasTaskTemplates"
                                     class="inline-flex rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-stone-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     Поставить на паузу и запустить таймер
@@ -674,8 +728,8 @@ const resumeScheduleRun = () => {
                                             }}
                                         </span>
                                     </div>
-                                    <p class="mt-3 text-lg font-semibold text-stone-950">
-                                        {{ block.start_time }}
+                                    <p class="mt-3 text-sm font-medium text-stone-500">
+                                        ??????? ??????????
                                     </p>
                                     <p class="mt-2 text-sm text-stone-600">
                                         {{ block.duration_minutes }} минут
@@ -922,7 +976,7 @@ const resumeScheduleRun = () => {
                         >
                             <div>
                                 <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                    {{ scheduleTemplate.weekday.label }}
+                                    ??????????
                                 </p>
                                 <h4 class="mt-2 text-2xl font-semibold text-stone-950">
                                     {{ scheduleTemplate.name }}
@@ -963,10 +1017,10 @@ const resumeScheduleRun = () => {
                             >
                                 <div>
                                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                        Временной блок
+                                        ???????
                                     </p>
                                     <p class="mt-2 text-lg font-semibold text-stone-950">
-                                        {{ entry.start_time }}
+                                        {{ entry.task.title }}
                                     </p>
                                     <p class="mt-2 text-sm text-stone-600">
                                         {{ entry.duration_minutes }} минут
@@ -1010,7 +1064,7 @@ const resumeScheduleRun = () => {
                             Управление расписанием отключено
                         </p>
                         <p class="mt-3 text-sm leading-7 text-stone-600">
-                            Администратор отключил прямое редактирование расписания для этого ученика.
+                            Наставник отключил прямое редактирование расписания для этого ученика.
                         </p>
                     </template>
                 </div>

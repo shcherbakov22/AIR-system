@@ -21,7 +21,6 @@ const form = useForm({
     description: '',
     scope: 'global',
     student_id: '',
-    default_penalty_units: '10',
     is_active: true,
 });
 
@@ -47,7 +46,7 @@ const submit = () => {
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель администратора
+                        Панель наставника
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
                         Создание правила
@@ -73,8 +72,7 @@ const submit = () => {
                         Добавить повторно используемое правило поведения
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Здесь задаётся только правило и размер штрафа по умолчанию. Сами нарушения
-                        фиксируются отдельно.
+                        Здесь задаётся только правило. Сами нарушения фиксируются отдельно.
                     </p>
                 </div>
 
@@ -92,7 +90,7 @@ const submit = () => {
                         <InputError class="mt-2" :message="form.errors.title" />
                     </div>
 
-                    <div>
+                    <div class="md:col-span-2">
                         <InputLabel for="scope" value="Область действия" />
                         <select
                             id="scope"
@@ -107,19 +105,6 @@ const submit = () => {
                             </option>
                         </select>
                         <InputError class="mt-2" :message="form.errors.scope" />
-                    </div>
-
-                    <div>
-                        <InputLabel for="default_penalty_units" value="Штраф по умолчанию" />
-                        <TextInput
-                            id="default_penalty_units"
-                            v-model="form.default_penalty_units"
-                            type="number"
-                            min="0"
-                            max="100000"
-                            class="mt-2 block w-full rounded-xl border-stone-300"
-                        />
-                        <InputError class="mt-2" :message="form.errors.default_penalty_units" />
                     </div>
 
                     <div v-if="form.scope === 'student'" class="md:col-span-2">

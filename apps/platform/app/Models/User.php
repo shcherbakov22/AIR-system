@@ -85,11 +85,6 @@ class User extends Authenticatable
         return $this->hasMany(ViolationResolution::class, 'created_by_user_id');
     }
 
-    public function createdPenaltyTransactions(): HasMany
-    {
-        return $this->hasMany(PenaltyTransaction::class, 'created_by_user_id');
-    }
-
     public function startedTaskSessions(): HasMany
     {
         return $this->hasMany(TaskSession::class, 'started_by_user_id');

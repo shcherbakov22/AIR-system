@@ -15,7 +15,6 @@ class StoreTaskTemplateRequest extends FormRequest
             'title' => trim((string) $this->input('title')),
             'summary' => $summary === '' ? null : $summary,
             'instructions' => $instructions === '' ? null : $instructions,
-            'is_active' => $this->boolean('is_active', true),
         ]);
     }
 
@@ -33,8 +32,7 @@ class StoreTaskTemplateRequest extends FormRequest
             'title' => ['required', 'string', 'max:150'],
             'summary' => ['nullable', 'string', 'max:1000'],
             'instructions' => ['nullable', 'string', 'max:5000'],
-            'default_duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],
-            'is_active' => ['required', 'boolean'],
+            'default_duration_minutes' => ['required', 'integer', 'min:1', 'max:10000'],
         ];
     }
 }

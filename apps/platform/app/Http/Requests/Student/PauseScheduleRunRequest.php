@@ -3,16 +3,18 @@
 namespace App\Http\Requests\Student;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class PauseScheduleRunRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
-        $taskTitle = trim((string) $this->input('task_title'));
         $notes = trim((string) $this->input('notes'));
 
         $this->merge([
-            'task_title' => $taskTitle,
+            'task_template_id' => ($taskTemplateId = trim((string) $this->input('task_template_id'))) === ''
+                ? null
+                : (int) $taskTemplateId,
             'notes' => $notes === '' ? null : $notes,
         ]);
     }
@@ -25,8 +27,11 @@ class PauseScheduleRunRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'task_title' => ['required', 'string', 'max:160'],
-            'duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],
+            'task_template_id' => [
+                'required',
+                'integer',
+                Rule::exists('task_templates', 'id'),
+            ],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }

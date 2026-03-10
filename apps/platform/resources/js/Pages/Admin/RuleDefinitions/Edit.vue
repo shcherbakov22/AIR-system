@@ -15,7 +15,6 @@ const props = defineProps<{
         description?: string | null;
         scope: string;
         student_id: string;
-        default_penalty_units: number;
         is_active: boolean;
     };
     students: Array<{
@@ -30,7 +29,6 @@ const form = useForm({
     description: props.ruleDefinition.description ?? '',
     scope: props.ruleDefinition.scope,
     student_id: props.ruleDefinition.student_id,
-    default_penalty_units: String(props.ruleDefinition.default_penalty_units),
     is_active: props.ruleDefinition.is_active,
 });
 
@@ -56,7 +54,7 @@ const submit = () => {
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель администратора
+                        Панель наставника
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
                         Изменение правила
@@ -83,17 +81,16 @@ const submit = () => {
                             {{ props.ruleDefinition.title }}
                         </h3>
                         <p class="mt-4 text-sm leading-7 text-stone-600">
-                            Настройте область действия, штраф по умолчанию и активность до того,
-                            как на это правило начнут ссылаться нарушения.
+                            Настройте область действия и активность до того, как на это правило начнут ссылаться нарушения.
                         </p>
                     </div>
 
                     <div class="rounded-[1.5rem] bg-stone-100 p-5">
                         <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                            Текущее значение
+                            Текущая область
                         </p>
                         <p class="mt-3 text-lg font-semibold text-stone-950">
-                            {{ props.ruleDefinition.default_penalty_units }} штрафных ед.
+                            {{ props.ruleDefinition.scope === 'global' ? 'Глобальное правило' : 'Личное правило' }}
                         </p>
                         <p class="mt-2 text-sm text-stone-600">
                             {{
@@ -119,7 +116,7 @@ const submit = () => {
                         <InputError class="mt-2" :message="form.errors.title" />
                     </div>
 
-                    <div>
+                    <div class="md:col-span-2">
                         <InputLabel for="scope" value="Область действия" />
                         <select
                             id="scope"
@@ -134,19 +131,6 @@ const submit = () => {
                             </option>
                         </select>
                         <InputError class="mt-2" :message="form.errors.scope" />
-                    </div>
-
-                    <div>
-                        <InputLabel for="default_penalty_units" value="Штраф по умолчанию" />
-                        <TextInput
-                            id="default_penalty_units"
-                            v-model="form.default_penalty_units"
-                            type="number"
-                            min="0"
-                            max="100000"
-                            class="mt-2 block w-full rounded-xl border-stone-300"
-                        />
-                        <InputError class="mt-2" :message="form.errors.default_penalty_units" />
                     </div>
 
                     <div v-if="form.scope === 'student'" class="md:col-span-2">

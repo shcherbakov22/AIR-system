@@ -29,10 +29,6 @@ class UpdateTaskAssignmentRequest extends FormRequest
      */
     public function rules(): array
     {
-        /** @var TaskAssignment|null $taskAssignment */
-        $taskAssignment = $this->route('taskAssignment');
-        $currentTaskTemplateId = $taskAssignment?->task_template_id;
-
         return [
             'student_id' => [
                 'required',
@@ -42,11 +38,7 @@ class UpdateTaskAssignmentRequest extends FormRequest
             'task_template_id' => [
                 'required',
                 'integer',
-                Rule::exists(TaskTemplate::class, 'id')->where(
-                    fn ($query) => $query
-                        ->where('is_active', true)
-                        ->orWhere('id', $currentTaskTemplateId)
-                ),
+                Rule::exists(TaskTemplate::class, 'id'),
             ],
             'status' => ['required', 'string', Rule::in(['assigned', 'paused', 'completed'])],
             'due_on' => ['nullable', 'date'],

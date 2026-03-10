@@ -37,7 +37,6 @@ class TaskTemplateUpdateTest extends TestCase
                 ->where('taskTemplate.id', $taskTemplate->id)
                 ->where('taskTemplate.title', 'Reading Review')
                 ->where('taskTemplate.default_duration_minutes', 45)
-                ->where('taskTemplate.is_active', true)
             );
     }
 
@@ -62,7 +61,6 @@ class TaskTemplateUpdateTest extends TestCase
             'summary' => 'Longer reading block.',
             'instructions' => 'Read carefully and write a three-point recap.',
             'default_duration_minutes' => 60,
-            'is_active' => false,
         ]);
 
         $response
@@ -75,7 +73,6 @@ class TaskTemplateUpdateTest extends TestCase
         $this->assertSame('Longer reading block.', $taskTemplate->summary);
         $this->assertSame('Read carefully and write a three-point recap.', $taskTemplate->instructions);
         $this->assertSame(60, $taskTemplate->default_duration_minutes);
-        $this->assertFalse($taskTemplate->is_active);
     }
 
     public function test_students_are_redirected_away_from_the_edit_task_template_screen(): void

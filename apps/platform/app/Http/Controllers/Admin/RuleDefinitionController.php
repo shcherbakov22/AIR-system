@@ -36,7 +36,6 @@ class RuleDefinitionController extends Controller
             'title' => $ruleDefinition->title,
             'description' => $ruleDefinition->description,
             'scope' => $ruleDefinition->scope,
-            'default_penalty_units' => $ruleDefinition->default_penalty_units,
             'is_active' => $ruleDefinition->is_active,
             'student' => $ruleDefinition->student
                 ? [
@@ -78,7 +77,6 @@ class RuleDefinitionController extends Controller
                 'description' => $ruleDefinition->description ?? '',
                 'scope' => $ruleDefinition->scope,
                 'student_id' => $ruleDefinition->student_id ? (string) $ruleDefinition->student_id : '',
-                'default_penalty_units' => $ruleDefinition->default_penalty_units,
                 'is_active' => $ruleDefinition->is_active,
             ],
             'students' => $this->studentOptions(),
@@ -92,7 +90,7 @@ class RuleDefinitionController extends Controller
             'description' => $request->input('description'),
             'scope' => $request->string('scope')->toString(),
             'student_id' => $request->input('student_id'),
-            'default_penalty_units' => (int) $request->input('default_penalty_units'),
+            'default_penalty_units' => 0,
             'is_active' => $request->boolean('is_active'),
             'created_by_user_id' => $request->user()->id,
         ]);
@@ -109,12 +107,22 @@ class RuleDefinitionController extends Controller
             'description' => $request->input('description'),
             'scope' => $request->string('scope')->toString(),
             'student_id' => $request->input('student_id'),
-            'default_penalty_units' => (int) $request->input('default_penalty_units'),
+            'default_penalty_units' => 0,
             'is_active' => $request->boolean('is_active'),
         ]);
 
         return redirect()
             ->route('admin.rule-definitions.index')
             ->with('success', "Правило {$ruleDefinition->fresh()->title} обновлено.");
+    }
+    public function destroy(RuleDefinition $ruleDefinition): RedirectResponse
+    {
+        $ruleDefinitionTitle = $ruleDefinition->title;
+
+        $ruleDefinition->delete();
+
+        return redirect()
+            ->route('admin.rule-definitions.index')
+            ->with('success', 'Правило '.$ruleDefinitionTitle.' удалено.');
     }
 }

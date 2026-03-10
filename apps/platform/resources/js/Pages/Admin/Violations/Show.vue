@@ -6,14 +6,13 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import type { PageProps } from '@/types';
 import { labelViolationResolutionAction } from '@/lib/labels';
 import { computed } from 'vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{
     violation: {
         id: number;
         status: string;
         rule_title: string;
-        penalty_units: number;
         occurred_at_label?: string | null;
         notes?: string | null;
         student: {
@@ -24,18 +23,6 @@ const props = defineProps<{
         rule_definition?: {
             id: number;
             scope: string;
-        } | null;
-        penalty_transaction?: {
-            id: number;
-            type: string;
-            delta_units: number;
-            notes?: string | null;
-            recorded_at_label?: string | null;
-            created_by?: {
-                id: number;
-                name: string;
-                username: string;
-            } | null;
         } | null;
         latest_resolution?: {
             id: number;
@@ -75,6 +62,14 @@ const submit = (action: 'resolved' | 'waived') => {
     form.action = action;
     form.patch(route('admin.violations.resolve', props.violation.id));
 };
+
+const deleteViolation = () => {
+    if (!window.confirm(`Удалить нарушение "${props.violation.rule_title}"? Записи о разборе по нему тоже будут удалены.`)) {
+        return;
+    }
+
+    router.delete(route('admin.violations.destroy', props.violation.id));
+};
 </script>
 
 <template>
@@ -85,19 +80,28 @@ const submit = (action: 'resolved' | 'waived') => {
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель администратора
+                        Панель наставника
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
                         Проверка нарушения
                     </h2>
                 </div>
 
-                <Link
-                    :href="route('admin.violations.index')"
-                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                >
-                    Назад к нарушениям
-                </Link>
+                <div class="flex flex-wrap gap-3">
+                    <Link
+                        :href="route('admin.violations.index')"
+                        class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                    >
+                        Назад к нарушениям
+                    </Link>
+                    <button
+                        type="button"
+                        class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
+                        @click="deleteViolation"
+                    >
+                        Удалить нарушение
+                    </button>
+                </div>
             </div>
         </template>
 
@@ -146,26 +150,7 @@ const submit = (action: 'resolved' | 'waived') => {
                                                 : 'bg-stone-200 text-stone-700'
                                     "
                                 >
-                                    {{ props.violation.status === 'open' ? 'открыто' : props.violation.status === 'resolved' ? 'решено' : 'отменено' }}
-                                </span>
-                                <span
-                                    class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700"
-                                >
-                                    {{ props.violation.penalty_units }} ед.
-                                </span>
-                                <span
-                                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                    :class="
-                                        props.violation.penalty_transaction
-                                            ? 'bg-amber-100 text-amber-800'
-                                            : 'bg-stone-200 text-stone-700'
-                                    "
-                                >
-                                    {{
-                                        props.violation.penalty_transaction
-                                            ? 'запись в журнале есть'
-                                            : 'записи в журнале нет'
-                                    }}
+                                    {{ props.violation.status === 'open' ? 'Открыто' : props.violation.status === 'resolved' ? 'Решено' : 'Отменено' }}
                                 </span>
                             </div>
                         </div>
@@ -219,44 +204,6 @@ const submit = (action: 'resolved' | 'waived') => {
                         }}
                     </p>
 
-                    <div class="mt-6 rounded-[1.5rem] bg-stone-100 p-5">
-                        <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                            <div>
-                                <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                    Штрафная запись
-                                </p>
-                                <p class="mt-3 text-sm font-semibold text-stone-950">
-                                    {{
-                                        props.violation.penalty_transaction
-                                            ? `В журнал записано ${props.violation.penalty_transaction.delta_units} ед.`
-                                            : props.violation.penalty_units > 0
-                                                ? 'Для этого нарушения не найдена связанная штрафная проводка.'
-                                                : 'Автоматическое начисление не создавалось, потому что размер штрафа равен нулю.'
-                                    }}
-                                </p>
-                                <p class="mt-3 text-sm leading-6 text-stone-600">
-                                    {{
-                                        props.violation.penalty_transaction?.recorded_at_label ||
-                                        'Изменения штрафов отслеживаются отдельно от статуса нарушения.'
-                                    }}
-                                </p>
-                                <p class="mt-2 text-sm leading-6 text-stone-600">
-                                    {{
-                                        props.violation.penalty_transaction?.notes ||
-                                        'Используйте штрафной журнал ученика, чтобы уменьшить или очистить штрафные единицы. Закрытие нарушения само по себе журнал не меняет.'
-                                    }}
-                                </p>
-                            </div>
-
-                            <Link
-                                :href="route('admin.penalties.show', props.violation.student.id)"
-                                class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                            >
-                                Открыть штрафной журнал
-                            </Link>
-                        </div>
-                    </div>
-
                     <form
                         v-if="props.violation.status === 'open'"
                         class="mt-8"
@@ -294,12 +241,12 @@ const submit = (action: 'resolved' | 'waived') => {
 
                     <div v-else class="mt-8 rounded-[1.5rem] bg-stone-100 p-5">
                         <p class="text-sm font-semibold text-stone-950">
-                                {{
-                                    props.violation.latest_resolution
-                                        ? `${labelViolationResolutionAction(props.violation.latest_resolution.action)} ${props.violation.latest_resolution.recorded_at_label || ''}`.trim()
-                                        : 'Закрыто без загруженной записи о решении.'
-                                }}
-                            </p>
+                            {{
+                                props.violation.latest_resolution
+                                    ? `${labelViolationResolutionAction(props.violation.latest_resolution.action)} ${props.violation.latest_resolution.recorded_at_label || ''}`.trim()
+                                    : 'Закрыто без загруженной записи о решении.'
+                            }}
+                        </p>
                         <p class="mt-3 text-sm leading-6 text-stone-600">
                             {{ props.violation.latest_resolution?.notes || 'Заметки по решению не указаны.' }}
                         </p>
@@ -331,7 +278,7 @@ const submit = (action: 'resolved' | 'waived') => {
                                             : 'bg-stone-200 text-stone-700'
                                     "
                                 >
-                                    {{ resolution.action === 'resolved' ? 'решено' : 'отменено' }}
+                                    {{ resolution.action === 'resolved' ? 'Решено' : 'Отменено' }}
                                 </span>
                             </div>
                             <p class="mt-3 text-sm text-stone-600">
@@ -341,7 +288,7 @@ const submit = (action: 'resolved' | 'waived') => {
                                 {{
                                     resolution.created_by
                                         ? `${resolution.created_by.name} (${resolution.created_by.username})`
-                                        : 'Неизвестный администратор'
+                                        : 'Неизвестный наставник'
                                 }}
                             </p>
                         </div>
@@ -356,8 +303,7 @@ const submit = (action: 'resolved' | 'waived') => {
 
                 <div v-else class="mt-8 rounded-[1.5rem] bg-stone-100 px-5 py-6">
                     <p class="text-sm text-stone-600">
-                        Записей о решении пока нет. Первое действие «решить» или «отменить»
-                        появится здесь.
+                        Записей о решении пока нет. Первое действие «решить» или «отменить» появится здесь.
                     </p>
                 </div>
             </section>

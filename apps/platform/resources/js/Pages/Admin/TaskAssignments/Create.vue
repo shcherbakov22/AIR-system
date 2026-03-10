@@ -17,7 +17,6 @@ const props = defineProps<{
         id: number;
         title: string;
         default_duration_minutes: number;
-        is_active: boolean;
     }>;
 }>();
 
@@ -44,7 +43,7 @@ const submit = () => {
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель администратора
+                        Панель наставника
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
                         Создание назначения
@@ -70,7 +69,7 @@ const submit = () => {
                         Назначить задание ученику
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Выберите ученика, активный шаблон задания и задайте статус назначения.
+                        Выберите ученика, шаблон задания и задайте статус назначения.
                     </p>
                 </div>
 
@@ -79,7 +78,7 @@ const submit = () => {
                         Не хватает данных
                     </p>
                     <p class="mt-3 text-sm leading-7 text-stone-600">
-                        Для создания назначения нужен как минимум один ученик и один активный шаблон задания.
+                        Для создания назначения нужен как минимум один ученик и один шаблон задания.
                     </p>
                 </div>
 
@@ -116,9 +115,7 @@ const submit = () => {
                                 :key="taskTemplate.id"
                                 :value="String(taskTemplate.id)"
                             >
-                                {{ taskTemplate.title }} ({{ taskTemplate.default_duration_minutes }} min){{
-                                    taskTemplate.is_active ? '' : ' - неактивен'
-                                }}
+                                {{ taskTemplate.title }} ({{ taskTemplate.default_duration_minutes }} min)
                             </option>
                         </select>
                         <InputError class="mt-2" :message="form.errors.task_template_id" />

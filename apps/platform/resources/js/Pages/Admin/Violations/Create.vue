@@ -17,7 +17,6 @@ const props = defineProps<{
         id: number;
         title: string;
         scope: string;
-        default_penalty_units: number;
         description?: string | null;
         student?: {
             id: number;
@@ -40,12 +39,11 @@ const form = useForm({
     student_id: '',
     rule_definition_id: '',
     occurred_at: formatDefaultOccurredAt(),
-    penalty_units: '0',
     notes: '',
 });
 
 const availableRuleDefinitions = computed(() => {
-    if (! form.student_id) {
+    if (!form.student_id) {
         return [] as typeof props.ruleDefinitions;
     }
 
@@ -61,7 +59,7 @@ const availableRuleDefinitions = computed(() => {
 });
 
 const selectedRuleDefinition = computed(() => {
-    if (! form.rule_definition_id) {
+    if (!form.rule_definition_id) {
         return null;
     }
 
@@ -78,25 +76,9 @@ watch(
             (ruleDefinition) => ruleDefinition.id === currentRuleId,
         );
 
-        if (! ruleStillAvailable) {
+        if (!ruleStillAvailable) {
             form.rule_definition_id = '';
-            form.penalty_units = '0';
         }
-    },
-);
-
-watch(
-    () => form.rule_definition_id,
-    (ruleDefinitionId) => {
-        const ruleDefinition = props.ruleDefinitions.find(
-            (candidate) => candidate.id === Number(ruleDefinitionId),
-        );
-
-        if (! ruleDefinition) {
-            return;
-        }
-
-        form.penalty_units = String(ruleDefinition.default_penalty_units);
     },
 );
 
@@ -113,7 +95,7 @@ const submit = () => {
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель администратора
+                        Панель наставника
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
                         Создание нарушения
@@ -139,9 +121,7 @@ const submit = () => {
                         Зафиксировать открытое нарушение
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Сначала выберите ученика, затем активное правило, которое к нему
-                        применяется. При сохранении нарушения штрафные единицы также
-                        автоматически записываются в журнал ученика, если значение больше нуля.
+                        Сначала выберите ученика, затем правило, которое к нему применяется. Открытое нарушение само по себе блокирует продолжение расписания, пока наставник его не закроет.
                     </p>
                 </div>
 
@@ -192,7 +172,7 @@ const submit = () => {
                         <InputError class="mt-2" :message="form.errors.rule_definition_id" />
                     </div>
 
-                    <div>
+                    <div class="md:col-span-2">
                         <InputLabel for="occurred_at" value="Время нарушения" />
                         <TextInput
                             id="occurred_at"
@@ -201,19 +181,6 @@ const submit = () => {
                             class="mt-2 block w-full rounded-xl border-stone-300"
                         />
                         <InputError class="mt-2" :message="form.errors.occurred_at" />
-                    </div>
-
-                    <div>
-                        <InputLabel for="penalty_units" value="Штрафные единицы" />
-                        <TextInput
-                            id="penalty_units"
-                            v-model="form.penalty_units"
-                            type="number"
-                            min="0"
-                            max="100000"
-                            class="mt-2 block w-full rounded-xl border-stone-300"
-                        />
-                        <InputError class="mt-2" :message="form.errors.penalty_units" />
                     </div>
 
                     <div class="md:col-span-2">
@@ -258,8 +225,7 @@ const submit = () => {
 
                     <div class="md:col-span-2 flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-sm text-stone-500">
-                            Это создаёт запись об открытом нарушении и автоматически проводит
-                            штрафное начисление.
+                            Это создаёт открытую запись о нарушении, которую потом можно решить или отменить.
                         </p>
 
                         <PrimaryButton

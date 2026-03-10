@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\ScheduleWeekday;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,7 +23,6 @@ class ScheduleTemplate extends Model
     protected function casts(): array
     {
         return [
-            'weekday' => ScheduleWeekday::class,
             'is_active' => 'boolean',
         ];
     }
@@ -36,7 +34,7 @@ class ScheduleTemplate extends Model
 
     public function entries(): HasMany
     {
-        return $this->hasMany(ScheduleEntry::class)->orderBy('position')->orderBy('start_time');
+        return $this->hasMany(ScheduleEntry::class)->orderBy('position');
     }
 
     public function runs(): HasMany

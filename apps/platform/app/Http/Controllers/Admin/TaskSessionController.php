@@ -137,4 +137,26 @@ class TaskSessionController extends Controller
             ],
         ]);
     }
+
+    public function destroyAll(Request $request)
+    {
+        $request->validate([
+            'filter' => 'required|in:active,completed,all',
+        ]);
+
+        $filter = $request->string('filter')->toString();
+
+        $query = TaskSession::query();
+
+        if ($filter === 'active') {
+            $query->where('status', 'active');
+        } elseif ($filter === 'completed') {
+            $query->where('status', 'completed');
+        }
+
+        $count = $query->count();
+        $query->delete();
+
+        return back()->with('success', "Удалено сессий: {$count}");
+    }
 }

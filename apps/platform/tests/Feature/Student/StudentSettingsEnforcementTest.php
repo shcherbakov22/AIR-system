@@ -8,6 +8,7 @@ use App\Models\ScheduleRun;
 use App\Models\ScheduleTemplate;
 use App\Models\Student;
 use App\Models\StudentSetting;
+use App\Models\TaskTemplate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -15,6 +16,23 @@ use Tests\TestCase;
 class StudentSettingsEnforcementTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function createTaskTemplate(
+        User $creator,
+        string $title,
+        int $defaultDurationMinutes,
+        string $summary,
+        string $instructions,
+    ): TaskTemplate {
+        return TaskTemplate::create([
+            'title' => $title,
+            'summary' => $summary,
+            'instructions' => $instructions,
+            'default_duration_minutes' => $defaultDurationMinutes,
+            'is_active' => true,
+            'created_by_user_id' => $creator->id,
+        ]);
+    }
 
     public function test_student_can_be_blocked_from_schedule_management_routes(): void
     {
@@ -52,6 +70,9 @@ class StudentSettingsEnforcementTest extends TestCase
             'role' => UserRole::Student,
             'username' => 'student_no_timer',
         ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
 
         $student = Student::create([
             'user_id' => $studentUser->id,
@@ -67,6 +88,21 @@ class StudentSettingsEnforcementTest extends TestCase
             'preferred_timezone' => 'UTC',
         ]);
 
+        $readingTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Reading',
+            30,
+            'Read the text.',
+            'Read carefully.',
+        );
+        $breakTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Break Timer',
+            15,
+            'Short interruption timer.',
+            'Use this timer while the schedule is paused.',
+        );
+
         $scheduleTemplate = ScheduleTemplate::create([
             'student_id' => $student->id,
             'name' => 'Monday Plan',
@@ -77,13 +113,10 @@ class StudentSettingsEnforcementTest extends TestCase
         ]);
 
         $scheduleTemplate->entries()->create([
-            'task_template_id' => null,
-            'task_title' => 'Reading',
-            'task_summary' => 'Read the text.',
-            'task_instructions' => 'Read carefully.',
+            'task_template_id' => $readingTemplate->id,
             'position' => 1,
             'start_time' => '09:00',
-            'duration_minutes' => 30,
+            'duration_minutes' => $readingTemplate->default_duration_minutes,
             'notes' => null,
         ]);
 
@@ -103,11 +136,15 @@ class StudentSettingsEnforcementTest extends TestCase
 
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.pause', $scheduleRun), [
-                'task_title' => 'Break Timer',
-                'duration_minutes' => 15,
+                'task_template_id' => $breakTemplate->id,
                 'notes' => 'Should not start.',
             ])
             ->assertRedirect(route('student.home', absolute: false))
             ->assertSessionHas('error', 'Собственные таймеры для этого ученика отключены.');
+        $this->assertDatabaseMissing('task_sessions', [
+            'student_id' => $student->id,
+            'task_template_id' => $breakTemplate->id,
+            'schedule_run_id' => null,
+        ]);
     }
 }

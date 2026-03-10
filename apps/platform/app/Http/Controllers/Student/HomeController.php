@@ -4,30 +4,71 @@ namespace App\Http\Controllers\Student;
 
 use App\Enums\ScheduleWeekday;
 use App\Http\Controllers\Controller;
+use App\Models\Violation;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleTemplate;
+use App\Models\TaskTemplate;
+use App\Services\AutomaticObserveTheTimeViolationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class HomeController extends Controller
 {
+    protected function scheduleWeekdayValue(mixed $weekday): string
+    {
+        if ($weekday instanceof ScheduleWeekday) {
+            return $weekday->value;
+        }
+
+        return is_string($weekday) ? $weekday : ScheduleWeekday::Monday->value;
+    }
+
+    protected function scheduleWeekdayLabel(mixed $weekday): string
+    {
+        if ($weekday instanceof ScheduleWeekday) {
+            return $weekday->label();
+        }
+
+        if (is_string($weekday)) {
+            return ScheduleWeekday::tryFrom($weekday)?->label() ?? $weekday;
+        }
+
+        return ScheduleWeekday::Monday->label();
+    }
+
+    protected function scheduleWeekdaySortOrder(mixed $weekday): int
+    {
+        if ($weekday instanceof ScheduleWeekday) {
+            return $weekday->sortOrder();
+        }
+
+        if (is_string($weekday)) {
+            return ScheduleWeekday::tryFrom($weekday)?->sortOrder() ?? 99;
+        }
+
+        return 99;
+    }
+
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request, AutomaticObserveTheTimeViolationService $automaticViolationService): Response
     {
-        $student = $request->user()
-            ->loadMissing([
-                'student.setting',
-                'student.scheduleTemplates.entries.taskTemplate',
-                'student.scheduleRuns.blocks',
-                'student.taskSessions.scheduleRun',
-                'student.taskSessions.scheduleRunBlock',
-                'student.violations',
-                'student.penaltyAccount',
-            ])
-            ->student;
+        $student = $request->user()->student;
+
+        if ($student) {
+            $automaticViolationService->evaluate($student);
+
+            $student->load([
+                'setting',
+                'scheduleTemplates.entries.taskTemplate',
+                'scheduleRuns.blocks',
+                'taskSessions.scheduleRun',
+                'taskSessions.scheduleRunBlock',
+                'violations',
+            ]);
+        }
 
         $activeTaskSession = $student?->taskSessions
             ? $student->taskSessions
@@ -43,6 +84,12 @@ class HomeController extends Controller
 
         $nextScheduleRunBlock = null;
         $pausedScheduleRunBlock = null;
+        $openViolations = $student?->violations
+            ? $student->violations
+                ->where('status', 'open')
+                ->sortByDesc('occurred_at')
+                ->values()
+            : collect();
 
         if ($activeScheduleRun) {
             $sortedBlocks = $activeScheduleRun->blocks
@@ -68,12 +115,16 @@ class HomeController extends Controller
                 'can_manage_own_schedule' => $student?->canManageOwnSchedule() ?? true,
                 'can_use_ad_hoc_timer' => $student?->canUseAdHocTimer() ?? true,
             ],
-            'penaltySummary' => [
-                'current_balance_units' => $student?->penaltyAccount?->currentBalanceUnits() ?? 0,
-                'open_violations' => $student?->violations
-                    ? $student->violations->where('status', 'open')->count()
-                    : 0,
+            'violationSummary' => [
+                'open_violations' => $openViolations->count(),
             ],
+            'openViolations' => $openViolations
+                ->map(fn (Violation $violation) => [
+                    'id' => $violation->id,
+                    'rule_title' => $violation->rule_title_snapshot,
+                    'occurred_at_label' => $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
+                ])
+                ->all(),
             'activeTaskSession' => $activeTaskSession
                 ? [
                     'id' => $activeTaskSession->id,
@@ -84,6 +135,7 @@ class HomeController extends Controller
                     'task_instructions' => $activeTaskSession->task_instructions_snapshot,
                     'assignment_notes' => $activeTaskSession->assignment_notes_snapshot,
                     'planned_duration_minutes' => $activeTaskSession->planned_duration_minutes,
+                    'duration_seconds' => $activeTaskSession->duration_seconds,
                     'started_at' => $activeTaskSession->started_at?->toAtomString(),
                     'started_at_label' => $activeTaskSession->started_at?->locale(app()->getLocale())->translatedFormat('d M, H:i'),
                     'source_type' => $activeTaskSession->schedule_run_id
@@ -148,7 +200,7 @@ class HomeController extends Controller
                     ->filter(fn (ScheduleTemplate $scheduleTemplate) => $scheduleTemplate->is_active)
                     ->sortBy(fn (ScheduleTemplate $scheduleTemplate) => sprintf(
                         '%02d-%s-%010d',
-                        $scheduleTemplate->weekday?->sortOrder() ?? 99,
+                        $this->scheduleWeekdaySortOrder($scheduleTemplate->weekday),
                         $scheduleTemplate->entries->first()?->start_time ?? '23:59:59',
                         $scheduleTemplate->id,
                     ))
@@ -157,8 +209,8 @@ class HomeController extends Controller
                         'id' => $scheduleTemplate->id,
                         'name' => $scheduleTemplate->name,
                         'weekday' => [
-                            'value' => $scheduleTemplate->weekday?->value ?? ScheduleWeekday::Monday->value,
-                            'label' => $scheduleTemplate->weekday?->label() ?? ScheduleWeekday::Monday->label(),
+                            'value' => $this->scheduleWeekdayValue($scheduleTemplate->weekday),
+                            'label' => $this->scheduleWeekdayLabel($scheduleTemplate->weekday),
                         ],
                         'is_active' => $scheduleTemplate->is_active,
                         'notes' => $scheduleTemplate->notes,
@@ -179,6 +231,17 @@ class HomeController extends Controller
                     ])
                     ->all()
                 : [],
+            'taskTemplates' => TaskTemplate::query()
+                ->orderBy('title')
+                ->get()
+                ->map(fn (TaskTemplate $taskTemplate) => [
+                    'id' => $taskTemplate->id,
+                    'title' => $taskTemplate->title,
+                    'summary' => $taskTemplate->summary,
+                    'instructions' => $taskTemplate->instructions,
+                    'default_duration_minutes' => $taskTemplate->default_duration_minutes,
+                ])
+                ->all(),
         ]);
     }
 }

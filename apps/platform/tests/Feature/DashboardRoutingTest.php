@@ -110,8 +110,7 @@ class DashboardRoutingTest extends TestCase
                 ->where('student.display_name', 'Student Home')
                 ->where('student.status', 'active')
                 ->where('student.notes', 'Ready for tasks')
-                ->where('penaltySummary.current_balance_units', 0)
-                ->where('penaltySummary.open_violations', 0)
+                                ->where('violationSummary.open_violations', 0)
                 ->missing('taskAssignments')
                 ->where('activeTaskSession', null)
                 ->missing('recentTaskSessions')
@@ -123,7 +122,7 @@ class DashboardRoutingTest extends TestCase
             );
     }
 
-    public function test_student_home_reflects_penalty_balance_from_admin_logged_violations(): void
+    public function test_student_home_reflects_open_violations_from_admin_logged_violations(): void
     {
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
@@ -148,7 +147,7 @@ class DashboardRoutingTest extends TestCase
             'description' => 'Student must stay on the active task.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 9,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -157,8 +156,7 @@ class DashboardRoutingTest extends TestCase
             'student_id' => $student->id,
             'rule_definition_id' => $ruleDefinition->id,
             'occurred_at' => '2026-03-08T12:05',
-            'penalty_units' => 9,
-            'notes' => 'Left the task without permission.',
+                        'notes' => 'Left the task without permission.',
         ])->assertRedirect(route('admin.violations.index', absolute: false));
 
         $this->actingAs($studentUser)
@@ -167,8 +165,7 @@ class DashboardRoutingTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/Home')
                 ->where('student.display_name', 'Student Penalties')
-                ->where('penaltySummary.current_balance_units', 9)
-                ->where('penaltySummary.open_violations', 1)
+                                ->where('violationSummary.open_violations', 1)
             );
     }
 }

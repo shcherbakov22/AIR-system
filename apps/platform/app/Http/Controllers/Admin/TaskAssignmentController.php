@@ -31,23 +31,13 @@ class TaskAssignmentController extends Controller
 
     protected function taskTemplateOptions(?TaskAssignment $taskAssignment = null): array
     {
-        $currentTaskTemplateId = $taskAssignment?->task_template_id;
-
         return TaskTemplate::query()
-            ->when(
-                $currentTaskTemplateId,
-                fn ($query) => $query->where(fn ($builder) => $builder
-                    ->where('is_active', true)
-                    ->orWhere('id', $currentTaskTemplateId)),
-                fn ($query) => $query->where('is_active', true)
-            )
             ->orderBy('title')
             ->get()
             ->map(fn (TaskTemplate $taskTemplate) => [
                 'id' => $taskTemplate->id,
                 'title' => $taskTemplate->title,
                 'default_duration_minutes' => $taskTemplate->default_duration_minutes,
-                'is_active' => $taskTemplate->is_active,
             ])
             ->all();
     }

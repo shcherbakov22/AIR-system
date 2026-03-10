@@ -35,23 +35,13 @@ class ScheduleTemplateController extends Controller
 
     protected function taskTemplateOptions(?ScheduleTemplate $scheduleTemplate = null): array
     {
-        $currentTaskTemplateId = $scheduleTemplate?->entries()->value('task_template_id');
-
         return TaskTemplate::query()
-            ->when(
-                $currentTaskTemplateId,
-                fn ($query) => $query->where(fn ($builder) => $builder
-                    ->where('is_active', true)
-                    ->orWhere('id', $currentTaskTemplateId)),
-                fn ($query) => $query->where('is_active', true)
-            )
             ->orderBy('title')
             ->get()
             ->map(fn (TaskTemplate $taskTemplate) => [
                 'id' => $taskTemplate->id,
                 'title' => $taskTemplate->title,
                 'default_duration_minutes' => $taskTemplate->default_duration_minutes,
-                'is_active' => $taskTemplate->is_active,
             ])
             ->all();
     }
@@ -68,13 +58,23 @@ class ScheduleTemplateController extends Controller
             ->format('H:i');
     }
 
+    protected function resolveWeekday(?string $weekday): ?ScheduleWeekday
+    {
+        if ($weekday === null || $weekday === '') {
+            return null;
+        }
+
+        return ScheduleWeekday::tryFrom($weekday);
+    }
+
     protected function templateSortKey(ScheduleTemplate $scheduleTemplate): string
     {
         $firstStartTime = $scheduleTemplate->entries->first()?->start_time ?? '23:59:59';
+        $weekday = $this->resolveWeekday($scheduleTemplate->weekday);
 
         return sprintf(
             '%02d-%s-%010d',
-            $scheduleTemplate->weekday?->sortOrder() ?? 99,
+            $weekday?->sortOrder() ?? 99,
             $firstStartTime,
             $scheduleTemplate->id,
         );
@@ -83,13 +83,14 @@ class ScheduleTemplateController extends Controller
     protected function toPayload(ScheduleTemplate $scheduleTemplate): array
     {
         $scheduleTemplate->loadMissing(['student.user', 'entries.taskTemplate']);
+        $weekday = $this->resolveWeekday($scheduleTemplate->weekday);
 
         return [
             'id' => $scheduleTemplate->id,
             'name' => $scheduleTemplate->name,
             'weekday' => [
-                'value' => $scheduleTemplate->weekday->value,
-                'label' => $scheduleTemplate->weekday->label(),
+                'value' => $weekday?->value ?? (string) $scheduleTemplate->weekday,
+                'label' => $weekday?->label() ?? (string) $scheduleTemplate->weekday,
             ],
             'is_active' => $scheduleTemplate->is_active,
             'notes' => $scheduleTemplate->notes,
@@ -171,6 +172,7 @@ class ScheduleTemplateController extends Controller
     public function edit(ScheduleTemplate $scheduleTemplate): Response
     {
         $scheduleTemplate->loadMissing('entries');
+        $weekday = $this->resolveWeekday($scheduleTemplate->weekday);
 
         /** @var ScheduleEntry|null $entry */
         $entry = $scheduleTemplate->entries->sortBy('position')->first();
@@ -180,7 +182,7 @@ class ScheduleTemplateController extends Controller
                 'id' => $scheduleTemplate->id,
                 'student_id' => (string) $scheduleTemplate->student_id,
                 'name' => $scheduleTemplate->name,
-                'weekday' => $scheduleTemplate->weekday->value,
+                'weekday' => $weekday?->value ?? (string) $scheduleTemplate->weekday,
                 'is_active' => $scheduleTemplate->is_active,
                 'notes' => $scheduleTemplate->notes ?? '',
                 'entry' => [

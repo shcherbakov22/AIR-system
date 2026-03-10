@@ -3,7 +3,6 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\UserRole;
-use App\Models\PenaltyAccount;
 use App\Models\RuleDefinition;
 use App\Models\Student;
 use App\Models\User;
@@ -62,7 +61,7 @@ class ViolationManagementTest extends TestCase
             'description' => 'Student must stay on assigned work.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 10,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -72,7 +71,7 @@ class ViolationManagementTest extends TestCase
             'description' => 'Inactive rule.',
             'scope' => 'student',
             'student_id' => $student->id,
-            'default_penalty_units' => 5,
+            'default_penalty_units' => 0,
             'is_active' => false,
             'created_by_user_id' => $admin->id,
         ]);
@@ -102,59 +101,6 @@ class ViolationManagementTest extends TestCase
             'description' => 'Student must stay on assigned work.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 10,
-            'is_active' => true,
-            'created_by_user_id' => $admin->id,
-        ]);
-
-        $response = $this->actingAs($admin)->post(route('admin.violations.store'), [
-            'student_id' => $student->id,
-            'rule_definition_id' => $ruleDefinition->id,
-            'occurred_at' => '2026-03-08T10:15',
-            'penalty_units' => 14,
-            'notes' => 'Observed switching away from the assigned work tab.',
-        ]);
-
-        $response
-            ->assertRedirect(route('admin.violations.index', absolute: false))
-            ->assertSessionHas('success', 'Нарушение Stay on assigned work создано, начислено 14 штрафных ед.');
-
-        $this->assertDatabaseHas('violations', [
-            'student_id' => $student->id,
-            'rule_definition_id' => $ruleDefinition->id,
-            'status' => 'open',
-            'rule_title_snapshot' => 'Stay on assigned work',
-            'penalty_units' => 14,
-            'notes' => 'Observed switching away from the assigned work tab.',
-            'reported_by_user_id' => $admin->id,
-        ]);
-
-        $account = PenaltyAccount::query()->where('student_id', $student->id)->first();
-
-        $this->assertNotNull($account);
-
-        $this->assertDatabaseHas('penalty_transactions', [
-            'penalty_account_id' => $account?->id,
-            'type' => 'violation_charge',
-            'delta_units' => 14,
-            'created_by_user_id' => $admin->id,
-        ]);
-    }
-
-    public function test_admin_can_create_a_zero_unit_violation_without_posting_a_penalty_transaction(): void
-    {
-        $admin = User::factory()->create([
-            'role' => UserRole::Admin,
-            'username' => 'admin_zero_violation',
-        ]);
-
-        $student = $this->createStudent('student_zero_violation', 'Student Zero Violation');
-
-        $ruleDefinition = RuleDefinition::create([
-            'title' => 'Late return from break',
-            'description' => 'Minor issue logged for review.',
-            'scope' => 'global',
-            'student_id' => null,
             'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
@@ -163,23 +109,23 @@ class ViolationManagementTest extends TestCase
         $response = $this->actingAs($admin)->post(route('admin.violations.store'), [
             'student_id' => $student->id,
             'rule_definition_id' => $ruleDefinition->id,
-            'occurred_at' => '2026-03-08T10:30',
-            'penalty_units' => 0,
-            'notes' => 'Logged without a penalty charge.',
+            'occurred_at' => '2026-03-08T10:15',
+            'notes' => 'Observed switching away from the assigned work tab.',
         ]);
 
         $response
             ->assertRedirect(route('admin.violations.index', absolute: false))
-            ->assertSessionHas('success', 'Нарушение Late return from break создано.');
+            ->assertSessionHas('success', 'Нарушение Stay on assigned work создано.');
 
         $this->assertDatabaseHas('violations', [
             'student_id' => $student->id,
             'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Stay on assigned work',
             'penalty_units' => 0,
+            'notes' => 'Observed switching away from the assigned work tab.',
+            'reported_by_user_id' => $admin->id,
         ]);
-
-        $this->assertDatabaseCount('penalty_accounts', 0);
-        $this->assertDatabaseCount('penalty_transactions', 0);
     }
 
     public function test_admin_can_not_create_a_violation_with_a_rule_for_a_different_student(): void
@@ -197,7 +143,7 @@ class ViolationManagementTest extends TestCase
             'description' => 'Student must ask before leaving the desk.',
             'scope' => 'student',
             'student_id' => $otherStudent->id,
-            'default_penalty_units' => 8,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -208,7 +154,6 @@ class ViolationManagementTest extends TestCase
                 'student_id' => $student->id,
                 'rule_definition_id' => $ruleDefinition->id,
                 'occurred_at' => '2026-03-08T11:00',
-                'penalty_units' => 8,
                 'notes' => 'Invalid pairing.',
             ]);
 
@@ -235,7 +180,7 @@ class ViolationManagementTest extends TestCase
             'description' => 'Student must stay on assigned work.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 10,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -245,7 +190,7 @@ class ViolationManagementTest extends TestCase
             'rule_definition_id' => $ruleDefinition->id,
             'status' => 'open',
             'rule_title_snapshot' => 'Stay on assigned work',
-            'penalty_units' => 12,
+            'penalty_units' => 0,
             'occurred_at' => '2026-03-08 09:00:00',
             'notes' => 'Left the assigned work page.',
             'reported_by_user_id' => $admin->id,
@@ -260,7 +205,6 @@ class ViolationManagementTest extends TestCase
                 ->where('violations.0.student.display_name', 'Student Violations')
                 ->where('violations.0.rule_title', 'Stay on assigned work')
                 ->where('violations.0.status', 'open')
-                ->where('violations.0.penalty_units', 12)
             );
     }
 
@@ -278,7 +222,7 @@ class ViolationManagementTest extends TestCase
             'description' => 'Student must stay on assigned work.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 10,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -288,7 +232,7 @@ class ViolationManagementTest extends TestCase
             'rule_definition_id' => $ruleDefinition->id,
             'status' => 'open',
             'rule_title_snapshot' => 'Stay on assigned work',
-            'penalty_units' => 12,
+            'penalty_units' => 0,
             'occurred_at' => '2026-03-08 09:00:00',
             'notes' => 'Left the assigned work page.',
             'reported_by_user_id' => $admin->id,
@@ -302,7 +246,6 @@ class ViolationManagementTest extends TestCase
                 ->where('violation.id', $violation->id)
                 ->where('violation.status', 'open')
                 ->where('violation.rule_title', 'Stay on assigned work')
-                ->where('violation.penalty_transaction', null)
                 ->has('resolutions', 0)
             );
     }
@@ -321,7 +264,7 @@ class ViolationManagementTest extends TestCase
             'description' => 'Student must stay on assigned work.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 10,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -331,7 +274,7 @@ class ViolationManagementTest extends TestCase
             'rule_definition_id' => $ruleDefinition->id,
             'status' => 'open',
             'rule_title_snapshot' => 'Stay on assigned work',
-            'penalty_units' => 12,
+            'penalty_units' => 0,
             'occurred_at' => '2026-03-08 09:00:00',
             'notes' => 'Left the assigned work page.',
             'reported_by_user_id' => $admin->id,
@@ -374,7 +317,7 @@ class ViolationManagementTest extends TestCase
             'description' => 'Student must stay on assigned work.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 10,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -384,7 +327,7 @@ class ViolationManagementTest extends TestCase
             'rule_definition_id' => $ruleDefinition->id,
             'status' => 'open',
             'rule_title_snapshot' => 'Stay on assigned work',
-            'penalty_units' => 12,
+            'penalty_units' => 0,
             'occurred_at' => '2026-03-08 09:00:00',
             'notes' => 'Left the assigned work page.',
             'reported_by_user_id' => $admin->id,
@@ -427,7 +370,7 @@ class ViolationManagementTest extends TestCase
             'description' => 'Student must stay on assigned work.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 10,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -437,7 +380,7 @@ class ViolationManagementTest extends TestCase
             'rule_definition_id' => $ruleDefinition->id,
             'status' => 'resolved',
             'rule_title_snapshot' => 'Stay on assigned work',
-            'penalty_units' => 12,
+            'penalty_units' => 0,
             'occurred_at' => '2026-03-08 09:00:00',
             'notes' => 'Left the assigned work page.',
             'reported_by_user_id' => $admin->id,
@@ -464,6 +407,46 @@ class ViolationManagementTest extends TestCase
         $this->assertDatabaseCount('violation_resolutions', 1);
     }
 
+    public function test_admin_can_delete_a_violation(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_violations_delete',
+        ]);
+
+        $student = $this->createStudent('student_delete_violation', 'Student Delete Violation');
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Stay on assigned work',
+            'description' => 'Student must stay on assigned work.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Stay on assigned work',
+            'penalty_units' => 0,
+            'occurred_at' => '2026-03-08 09:00:00',
+            'notes' => 'Created for delete coverage.',
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.violations.destroy', $violation))
+            ->assertRedirect(route('admin.violations.index', absolute: false))
+            ->assertSessionHas('success', 'Нарушение Stay on assigned work удалено.');
+
+        $this->assertDatabaseMissing('violations', [
+            'id' => $violation->id,
+        ]);
+    }
+
     public function test_students_are_redirected_away_from_violation_routes(): void
     {
         $studentUser = User::factory()->create([
@@ -488,10 +471,10 @@ class ViolationManagementTest extends TestCase
 
         $ruleDefinition = RuleDefinition::create([
             'title' => 'Stay on assigned work',
-            'description' => 'Student must stay on assigned work.',
+            'description' => 'Remain on the assigned task.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 10,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -501,7 +484,7 @@ class ViolationManagementTest extends TestCase
             'rule_definition_id' => $ruleDefinition->id,
             'status' => 'open',
             'rule_title_snapshot' => 'Stay on assigned work',
-            'penalty_units' => 12,
+            'penalty_units' => 0,
             'occurred_at' => '2026-03-08 09:00:00',
             'notes' => 'Left the assigned work page.',
             'reported_by_user_id' => $admin->id,
@@ -509,6 +492,10 @@ class ViolationManagementTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('admin.violations.show', $violation))
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $this->actingAs($studentUser)
+            ->delete(route('admin.violations.destroy', $violation))
             ->assertRedirect(route('dashboard', absolute: false));
     }
 }

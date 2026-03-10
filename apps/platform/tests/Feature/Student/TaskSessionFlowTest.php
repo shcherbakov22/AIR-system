@@ -3,6 +3,7 @@
 namespace Tests\Feature\Student;
 
 use App\Enums\UserRole;
+use App\Models\RuleDefinition;
 use App\Models\Student;
 use App\Models\TaskAssignment;
 use App\Models\TaskSession;
@@ -17,6 +18,19 @@ use Tests\TestCase;
 class TaskSessionFlowTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function createObserveTheTimeRule(User $mentor): RuleDefinition
+    {
+        return RuleDefinition::create([
+            'title' => 'Observe the time',
+            'description' => 'Imported legacy rule.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $mentor->id,
+        ]);
+    }
 
     protected function createAssignedTask(User $admin, Student $student, string $title = 'Math Review'): TaskAssignment
     {
@@ -102,8 +116,7 @@ class TaskSessionFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/Home')
                 ->where('serverNow', '2026-03-07T09:20:00+00:00')
-                ->where('penaltySummary.current_balance_units', 0)
-                ->where('penaltySummary.open_violations', 0)
+                                ->where('violationSummary.open_violations', 0)
                 ->where('activeTaskSession.task_title', 'Reading Review')
                 ->where('activeTaskSession.task_assignment_id', $firstAssignment->id)
                 ->missing('taskAssignments')
@@ -373,5 +386,113 @@ class TaskSessionFlowTest extends TestCase
             'status' => 'active',
             'stopped_by_user_id' => null,
         ]);
+    }
+
+    public function test_overdue_task_creates_one_automatic_observe_the_time_violation_when_stopped(): void
+    {
+        Carbon::setTestNow('2026-03-07 10:00:00');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_auto_violation',
+        ]);
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_sessions',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Sessions',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskAssignment = $this->createAssignedTask($mentor, $student);
+        $this->createObserveTheTimeRule($mentor);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 09:24:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $taskSession), [
+                'completion_notes' => 'Finished late.',
+            ])
+            ->assertRedirect(route('student.home', absolute: false));
+
+        $this->assertDatabaseCount('violations', 1);
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Observe the time',
+            'status' => 'open',
+        ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_home_page_does_not_duplicate_an_existing_overdue_observe_the_time_violation(): void
+    {
+        Carbon::setTestNow('2026-03-07 10:00:00');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_auto_violation',
+        ]);
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_sessions',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Sessions',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskAssignment = $this->createAssignedTask($mentor, $student);
+        $this->createObserveTheTimeRule($mentor);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 09:24:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/Home')
+                ->where('violationSummary.open_violations', 1)
+                ->where('openViolations.0.rule_title', 'Observe the time')
+            );
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $this->assertDatabaseCount('violations', 1);
+
+        Carbon::setTestNow();
     }
 }

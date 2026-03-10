@@ -69,7 +69,6 @@ class RuleDefinitionManagementTest extends TestCase
             'title' => 'Stay on assigned work',
             'description' => 'Student must remain on the assigned task during the session.',
             'scope' => 'global',
-            'default_penalty_units' => 15,
             'is_active' => true,
         ]);
 
@@ -81,7 +80,7 @@ class RuleDefinitionManagementTest extends TestCase
             'title' => 'Stay on assigned work',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 15,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -111,7 +110,7 @@ class RuleDefinitionManagementTest extends TestCase
             'description' => 'Student must ask before leaving the desk.',
             'scope' => 'student',
             'student_id' => $student->id,
-            'default_penalty_units' => 8,
+            'default_penalty_units' => 0,
             'is_active' => true,
         ]);
 
@@ -123,7 +122,7 @@ class RuleDefinitionManagementTest extends TestCase
             'title' => 'No unscheduled breaks',
             'scope' => 'student',
             'student_id' => $student->id,
-            'default_penalty_units' => 8,
+            'default_penalty_units' => 0,
             'is_active' => true,
         ]);
     }
@@ -140,7 +139,7 @@ class RuleDefinitionManagementTest extends TestCase
             'description' => 'Remain on the assigned task.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 10,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -179,7 +178,7 @@ class RuleDefinitionManagementTest extends TestCase
             'description' => 'Student must ask before leaving the desk.',
             'scope' => 'student',
             'student_id' => $student->id,
-            'default_penalty_units' => 8,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -188,7 +187,6 @@ class RuleDefinitionManagementTest extends TestCase
             'title' => 'No unscheduled breaks revised',
             'description' => 'Desk departures require approval.',
             'scope' => 'global',
-            'default_penalty_units' => 12,
             'is_active' => false,
         ]);
 
@@ -202,8 +200,34 @@ class RuleDefinitionManagementTest extends TestCase
             'description' => 'Desk departures require approval.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 12,
             'is_active' => false,
+        ]);
+    }
+
+    public function test_admin_can_delete_a_rule_definition(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_rules_delete',
+        ]);
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Stay on assigned work',
+            'description' => 'Remain on the assigned task.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.rule-definitions.destroy', $ruleDefinition))
+            ->assertRedirect(route('admin.rule-definitions.index', absolute: false))
+            ->assertSessionHas('success', 'Правило Stay on assigned work удалено.');
+
+        $this->assertDatabaseMissing('rule_definitions', [
+            'id' => $ruleDefinition->id,
         ]);
     }
 
@@ -232,13 +256,17 @@ class RuleDefinitionManagementTest extends TestCase
             'description' => 'Remain on the assigned task.',
             'scope' => 'global',
             'student_id' => null,
-            'default_penalty_units' => 10,
+            'default_penalty_units' => 0,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
 
         $this->actingAs($studentUser)
             ->get(route('admin.rule-definitions.edit', $ruleDefinition))
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $this->actingAs($studentUser)
+            ->delete(route('admin.rule-definitions.destroy', $ruleDefinition))
             ->assertRedirect(route('dashboard', absolute: false));
     }
 }

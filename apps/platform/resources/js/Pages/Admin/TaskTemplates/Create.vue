@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -12,7 +11,6 @@ const form = useForm({
     summary: '',
     instructions: '',
     default_duration_minutes: '30',
-    is_active: true,
 });
 
 const submit = () => {
@@ -28,7 +26,7 @@ const submit = () => {
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель администратора
+                        Панель наставника
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
                         Создание шаблона задания
@@ -73,26 +71,17 @@ const submit = () => {
                         <InputError class="mt-2" :message="form.errors.title" />
                     </div>
 
-                    <div>
+                    <div class="md:col-span-2">
                         <InputLabel for="default_duration_minutes" value="Длительность по умолчанию (минуты)" />
                         <TextInput
                             id="default_duration_minutes"
                             v-model="form.default_duration_minutes"
                             type="number"
-                            min="5"
-                            max="480"
+                            min="1"
+                            max="10000"
                             class="mt-2 block w-full rounded-xl border-stone-300"
                         />
                         <InputError class="mt-2" :message="form.errors.default_duration_minutes" />
-                    </div>
-
-                    <div class="flex items-end">
-                        <label class="inline-flex items-center gap-3 pb-2">
-                            <Checkbox v-model:checked="form.is_active" />
-                            <span class="text-sm text-stone-700">
-                                Сделать этот шаблон доступным для дальнейшего использования
-                            </span>
-                        </label>
                     </div>
 
                     <div class="md:col-span-2">

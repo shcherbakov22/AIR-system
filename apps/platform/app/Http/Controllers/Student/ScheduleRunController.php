@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Enums\ScheduleWeekday;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\PauseScheduleRunRequest;
 use App\Http\Requests\Student\ResumeScheduleRunRequest;
@@ -11,21 +12,48 @@ use App\Models\ScheduleRunBlock;
 use App\Models\ScheduleTemplate;
 use App\Models\Student;
 use App\Models\TaskSession;
+use App\Models\TaskTemplate;
+use App\Models\Violation;
+use App\Services\AutomaticObserveTheTimeViolationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
 class ScheduleRunController extends Controller
 {
-    public function store(StartScheduleRunRequest $request, ScheduleTemplate $scheduleTemplate): RedirectResponse
+    protected function scheduleWeekdayLabel(mixed $weekday): string
     {
+        if ($weekday instanceof ScheduleWeekday) {
+            return $weekday->label();
+        }
+
+        if (is_string($weekday)) {
+            return ScheduleWeekday::tryFrom($weekday)?->label() ?? $weekday;
+        }
+
+        return 'Без дня';
+    }
+
+    public function store(
+        StartScheduleRunRequest $request,
+        ScheduleTemplate $scheduleTemplate,
+        AutomaticObserveTheTimeViolationService $automaticViolationService,
+    ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
         if (! $studentId) {
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleTemplate) {
-            Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleTemplate, $automaticViolationService) {
+            $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+            $automaticViolationService->evaluate($student);
+
+            if ($blockingMessage = $this->blockingViolationMessage($student)) {
+                return [
+                    'success' => false,
+                    'message' => $blockingMessage,
+                ];
+            }
 
             $ownedScheduleTemplate = ScheduleTemplate::query()
                 ->with(['entries.taskTemplate'])
@@ -71,7 +99,7 @@ class ScheduleRunController extends Controller
                 'schedule_template_id' => $ownedScheduleTemplate->id,
                 'status' => 'active',
                 'schedule_name_snapshot' => $ownedScheduleTemplate->name,
-                'schedule_weekday_snapshot' => $ownedScheduleTemplate->weekday->label(),
+                'schedule_weekday_snapshot' => $this->scheduleWeekdayLabel($ownedScheduleTemplate->weekday),
                 'schedule_notes_snapshot' => $ownedScheduleTemplate->notes,
                 'started_at' => now(),
                 'started_by_user_id' => $request->user()->id,
@@ -103,8 +131,11 @@ class ScheduleRunController extends Controller
             ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
-    public function pause(PauseScheduleRunRequest $request, ScheduleRun $scheduleRun): RedirectResponse
-    {
+    public function pause(
+        PauseScheduleRunRequest $request,
+        ScheduleRun $scheduleRun,
+        AutomaticObserveTheTimeViolationService $automaticViolationService,
+    ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
         $student = $request->user()?->student?->loadMissing('setting');
 
@@ -118,8 +149,20 @@ class ScheduleRunController extends Controller
                 ->with('error', 'Собственные таймеры для этого ученика отключены.');
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun) {
-            Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService) {
+            $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+            $automaticViolationService->evaluate($student);
+
+            if ($blockingMessage = $this->blockingViolationMessage($student)) {
+                return [
+                    'success' => false,
+                    'message' => $blockingMessage,
+                ];
+            }
+
+            $taskTemplate = TaskTemplate::query()
+                ->whereKey((int) $request->input('task_template_id'))
+                ->firstOrFail();
 
             $ownedScheduleRun = ScheduleRun::query()
                 ->whereKey($scheduleRun->id)
@@ -150,7 +193,11 @@ class ScheduleRunController extends Controller
                     ->firstOrFail();
 
                 $endedAt = now();
-                $durationSeconds = (int) max(0, $activeTaskSession->started_at?->diffInSeconds($endedAt) ?? 0);
+                $durationSeconds = (int) max(
+                    0,
+                    (int) ($activeTaskSession->duration_seconds ?? 0)
+                        + ($activeTaskSession->started_at?->diffInSeconds($endedAt) ?? 0),
+                );
 
                 $activeTaskSession->update([
                     'status' => 'paused',
@@ -174,13 +221,14 @@ class ScheduleRunController extends Controller
                 'task_assignment_id' => null,
                 'schedule_run_id' => null,
                 'schedule_run_block_id' => null,
-                'task_template_id' => null,
+                'task_template_id' => $taskTemplate->id,
                 'status' => 'active',
-                'task_title_snapshot' => $request->string('task_title')->toString(),
-                'task_summary_snapshot' => $request->input('notes'),
-                'task_instructions_snapshot' => null,
-                'assignment_notes_snapshot' => null,
-                'planned_duration_minutes' => (int) $request->input('duration_minutes'),
+                'task_title_snapshot' => $taskTemplate->title,
+                'task_summary_snapshot' => $taskTemplate->summary,
+                'task_instructions_snapshot' => $taskTemplate->instructions,
+                'assignment_notes_snapshot' => $request->input('notes'),
+                'planned_duration_minutes' => $taskTemplate->default_duration_minutes,
+                'duration_seconds' => 0,
                 'started_at' => now(),
                 'started_by_user_id' => $request->user()->id,
             ]);
@@ -196,16 +244,27 @@ class ScheduleRunController extends Controller
             ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
-    public function resume(ResumeScheduleRunRequest $request, ScheduleRun $scheduleRun): RedirectResponse
-    {
+    public function resume(
+        ResumeScheduleRunRequest $request,
+        ScheduleRun $scheduleRun,
+        AutomaticObserveTheTimeViolationService $automaticViolationService,
+    ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
         if (! $studentId) {
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun) {
-            Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService) {
+            $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+            $automaticViolationService->evaluate($student);
+
+            if ($blockingMessage = $this->blockingViolationMessage($student)) {
+                return [
+                    'success' => false,
+                    'message' => $blockingMessage,
+                ];
+            }
 
             $ownedScheduleRun = ScheduleRun::query()
                 ->with('blocks')
@@ -246,7 +305,17 @@ class ScheduleRunController extends Controller
                 ];
             }
 
+            $latestPausedTaskSession = TaskSession::query()
+                ->where('student_id', $studentId)
+                ->where('schedule_run_id', $ownedScheduleRun->id)
+                ->where('schedule_run_block_id', $pausedBlock->id)
+                ->where('status', 'paused')
+                ->latest('ended_at')
+                ->lockForUpdate()
+                ->first();
+
             $startedAt = now();
+            $elapsedBeforePauseSeconds = max(0, (int) ($latestPausedTaskSession?->duration_seconds ?? 0));
 
             $pausedBlock->update([
                 'status' => 'in_progress',
@@ -264,6 +333,7 @@ class ScheduleRunController extends Controller
                 'task_instructions_snapshot' => $pausedBlock->task_instructions_snapshot,
                 'assignment_notes_snapshot' => $pausedBlock->entry_notes_snapshot,
                 'planned_duration_minutes' => $pausedBlock->duration_minutes_snapshot,
+                'duration_seconds' => $elapsedBeforePauseSeconds,
                 'started_at' => $startedAt,
                 'started_by_user_id' => $request->user()->id,
             ]);
@@ -277,5 +347,23 @@ class ScheduleRunController extends Controller
         return redirect()
             ->route('student.home')
             ->with($result['success'] ? 'success' : 'error', $result['message']);
+    }
+
+    protected function blockingViolationMessage(Student $student): ?string
+    {
+        /** @var Violation|null $violation */
+        $violation = $student->violations()
+            ->where('status', 'open')
+            ->orderByDesc('occurred_at')
+            ->first();
+
+        if (! $violation) {
+            return null;
+        }
+
+        $occurredAt = $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i');
+        $timeSuffix = $occurredAt ? " ({$occurredAt})" : '';
+
+        return "Есть открытое нарушение: {$violation->rule_title_snapshot}{$timeSuffix}. Закройте его у наставника, прежде чем продолжать расписание.";
     }
 }

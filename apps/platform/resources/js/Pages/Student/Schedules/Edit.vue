@@ -7,21 +7,24 @@ defineProps<{
     scheduleTemplate: {
         id: number;
         name: string;
-        weekday: string;
         is_active: boolean;
         notes: string;
         entries: Array<{
+            task_template_id?: number | null;
             task_title: string;
             task_summary: string;
             task_instructions: string;
-            start_time: string;
             duration_minutes: number;
             notes: string;
         }>;
     };
-    weekdays: Array<{
-        value: string;
-        label: string;
+    taskTemplates: Array<{
+        id: number;
+        title: string;
+        summary?: string | null;
+        instructions?: string | null;
+        default_duration_minutes: number;
+        is_active: boolean;
     }>;
 }>();
 </script>
@@ -54,13 +57,13 @@ defineProps<{
             <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <div class="max-w-3xl">
                     <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Недельный планировщик
+                        Планировщик
                     </p>
                     <h3 class="mt-4 font-serif text-3xl text-stone-950">
                         {{ scheduleTemplate.name }}
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Измените план на день недели и отредактируйте детали блоков, которые хотите выполнять.
+                        Обновите порядок блоков и выберите актуальные задания из каталога наставника.
                     </p>
                 </div>
 
@@ -68,7 +71,7 @@ defineProps<{
                     <ScheduleForm
                         mode="edit"
                         :schedule-template="scheduleTemplate"
-                        :weekdays="weekdays"
+                        :task-templates="taskTemplates"
                     />
                 </div>
             </div>

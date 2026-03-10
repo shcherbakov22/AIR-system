@@ -95,8 +95,33 @@ class TaskTemplateManagementTest extends TestCase
                 ->has('taskTemplates', 1)
                 ->where('taskTemplates.0.title', 'Reading Session')
                 ->where('taskTemplates.0.default_duration_minutes', 40)
-                ->where('taskTemplates.0.is_active', true)
             );
+    }
+
+    public function test_admin_can_delete_a_task_template(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_tasks',
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Session',
+            'summary' => 'Focused reading block.',
+            'instructions' => 'Read quietly and summarize the chapter afterward.',
+            'default_duration_minutes' => 40,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.task-templates.destroy', $taskTemplate))
+            ->assertRedirect(route('admin.task-templates.index', absolute: false))
+            ->assertSessionHas('success', 'Шаблон задания Reading Session удалён.');
+
+        $this->assertDatabaseMissing('task_templates', [
+            'id' => $taskTemplate->id,
+        ]);
     }
 
     public function test_students_are_redirected_away_from_task_template_routes(): void
@@ -112,6 +137,24 @@ class TaskTemplateManagementTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('admin.task-templates.create'))
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_tasks_owner',
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Session',
+            'summary' => 'Focused reading block.',
+            'instructions' => 'Read quietly and summarize the chapter afterward.',
+            'default_duration_minutes' => 40,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->delete(route('admin.task-templates.destroy', $taskTemplate))
             ->assertRedirect(route('dashboard', absolute: false));
     }
 }

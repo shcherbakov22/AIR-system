@@ -2,9 +2,6 @@
 
 namespace App\Http\Requests\Student;
 
-use App\Enums\ScheduleWeekday;
-use App\Models\ScheduleTemplate;
-use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -18,15 +15,9 @@ abstract class ManagesOwnScheduleRequest extends FormRequest
 
         $entries = collect($this->input('entries', []))
             ->map(fn ($entry) => [
-                'task_title' => trim((string) data_get($entry, 'task_title')),
-                'task_summary' => ($taskSummary = trim((string) data_get($entry, 'task_summary'))) === ''
+                'task_template_id' => ($taskTemplateId = trim((string) data_get($entry, 'task_template_id'))) === ''
                     ? null
-                    : $taskSummary,
-                'task_instructions' => ($taskInstructions = trim((string) data_get($entry, 'task_instructions'))) === ''
-                    ? null
-                    : $taskInstructions,
-                'start_time' => trim((string) data_get($entry, 'start_time')),
-                'duration_minutes' => trim((string) data_get($entry, 'duration_minutes')),
+                    : (int) $taskTemplateId,
                 'notes' => ($entryNotes = trim((string) data_get($entry, 'notes'))) === ''
                     ? null
                     : $entryNotes,
@@ -47,27 +38,16 @@ abstract class ManagesOwnScheduleRequest extends FormRequest
      */
     protected function scheduleRules(array $currentTaskTemplateIds = [], ?int $ignoreScheduleTemplateId = null): array
     {
-        $studentId = $this->user()?->student?->id;
-
-        $weekdayRule = Rule::unique(ScheduleTemplate::class, 'weekday')->where(
-            fn ($query) => $query->where('student_id', $studentId)
-        );
-
-        if ($ignoreScheduleTemplateId !== null) {
-            $weekdayRule = $weekdayRule->ignore($ignoreScheduleTemplateId);
-        }
-
         return [
             'name' => ['required', 'string', 'max:120'],
-            'weekday' => ['required', Rule::enum(ScheduleWeekday::class), $weekdayRule],
             'is_active' => ['required', 'boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'entries' => ['required', 'array', 'min:1', 'max:12'],
-            'entries.*.task_title' => ['required', 'string', 'max:160'],
-            'entries.*.task_summary' => ['nullable', 'string', 'max:2000'],
-            'entries.*.task_instructions' => ['nullable', 'string', 'max:4000'],
-            'entries.*.start_time' => ['required', 'date_format:H:i'],
-            'entries.*.duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],
+            'entries.*.task_template_id' => [
+                'required',
+                'integer',
+                Rule::exists('task_templates', 'id'),
+            ],
             'entries.*.notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
@@ -76,51 +56,10 @@ abstract class ManagesOwnScheduleRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                $this->validateEntrySequence($validator);
+                if ($validator->errors()->isNotEmpty()) {
+                    return;
+                }
             },
         ];
-    }
-
-    protected function validateEntrySequence(Validator $validator): void
-    {
-        if ($validator->errors()->isNotEmpty()) {
-            return;
-        }
-
-        $previousStart = null;
-        $previousEnd = null;
-
-        foreach ((array) $this->input('entries', []) as $index => $entry) {
-            $startTime = data_get($entry, 'start_time');
-            $durationMinutes = (int) data_get($entry, 'duration_minutes');
-
-            try {
-                $start = CarbonImmutable::createFromFormat('H:i', (string) $startTime);
-            } catch (\Throwable) {
-                continue;
-            }
-
-            if ($previousStart !== null && $start->lessThan($previousStart)) {
-                $validator->errors()->add(
-                    "entries.{$index}.start_time",
-                    'Блоки расписания должны быть расположены в хронологическом порядке.'
-                );
-
-                $previousStart = $start;
-                $previousEnd = $start->addMinutes($durationMinutes);
-
-                continue;
-            }
-
-            if ($previousEnd !== null && $start->lessThan($previousEnd)) {
-                $validator->errors()->add(
-                    "entries.{$index}.start_time",
-                    'Блоки расписания не могут пересекаться.'
-                );
-            }
-
-            $previousStart = $start;
-            $previousEnd = $start->addMinutes($durationMinutes);
-        }
     }
 }

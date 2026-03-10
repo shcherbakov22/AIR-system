@@ -47,7 +47,7 @@ class StoreScheduleTemplateRequest extends FormRequest
             'task_template_id' => [
                 'required',
                 'integer',
-                Rule::exists(TaskTemplate::class, 'id')->where(fn ($query) => $query->where('is_active', true)),
+                Rule::exists(TaskTemplate::class, 'id'),
             ],
             'start_time' => ['required', 'date_format:H:i'],
             'duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],

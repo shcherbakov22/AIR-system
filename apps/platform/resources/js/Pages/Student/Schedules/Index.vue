@@ -2,16 +2,12 @@
 import type { PageProps } from '@/types';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 defineProps<{
     scheduleTemplates: Array<{
         id: number;
         name: string;
-        weekday: {
-            value: string;
-            label: string;
-        };
         is_active: boolean;
         notes?: string | null;
         entries: Array<{
@@ -20,7 +16,6 @@ defineProps<{
             task_title: string;
             task_summary?: string | null;
             task_instructions?: string | null;
-            start_time: string;
             duration_minutes: number;
             notes?: string | null;
             task: {
@@ -35,6 +30,16 @@ defineProps<{
 const page = usePage<PageProps>();
 const flashSuccess = computed(() => page.props.flash?.success ?? null);
 const flashError = computed(() => page.props.flash?.error ?? null);
+
+const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
+    if (!window.confirm(`Удалить расписание "${scheduleName}"? Все его блоки будут удалены.`)) {
+        return;
+    }
+
+    router.delete(route('student.schedules.destroy', scheduleTemplateId), {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -79,16 +84,13 @@ const flashError = computed(() => page.props.flash?.error ?? null);
             <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <div class="max-w-3xl">
                     <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Недельный планировщик
+                        Планировщик
                     </p>
                     <h3 class="mt-4 font-serif text-3xl text-stone-950">
                         Соберите порядок, в котором хотите работать
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Задайте одно расписание на каждый день недели, затем добавьте блоки в том
-                        порядке, в котором хотите их выполнять. На главной странице ученика можно
-                        запускать расписание, проходить блоки по порядку и при необходимости
-                        прерываться на собственный таймер.
+                        Каждое расписание теперь состоит только из упорядоченных блоков. Запуск на главной странице идет строго по их порядку.
                     </p>
                 </div>
 
@@ -97,7 +99,7 @@ const flashError = computed(() => page.props.flash?.error ?? null);
                         Расписаний пока нет
                     </p>
                     <p class="mt-3 text-sm leading-7 text-stone-600">
-                        Создайте первый план на день недели, чтобы начать собирать своё расписание.
+                        Создайте первый план, чтобы собрать собственную последовательность заданий.
                     </p>
                     <Link
                         :href="route('student.schedules.create')"
@@ -116,7 +118,7 @@ const flashError = computed(() => page.props.flash?.error ?? null);
                         <div class="flex flex-col gap-4 border-b border-stone-200 pb-5 md:flex-row md:items-start md:justify-between">
                             <div>
                                 <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                    {{ scheduleTemplate.weekday.label }}
+                                    Расписание
                                 </p>
                                 <h4 class="mt-2 text-2xl font-semibold text-stone-950">
                                     {{ scheduleTemplate.name }}
@@ -144,6 +146,14 @@ const flashError = computed(() => page.props.flash?.error ?? null);
                                 >
                                     Изменить
                                 </Link>
+
+                                <button
+                                    type="button"
+                                    class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
+                                    @click="deleteSchedule(scheduleTemplate.id, scheduleTemplate.name)"
+                                >
+                                    Удалить
+                                </button>
                             </div>
                         </div>
 
@@ -156,9 +166,6 @@ const flashError = computed(() => page.props.flash?.error ?? null);
                                 <div>
                                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
                                         Блок {{ entry.position }}
-                                    </p>
-                                    <p class="mt-2 text-lg font-semibold text-stone-950">
-                                        {{ entry.start_time }}
                                     </p>
                                     <p class="mt-2 text-sm text-stone-600">
                                         {{ entry.duration_minutes }} минут

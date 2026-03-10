@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ResolveViolationRequest;
 use App\Http\Requests\Admin\StoreViolationRequest;
-use App\Models\PenaltyAccount;
-use App\Models\PenaltyTransaction;
 use App\Models\RuleDefinition;
 use App\Models\Student;
 use App\Models\Violation;
@@ -18,26 +16,6 @@ use Inertia\Response;
 
 class ViolationController extends Controller
 {
-    protected function postPenaltyChargeForViolation(Violation $violation, int $createdByUserId): ?PenaltyTransaction
-    {
-        if ($violation->penalty_units <= 0) {
-            return null;
-        }
-
-        $penaltyAccount = PenaltyAccount::query()->firstOrCreate([
-            'student_id' => $violation->student_id,
-        ]);
-
-        return $penaltyAccount->transactions()->create([
-            'violation_id' => $violation->id,
-            'type' => 'violation_charge',
-            'delta_units' => $violation->penalty_units,
-            'notes' => "Автоматическое начисление по нарушению #{$violation->id}: {$violation->rule_title_snapshot}.",
-            'recorded_at' => $violation->occurred_at ?? now(),
-            'created_by_user_id' => $createdByUserId,
-        ]);
-    }
-
     protected function studentOptions(): array
     {
         return Student::query()
@@ -64,7 +42,6 @@ class ViolationController extends Controller
                 'id' => $ruleDefinition->id,
                 'title' => $ruleDefinition->title,
                 'scope' => $ruleDefinition->scope,
-                'default_penalty_units' => $ruleDefinition->default_penalty_units,
                 'description' => $ruleDefinition->description,
                 'student' => $ruleDefinition->student
                     ? [
@@ -83,13 +60,9 @@ class ViolationController extends Controller
             'student.user',
             'ruleDefinition',
             'resolutions.createdBy',
-            'penaltyTransactions.createdBy',
         ]);
 
         $latestResolution = $violation->resolutions
-            ->sortByDesc('recorded_at')
-            ->first();
-        $penaltyTransaction = $violation->penaltyTransactions
             ->sortByDesc('recorded_at')
             ->first();
 
@@ -97,7 +70,6 @@ class ViolationController extends Controller
             'id' => $violation->id,
             'status' => $violation->status,
             'rule_title' => $violation->rule_title_snapshot,
-            'penalty_units' => $violation->penalty_units,
             'occurred_at_label' => $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
             'notes' => $violation->notes,
             'student' => [
@@ -109,22 +81,6 @@ class ViolationController extends Controller
                 ? [
                     'id' => $violation->ruleDefinition->id,
                     'scope' => $violation->ruleDefinition->scope,
-                ]
-                : null,
-            'penalty_transaction' => $penaltyTransaction
-                ? [
-                    'id' => $penaltyTransaction->id,
-                    'type' => $penaltyTransaction->type,
-                    'delta_units' => $penaltyTransaction->delta_units,
-                    'notes' => $penaltyTransaction->notes,
-                    'recorded_at_label' => $penaltyTransaction->recorded_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
-                    'created_by' => $penaltyTransaction->createdBy
-                        ? [
-                            'id' => $penaltyTransaction->createdBy->id,
-                            'name' => $penaltyTransaction->createdBy->name,
-                            'username' => $penaltyTransaction->createdBy->username,
-                        ]
-                        : null,
                 ]
                 : null,
             'latest_resolution' => $latestResolution
@@ -168,38 +124,22 @@ class ViolationController extends Controller
     {
         $ruleDefinition = RuleDefinition::query()->findOrFail((int) $request->input('rule_definition_id'));
 
-        $result = DB::transaction(function () use ($request, $ruleDefinition) {
-            $violation = Violation::create([
+        $violation = DB::transaction(function () use ($request, $ruleDefinition) {
+            return Violation::create([
                 'student_id' => (int) $request->input('student_id'),
                 'rule_definition_id' => $ruleDefinition->id,
                 'status' => 'open',
                 'rule_title_snapshot' => $ruleDefinition->title,
-                'penalty_units' => (int) $request->input('penalty_units'),
+                'penalty_units' => 0,
                 'occurred_at' => $request->date('occurred_at'),
                 'notes' => $request->input('notes'),
                 'reported_by_user_id' => $request->user()->id,
             ]);
-
-            $penaltyTransaction = $this->postPenaltyChargeForViolation($violation, $request->user()->id);
-
-            return [
-                'violation' => $violation,
-                'penalty_transaction' => $penaltyTransaction,
-            ];
         });
-
-        /** @var Violation $violation */
-        $violation = $result['violation'];
-        /** @var PenaltyTransaction|null $penaltyTransaction */
-        $penaltyTransaction = $result['penalty_transaction'];
-
-        $message = $penaltyTransaction
-            ? "Нарушение {$violation->rule_title_snapshot} создано, начислено {$penaltyTransaction->delta_units} штрафных ед."
-            : "Нарушение {$violation->rule_title_snapshot} создано.";
 
         return redirect()
             ->route('admin.violations.index')
-            ->with('success', $message);
+            ->with('success', "Нарушение {$violation->rule_title_snapshot} создано.");
     }
 
     public function show(Violation $violation): Response
@@ -272,5 +212,24 @@ class ViolationController extends Controller
         return redirect()
             ->route('admin.violations.show', $violation)
             ->with('success', $result['message']);
+    }
+
+    public function destroy(Violation $violation): RedirectResponse
+    {
+        $violationTitle = $violation->rule_title_snapshot;
+
+        DB::transaction(function () use ($violation) {
+            $lockedViolation = Violation::query()
+                ->whereKey($violation->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $lockedViolation->resolutions()->delete();
+            $lockedViolation->delete();
+        });
+
+        return redirect()
+            ->route('admin.violations.index')
+            ->with('success', 'Нарушение '.$violationTitle.' удалено.');
     }
 }

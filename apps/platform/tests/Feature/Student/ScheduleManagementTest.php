@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Student;
 
-use App\Enums\ScheduleWeekday;
 use App\Enums\UserRole;
 use App\Models\ScheduleTemplate;
 use App\Models\Student;
+use App\Models\TaskTemplate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -15,11 +15,32 @@ class ScheduleManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function createTaskTemplate(
+        User $creator,
+        string $title,
+        int $defaultDurationMinutes,
+        string $summary,
+        string $instructions,
+        bool $isActive = true,
+    ): TaskTemplate {
+        return TaskTemplate::create([
+            'title' => $title,
+            'summary' => $summary,
+            'instructions' => $instructions,
+            'default_duration_minutes' => $defaultDurationMinutes,
+            'is_active' => $isActive,
+            'created_by_user_id' => $creator->id,
+        ]);
+    }
+
     public function test_student_can_create_their_own_schedule_with_multiple_blocks(): void
     {
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
             'username' => 'schedule_student',
+        ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
         ]);
 
         $student = Student::create([
@@ -29,27 +50,33 @@ class ScheduleManagementTest extends TestCase
             'notes' => null,
         ]);
 
+        $readingTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Reading Review',
+            35,
+            'Read the selected chapter.',
+            'Take notes while you read.',
+        );
+        $writingTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Writing Sprint',
+            25,
+            'Draft the short response.',
+            'Work until the timer ends.',
+        );
+
         $response = $this->actingAs($studentUser)
             ->post(route('student.schedules.store'), [
                 'name' => 'Monday Plan',
-                'weekday' => ScheduleWeekday::Monday->value,
                 'is_active' => true,
                 'notes' => 'Core morning plan.',
                 'entries' => [
                     [
-                        'task_title' => 'Reading Review',
-                        'task_summary' => 'Read the selected chapter.',
-                        'task_instructions' => 'Take notes while you read.',
-                        'start_time' => '09:00',
-                        'duration_minutes' => 35,
+                        'task_template_id' => $readingTemplate->id,
                         'notes' => 'Start with reading.',
                     ],
                     [
-                        'task_title' => 'Writing Sprint',
-                        'task_summary' => 'Draft the short response.',
-                        'task_instructions' => 'Work until the timer ends.',
-                        'start_time' => '09:40',
-                        'duration_minutes' => 25,
+                        'task_template_id' => $writingTemplate->id,
                         'notes' => 'Move into writing.',
                     ],
                 ],
@@ -60,21 +87,26 @@ class ScheduleManagementTest extends TestCase
             ->assertSessionHas('success', 'Расписание Monday Plan сохранено.');
 
         $scheduleTemplate = ScheduleTemplate::query()
-            ->with('entries')
+            ->with('entries.taskTemplate')
             ->where('student_id', $student->id)
             ->sole();
 
         $this->assertSame('Monday Plan', $scheduleTemplate->name);
-        $this->assertSame(ScheduleWeekday::Monday, $scheduleTemplate->weekday);
+        $this->assertSame('monday', $scheduleTemplate->weekday);
         $this->assertTrue($scheduleTemplate->is_active);
         $this->assertSame('Core morning plan.', $scheduleTemplate->notes);
         $this->assertCount(2, $scheduleTemplate->entries);
         $this->assertSame(
-            ['Reading Review', 'Writing Sprint'],
-            $scheduleTemplate->entries->pluck('task_title')->all(),
+            [$readingTemplate->id, $writingTemplate->id],
+            $scheduleTemplate->entries->pluck('task_template_id')->all(),
         );
         $this->assertSame(
-            ['09:00', '09:40'],
+            ['Reading Review', 'Writing Sprint'],
+            $scheduleTemplate->entries->map(fn ($entry) => $entry->resolvedTaskTitle())->all(),
+        );
+        $this->assertSame([35, 25], $scheduleTemplate->entries->pluck('duration_minutes')->all());
+        $this->assertSame(
+            ['09:00', '09:35'],
             $scheduleTemplate->entries->pluck('start_time')->map(fn ($time) => (string) $time)->all(),
         );
     }
@@ -85,6 +117,9 @@ class ScheduleManagementTest extends TestCase
             'role' => UserRole::Student,
             'username' => 'schedule_student',
         ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
 
         $student = Student::create([
             'user_id' => $studentUser->id,
@@ -93,47 +128,50 @@ class ScheduleManagementTest extends TestCase
             'notes' => null,
         ]);
 
+        $readingTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Reading Review',
+            35,
+            'Read the selected chapter.',
+            'Take notes while you read.',
+        );
+        $writingTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Writing Sprint',
+            25,
+            'Draft the short response.',
+            'Write until the timer ends.',
+        );
+
         $scheduleTemplate = ScheduleTemplate::create([
             'student_id' => $student->id,
             'name' => 'Monday Plan',
-            'weekday' => ScheduleWeekday::Monday,
+            'weekday' => 'monday',
             'is_active' => true,
             'notes' => 'Original note.',
             'created_by_user_id' => $studentUser->id,
         ]);
 
         $scheduleTemplate->entries()->create([
-            'task_template_id' => null,
-            'task_title' => 'Reading Review',
-            'task_summary' => 'Read the selected chapter.',
-            'task_instructions' => 'Take notes while you read.',
+            'task_template_id' => $readingTemplate->id,
             'position' => 1,
             'start_time' => '09:00',
-            'duration_minutes' => 35,
+            'duration_minutes' => $readingTemplate->default_duration_minutes,
             'notes' => 'Original block.',
         ]);
 
         $response = $this->actingAs($studentUser)
             ->put(route('student.schedules.update', $scheduleTemplate), [
                 'name' => 'Tuesday Plan',
-                'weekday' => ScheduleWeekday::Tuesday->value,
                 'is_active' => false,
                 'notes' => 'Updated note.',
                 'entries' => [
                     [
-                        'task_title' => 'Writing Sprint',
-                        'task_summary' => 'Draft the short response.',
-                        'task_instructions' => 'Write until the timer ends.',
-                        'start_time' => '10:00',
-                        'duration_minutes' => 25,
+                        'task_template_id' => $writingTemplate->id,
                         'notes' => 'Writing block.',
                     ],
                     [
-                        'task_title' => 'Reading Review',
-                        'task_summary' => 'Read the follow-up chapter.',
-                        'task_instructions' => 'Capture the main points.',
-                        'start_time' => '10:30',
-                        'duration_minutes' => 35,
+                        'task_template_id' => $readingTemplate->id,
                         'notes' => 'Reading follow-up.',
                     ],
                 ],
@@ -144,20 +182,81 @@ class ScheduleManagementTest extends TestCase
             ->assertSessionHas('success', 'Расписание Tuesday Plan обновлено.');
 
         $scheduleTemplate->refresh();
-        $scheduleTemplate->load('entries');
+        $scheduleTemplate->load('entries.taskTemplate');
 
         $this->assertSame('Tuesday Plan', $scheduleTemplate->name);
-        $this->assertSame(ScheduleWeekday::Tuesday, $scheduleTemplate->weekday);
+        $this->assertSame('monday', $scheduleTemplate->weekday);
         $this->assertFalse($scheduleTemplate->is_active);
         $this->assertSame('Updated note.', $scheduleTemplate->notes);
         $this->assertCount(2, $scheduleTemplate->entries);
         $this->assertSame(
+            [$writingTemplate->id, $readingTemplate->id],
+            $scheduleTemplate->entries->pluck('task_template_id')->all(),
+        );
+        $this->assertSame(
             ['Writing Sprint', 'Reading Review'],
-            $scheduleTemplate->entries->pluck('task_title')->all(),
+            $scheduleTemplate->entries->map(fn ($entry) => $entry->resolvedTaskTitle())->all(),
+        );
+        $this->assertSame([25, 35], $scheduleTemplate->entries->pluck('duration_minutes')->all());
+        $this->assertSame(
+            ['09:00', '09:25'],
+            $scheduleTemplate->entries->pluck('start_time')->map(fn ($time) => (string) $time)->all(),
         );
     }
 
-    public function test_student_can_not_open_or_update_another_students_schedule(): void
+    public function test_student_can_delete_their_own_schedule(): void
+    {
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_student',
+        ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Schedule Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $readingTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Reading Review',
+            35,
+            'Read the selected chapter.',
+            'Take notes while you read.',
+        );
+
+        $scheduleTemplate = ScheduleTemplate::create([
+            'student_id' => $student->id,
+            'name' => 'Monday Plan',
+            'weekday' => 'monday',
+            'is_active' => true,
+            'notes' => 'Original note.',
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $scheduleTemplate->entries()->create([
+            'task_template_id' => $readingTemplate->id,
+            'position' => 1,
+            'start_time' => '09:00',
+            'duration_minutes' => $readingTemplate->default_duration_minutes,
+            'notes' => 'Reading block.',
+        ]);
+
+        $this->actingAs($studentUser)
+            ->delete(route('student.schedules.destroy', $scheduleTemplate))
+            ->assertRedirect(route('student.schedules.index', absolute: false))
+            ->assertSessionHas('success', 'Расписание Monday Plan удалено.');
+
+        $this->assertDatabaseMissing('schedule_templates', [
+            'id' => $scheduleTemplate->id,
+        ]);
+    }
+
+    public function test_student_can_not_open_update_or_delete_another_students_schedule(): void
     {
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
@@ -167,6 +266,9 @@ class ScheduleManagementTest extends TestCase
         $otherStudentUser = User::factory()->create([
             'role' => UserRole::Student,
             'username' => 'schedule_other_student',
+        ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
         ]);
 
         Student::create([
@@ -183,23 +285,28 @@ class ScheduleManagementTest extends TestCase
             'notes' => null,
         ]);
 
+        $readingTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Reading Review',
+            35,
+            'Read the selected chapter.',
+            'Take notes while you read.',
+        );
+
         $scheduleTemplate = ScheduleTemplate::create([
             'student_id' => $otherStudent->id,
             'name' => 'Private Plan',
-            'weekday' => ScheduleWeekday::Monday,
+            'weekday' => 'monday',
             'is_active' => true,
             'notes' => null,
             'created_by_user_id' => $otherStudentUser->id,
         ]);
 
         $scheduleTemplate->entries()->create([
-            'task_template_id' => null,
-            'task_title' => 'Reading Review',
-            'task_summary' => 'Read the selected chapter.',
-            'task_instructions' => 'Take notes while you read.',
+            'task_template_id' => $readingTemplate->id,
             'position' => 1,
             'start_time' => '09:00',
-            'duration_minutes' => 35,
+            'duration_minutes' => $readingTemplate->default_duration_minutes,
             'notes' => 'Private block.',
         ]);
 
@@ -210,70 +317,30 @@ class ScheduleManagementTest extends TestCase
         $this->actingAs($studentUser)
             ->put(route('student.schedules.update', $scheduleTemplate), [
                 'name' => 'Stolen Plan',
-                'weekday' => ScheduleWeekday::Tuesday->value,
                 'is_active' => true,
                 'notes' => null,
                 'entries' => [
                     [
-                        'task_title' => 'Reading Review',
-                        'task_summary' => 'Read the selected chapter.',
-                        'task_instructions' => 'Take notes while you read.',
-                        'start_time' => '09:00',
-                        'duration_minutes' => 35,
+                        'task_template_id' => $readingTemplate->id,
                         'notes' => null,
                     ],
                 ],
             ])
             ->assertForbidden();
-    }
-
-    public function test_student_schedule_blocks_must_stay_in_order_and_not_overlap(): void
-    {
-        $studentUser = User::factory()->create([
-            'role' => UserRole::Student,
-            'username' => 'schedule_student',
-        ]);
-
-        Student::create([
-            'user_id' => $studentUser->id,
-            'display_name' => 'Schedule Student',
-            'status' => 'active',
-            'notes' => null,
-        ]);
 
         $this->actingAs($studentUser)
-            ->post(route('student.schedules.store'), [
-                'name' => 'Monday Plan',
-                'weekday' => ScheduleWeekday::Monday->value,
-                'is_active' => true,
-                'notes' => null,
-                'entries' => [
-                    [
-                        'task_title' => 'Reading Review',
-                        'task_summary' => 'Read the selected chapter.',
-                        'task_instructions' => 'Take notes while you read.',
-                        'start_time' => '09:30',
-                        'duration_minutes' => 35,
-                        'notes' => null,
-                    ],
-                    [
-                        'task_title' => 'Writing Sprint',
-                        'task_summary' => 'Draft the response.',
-                        'task_instructions' => 'Work until the timer ends.',
-                        'start_time' => '09:20',
-                        'duration_minutes' => 25,
-                        'notes' => null,
-                    ],
-                ],
-            ])
-            ->assertInvalid(['entries.1.start_time']);
+            ->delete(route('student.schedules.destroy', $scheduleTemplate))
+            ->assertNotFound();
     }
 
-    public function test_student_can_view_their_schedule_index_and_edit_screen(): void
+    public function test_student_can_view_their_schedule_index_create_and_edit_screens(): void
     {
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
             'username' => 'schedule_student',
+        ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
         ]);
 
         $student = Student::create([
@@ -283,23 +350,28 @@ class ScheduleManagementTest extends TestCase
             'notes' => null,
         ]);
 
+        $taskTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Reading Review',
+            35,
+            'Read the selected chapter.',
+            'Take notes while you read.',
+        );
+
         $scheduleTemplate = ScheduleTemplate::create([
             'student_id' => $student->id,
             'name' => 'Monday Plan',
-            'weekday' => ScheduleWeekday::Monday,
+            'weekday' => 'monday',
             'is_active' => true,
             'notes' => 'Visible to the student.',
             'created_by_user_id' => $studentUser->id,
         ]);
 
         $scheduleTemplate->entries()->create([
-            'task_template_id' => null,
-            'task_title' => 'Reading Review',
-            'task_summary' => 'Read the selected chapter.',
-            'task_instructions' => 'Take notes while you read.',
+            'task_template_id' => $taskTemplate->id,
             'position' => 1,
             'start_time' => '09:00',
-            'duration_minutes' => 35,
+            'duration_minutes' => $taskTemplate->default_duration_minutes,
             'notes' => 'Reading block.',
         ]);
 
@@ -310,8 +382,18 @@ class ScheduleManagementTest extends TestCase
                 ->component('Student/Schedules/Index')
                 ->has('scheduleTemplates', 1)
                 ->where('scheduleTemplates.0.name', 'Monday Plan')
-                ->where('scheduleTemplates.0.weekday.label', ScheduleWeekday::Monday->label())
                 ->where('scheduleTemplates.0.entries.0.task.title', 'Reading Review')
+            );
+
+        $this->actingAs($studentUser)
+            ->get(route('student.schedules.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/Schedules/Create')
+                ->has('taskTemplates', 1)
+                ->where('taskTemplates.0.id', $taskTemplate->id)
+                ->where('taskTemplates.0.default_duration_minutes', 35)
+                ->missing('weekdays')
             );
 
         $this->actingAs($studentUser)
@@ -320,7 +402,9 @@ class ScheduleManagementTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/Schedules/Edit')
                 ->where('scheduleTemplate.name', 'Monday Plan')
-                ->where('scheduleTemplate.entries.0.task_title', 'Reading Review')
+                ->has('taskTemplates', 1)
+                ->where('taskTemplates.0.id', $taskTemplate->id)
+                ->where('scheduleTemplate.entries.0.task_template_id', fn ($value) => (string) $value === (string) $taskTemplate->id)
             );
     }
 }

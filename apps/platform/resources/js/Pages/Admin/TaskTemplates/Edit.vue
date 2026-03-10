@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -14,7 +13,6 @@ const props = defineProps<{
         summary?: string | null;
         instructions?: string | null;
         default_duration_minutes: number;
-        is_active: boolean;
     };
 }>();
 
@@ -23,7 +21,6 @@ const form = useForm({
     summary: props.taskTemplate.summary ?? '',
     instructions: props.taskTemplate.instructions ?? '',
     default_duration_minutes: String(props.taskTemplate.default_duration_minutes),
-    is_active: props.taskTemplate.is_active,
 });
 
 const submit = () => {
@@ -39,7 +36,7 @@ const submit = () => {
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель администратора
+                        Панель наставника
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
                         Изменение шаблона задания
@@ -77,9 +74,6 @@ const submit = () => {
                         <p class="mt-3 text-lg font-semibold text-stone-950">
                             {{ props.taskTemplate.default_duration_minutes }} минут
                         </p>
-                        <p class="mt-2 text-sm text-stone-600">
-                            {{ props.taskTemplate.is_active ? 'Шаблон активен.' : 'Шаблон неактивен.' }}
-                        </p>
                     </div>
                 </div>
 
@@ -97,26 +91,17 @@ const submit = () => {
                         <InputError class="mt-2" :message="form.errors.title" />
                     </div>
 
-                    <div>
+                    <div class="md:col-span-2">
                         <InputLabel for="default_duration_minutes" value="Длительность по умолчанию (минуты)" />
                         <TextInput
                             id="default_duration_minutes"
                             v-model="form.default_duration_minutes"
                             type="number"
-                            min="5"
-                            max="480"
+                            min="1"
+                            max="10000"
                             class="mt-2 block w-full rounded-xl border-stone-300"
                         />
                         <InputError class="mt-2" :message="form.errors.default_duration_minutes" />
-                    </div>
-
-                    <div class="flex items-end">
-                        <label class="inline-flex items-center gap-3 pb-2">
-                            <Checkbox v-model:checked="form.is_active" />
-                            <span class="text-sm text-stone-700">
-                                Оставить этот шаблон активным
-                            </span>
-                        </label>
                     </div>
 
                     <div class="md:col-span-2">

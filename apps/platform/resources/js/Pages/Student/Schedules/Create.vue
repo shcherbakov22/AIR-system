@@ -4,9 +4,13 @@ import ScheduleForm from '@/Pages/Student/Schedules/Partials/ScheduleForm.vue';
 import { Head, Link } from '@inertiajs/vue3';
 
 defineProps<{
-    weekdays: Array<{
-        value: string;
-        label: string;
+    taskTemplates: Array<{
+        id: number;
+        title: string;
+        summary?: string | null;
+        instructions?: string | null;
+        default_duration_minutes: number;
+        is_active: boolean;
     }>;
 }>();
 </script>
@@ -39,19 +43,18 @@ defineProps<{
             <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <div class="max-w-3xl">
                     <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Недельный планировщик
+                        Планировщик
                     </p>
                     <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        Соберите план на день недели
+                        Соберите план из упорядоченных блоков
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Определите каждый блок задания напрямую. Порядок, который вы зададите
-                        здесь, станет порядком выполнения на главной странице ученика.
+                        Выберите задания из общего каталога и расположите их в том порядке, в котором хотите выполнять.
                     </p>
                 </div>
 
                 <div class="mt-10">
-                    <ScheduleForm mode="create" :weekdays="weekdays" />
+                    <ScheduleForm mode="create" :task-templates="taskTemplates" />
                 </div>
             </div>
         </div>

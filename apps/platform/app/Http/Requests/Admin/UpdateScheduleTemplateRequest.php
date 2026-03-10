@@ -35,10 +35,6 @@ class UpdateScheduleTemplateRequest extends FormRequest
      */
     public function rules(): array
     {
-        /** @var ScheduleTemplate|null $scheduleTemplate */
-        $scheduleTemplate = $this->route('scheduleTemplate');
-        $currentTaskTemplateId = $scheduleTemplate?->entries()->value('task_template_id');
-
         return [
             'student_id' => [
                 'required',
@@ -52,11 +48,7 @@ class UpdateScheduleTemplateRequest extends FormRequest
             'task_template_id' => [
                 'required',
                 'integer',
-                Rule::exists(TaskTemplate::class, 'id')->where(
-                    fn ($query) => $query
-                        ->where('is_active', true)
-                        ->orWhere('id', $currentTaskTemplateId)
-                ),
+                Rule::exists(TaskTemplate::class, 'id'),
             ],
             'start_time' => ['required', 'date_format:H:i'],
             'duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],

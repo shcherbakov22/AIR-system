@@ -2,7 +2,7 @@
 import type { PageProps } from '@/types';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{
     ruleDefinitions: Array<{
@@ -10,7 +10,6 @@ const props = defineProps<{
         title: string;
         description?: string | null;
         scope: string;
-        default_penalty_units: number;
         is_active: boolean;
         student?: {
             id: number;
@@ -22,6 +21,16 @@ const props = defineProps<{
 
 const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
+
+const deleteRuleDefinition = (ruleDefinitionId: number, ruleDefinitionTitle: string) => {
+    if (!window.confirm(`Удалить правило "${ruleDefinitionTitle}"? Связанные нарушения сохранятся как история без активной ссылки на это правило.`)) {
+        return;
+    }
+
+    router.delete(route('admin.rule-definitions.destroy', ruleDefinitionId), {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -31,7 +40,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
         <template #header>
             <div class="flex flex-col gap-2">
                 <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Панель администратора
+                    Панель наставника
                 </p>
                 <h2 class="font-serif text-4xl leading-none text-stone-950">
                     Правила
@@ -75,12 +84,21 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                                     Правило
                                 </p>
 
-                                <Link
-                                    :href="route('admin.rule-definitions.edit', ruleDefinition.id)"
-                                    class="inline-flex rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                                >
-                                    Изменить
-                                </Link>
+                                <div class="flex flex-wrap items-center justify-end gap-2">
+                                    <Link
+                                        :href="route('admin.rule-definitions.edit', ruleDefinition.id)"
+                                        class="inline-flex rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    >
+                                        Изменить
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        class="inline-flex rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
+                                        @click="deleteRuleDefinition(ruleDefinition.id, ruleDefinition.title)"
+                                    >
+                                        Удалить
+                                    </button>
+                                </div>
                             </div>
                             <h3 class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ ruleDefinition.title }}
@@ -108,10 +126,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Штраф по умолчанию
-                            </p>
-                            <p class="mt-2 text-lg font-semibold text-stone-950">
-                                {{ ruleDefinition.default_penalty_units }} ед.
+                                Состояние
                             </p>
                             <div class="mt-3">
                                 <span
@@ -122,7 +137,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                                             : 'bg-stone-200 text-stone-700'
                                     "
                                 >
-                                    {{ ruleDefinition.is_active ? 'активно' : 'неактивно' }}
+                                    {{ ruleDefinition.is_active ? 'Активно' : 'Неактивно' }}
                                 </span>
                             </div>
                         </div>
@@ -134,8 +149,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                         Правил пока нет
                     </p>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Создайте первое правило, чтобы последующие нарушения ссылались на явное
-                        определение, а не на произвольный текст.
+                        Создайте первое правило, чтобы последующие нарушения ссылались на явное определение, а не на произвольный текст.
                     </p>
                 </div>
             </div>

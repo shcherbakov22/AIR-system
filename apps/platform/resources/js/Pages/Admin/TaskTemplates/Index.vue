@@ -2,7 +2,7 @@
 import type { PageProps } from '@/types';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{
     taskTemplates: Array<{
@@ -11,12 +11,21 @@ const props = defineProps<{
         summary?: string | null;
         instructions?: string | null;
         default_duration_minutes: number;
-        is_active: boolean;
     }>;
 }>();
 
 const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
+
+const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) => {
+    if (!window.confirm(`Удалить шаблон "${taskTemplateTitle}"? Это также уберёт его из связанных расписаний и назначений.`)) {
+        return;
+    }
+
+    router.delete(route('admin.task-templates.destroy', taskTemplateId), {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -26,7 +35,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
         <template #header>
             <div class="flex flex-col gap-2">
                 <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Панель администратора
+                    Панель наставника
                 </p>
                 <h2 class="font-serif text-4xl leading-none text-stone-950">
                     Библиотека заданий
@@ -35,7 +44,10 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
         </template>
 
         <div class="mx-auto max-w-7xl px-6 py-10">
-            <div v-if="successMessage" class="mb-5 rounded-[1.5rem] bg-emerald-50 px-6 py-4 text-sm text-emerald-800 ring-1 ring-emerald-200">
+            <div
+                v-if="successMessage"
+                class="mb-5 rounded-[1.5rem] bg-emerald-50 px-6 py-4 text-sm text-emerald-800 ring-1 ring-emerald-200"
+            >
                 {{ successMessage }}
             </div>
 
@@ -69,12 +81,23 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                             <p class="mt-3 text-sm leading-6 text-stone-600">
                                 {{ taskTemplate.summary || 'Краткое описание пока не добавлено.' }}
                             </p>
-                            <Link
-                                :href="route('admin.task-templates.edit', taskTemplate.id)"
-                                class="mt-4 inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                            >
-                                Изменить шаблон
-                            </Link>
+
+                            <div class="mt-4 flex flex-wrap gap-3">
+                                <Link
+                                    :href="route('admin.task-templates.edit', taskTemplate.id)"
+                                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                >
+                                    Изменить шаблон
+                                </Link>
+
+                                <button
+                                    type="button"
+                                    class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
+                                    @click="deleteTaskTemplate(taskTemplate.id, taskTemplate.title)"
+                                >
+                                    Удалить
+                                </button>
+                            </div>
                         </div>
 
                         <div>
@@ -84,18 +107,6 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                             <p class="mt-2 text-sm font-semibold text-stone-950">
                                 {{ taskTemplate.default_duration_minutes }} минут
                             </p>
-                            <div class="mt-3">
-                                <span
-                                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                    :class="
-                                        taskTemplate.is_active
-                                            ? 'bg-emerald-100 text-emerald-800'
-                                            : 'bg-stone-200 text-stone-700'
-                                    "
-                                >
-                                    {{ taskTemplate.is_active ? 'активен' : 'неактивен' }}
-                                </span>
-                            </div>
                         </div>
 
                         <div>

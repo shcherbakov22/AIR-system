@@ -18,6 +18,7 @@ class Violation extends Model
         'rule_title_snapshot',
         'penalty_units',
         'occurred_at',
+        'auto_generated_key',
         'notes',
         'reported_by_user_id',
     ];
@@ -48,10 +49,5 @@ class Violation extends Model
     public function resolutions(): HasMany
     {
         return $this->hasMany(ViolationResolution::class);
-    }
-
-    public function penaltyTransactions(): HasMany
-    {
-        return $this->hasMany(PenaltyTransaction::class);
     }
 }

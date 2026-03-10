@@ -3,14 +3,13 @@ import type { PageProps } from '@/types';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { labelViolationResolutionAction } from '@/lib/labels';
 import { computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{
     violations: Array<{
         id: number;
         status: string;
         rule_title: string;
-        penalty_units: number;
         occurred_at_label?: string | null;
         notes?: string | null;
         student: {
@@ -33,6 +32,16 @@ const props = defineProps<{
 
 const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
+
+const deleteViolation = (violationId: number, ruleTitle: string) => {
+    if (!window.confirm(`Удалить нарушение "${ruleTitle}"? Связанные записи разбора тоже будут удалены.`)) {
+        return;
+    }
+
+    router.delete(route('admin.violations.destroy', violationId), {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -42,7 +51,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
         <template #header>
             <div class="flex flex-col gap-2">
                 <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Панель администратора
+                    Панель наставника
                 </p>
                 <h2 class="font-serif text-4xl leading-none text-stone-950">
                     Нарушения
@@ -63,9 +72,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                     class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-between"
                 >
                     <p class="text-sm text-stone-600">
-                        Фиксируйте нарушения учеников и обрабатывайте их через действия
-                        «решено» или «отменено». Положительные штрафные единицы автоматически
-                        попадают в журнал ученика.
+                        Фиксируйте нарушения учеников и обрабатывайте их через действия «решено» или «отменено».
                     </p>
 
                     <Link
@@ -127,12 +134,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                                                 : 'bg-stone-200 text-stone-700'
                                     "
                                 >
-                                    {{ violation.status === 'open' ? 'открыто' : violation.status === 'resolved' ? 'решено' : 'отменено' }}
-                                </span>
-                                <span
-                                    class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700"
-                                >
-                                    {{ violation.penalty_units }} ед.
+                                    {{ violation.status === 'open' ? 'Открыто' : violation.status === 'resolved' ? 'Решено' : 'Отменено' }}
                                 </span>
                             </div>
                             <p class="mt-4 text-sm leading-6 text-stone-600">
@@ -146,12 +148,21 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                                     `${labelViolationResolutionAction(violation.latest_resolution.action)} ${violation.latest_resolution.recorded_at_label || ''}`.trim()
                                 }}
                             </p>
-                            <Link
-                                :href="route('admin.violations.show', violation.id)"
-                                class="mt-4 inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                            >
-                                Проверить
-                            </Link>
+                            <div class="mt-4 flex flex-wrap gap-3">
+                                <Link
+                                    :href="route('admin.violations.show', violation.id)"
+                                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                >
+                                    Проверить
+                                </Link>
+                                <button
+                                    type="button"
+                                    class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
+                                    @click="deleteViolation(violation.id, violation.rule_title)"
+                                >
+                                    Удалить
+                                </button>
+                            </div>
                         </div>
                     </article>
                 </div>
@@ -161,8 +172,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                         Нарушений пока нет
                     </p>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Создайте первое нарушение после настройки правил, чтобы у штрафного
-                        журнала ученика был корректный источник данных.
+                        Создайте первое нарушение после настройки правил, чтобы наставник мог отслеживать открытые случаи и их решения.
                     </p>
                 </div>
             </div>

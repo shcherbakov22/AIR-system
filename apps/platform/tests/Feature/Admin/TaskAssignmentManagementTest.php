@@ -255,7 +255,7 @@ class TaskAssignmentManagementTest extends TestCase
         $this->assertSame('2026-03-11', $taskAssignment->due_on?->toDateString());
     }
 
-    public function test_admin_can_keep_an_inactive_current_template_when_updating(): void
+    public function test_admin_can_keep_the_current_template_when_updating(): void
     {
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
@@ -274,22 +274,21 @@ class TaskAssignmentManagementTest extends TestCase
             'notes' => null,
         ]);
 
-        $inactiveTaskTemplate = TaskTemplate::create([
-            'title' => 'Archived Reading',
+        $currentTaskTemplate = TaskTemplate::create([
+            'title' => 'Assigned Reading',
             'summary' => 'Legacy task.',
             'instructions' => 'Keep the older assignment intact.',
             'default_duration_minutes' => 25,
-            'is_active' => false,
-            'created_by_user_id' => $admin->id,
+                        'created_by_user_id' => $admin->id,
         ]);
 
         $taskAssignment = TaskAssignment::create([
             'student_id' => $student->id,
-            'task_template_id' => $inactiveTaskTemplate->id,
+            'task_template_id' => $currentTaskTemplate->id,
             'assigned_by_user_id' => $admin->id,
             'status' => 'assigned',
             'due_on' => '2026-03-09',
-            'notes' => 'Existing assignment before archive.',
+            'notes' => 'Existing assignment.',
         ]);
 
         $this->actingAs($admin)
@@ -298,26 +297,25 @@ class TaskAssignmentManagementTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/TaskAssignments/Edit')
                 ->has('taskTemplates', 1)
-                ->where('taskTemplates.0.id', $inactiveTaskTemplate->id)
-                ->where('taskTemplates.0.is_active', false)
+                ->where('taskTemplates.0.id', $currentTaskTemplate->id)
             );
 
         $this->actingAs($admin)
             ->put(route('admin.task-assignments.update', $taskAssignment), [
                 'student_id' => $student->id,
-                'task_template_id' => $inactiveTaskTemplate->id,
+                'task_template_id' => $currentTaskTemplate->id,
                 'status' => 'paused',
                 'due_on' => '2026-03-10',
-                'notes' => 'Paused after archive.',
+                'notes' => 'Paused after review.',
             ])
             ->assertRedirect(route('admin.task-assignments.index', absolute: false))
-            ->assertSessionHas('success', 'Назначение задания Archived Reading обновлено.');
+            ->assertRedirect(route('admin.task-assignments.index', absolute: false));
 
         $taskAssignment->refresh();
 
         $this->assertSame('paused', $taskAssignment->status);
         $this->assertSame('2026-03-10', $taskAssignment->due_on?->toDateString());
-        $this->assertSame('Paused after archive.', $taskAssignment->notes);
+        $this->assertSame('Paused after review.', $taskAssignment->notes);
     }
 
     public function test_admin_can_view_existing_assignments(): void

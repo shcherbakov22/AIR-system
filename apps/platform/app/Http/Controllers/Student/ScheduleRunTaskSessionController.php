@@ -8,6 +8,8 @@ use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\Student;
 use App\Models\TaskSession;
+use App\Models\Violation;
+use App\Services\AutomaticObserveTheTimeViolationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -17,6 +19,7 @@ class ScheduleRunTaskSessionController extends Controller
         StartScheduleRunBlockTaskSessionRequest $request,
         ScheduleRun $scheduleRun,
         ScheduleRunBlock $scheduleRunBlock,
+        AutomaticObserveTheTimeViolationService $automaticViolationService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -24,8 +27,16 @@ class ScheduleRunTaskSessionController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunBlock) {
-            Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunBlock, $automaticViolationService) {
+            $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+            $automaticViolationService->evaluate($student);
+
+            if ($blockingMessage = $this->blockingViolationMessage($student)) {
+                return [
+                    'success' => false,
+                    'message' => $blockingMessage,
+                ];
+            }
 
             $ownedScheduleRun = ScheduleRun::query()
                 ->whereKey($scheduleRun->id)
@@ -101,6 +112,7 @@ class ScheduleRunTaskSessionController extends Controller
                 'task_instructions_snapshot' => $ownedScheduleRunBlock->task_instructions_snapshot,
                 'assignment_notes_snapshot' => $ownedScheduleRunBlock->entry_notes_snapshot,
                 'planned_duration_minutes' => $ownedScheduleRunBlock->duration_minutes_snapshot,
+                'duration_seconds' => 0,
                 'started_at' => $startedAt,
                 'started_by_user_id' => $request->user()->id,
             ]);
@@ -114,5 +126,23 @@ class ScheduleRunTaskSessionController extends Controller
         return redirect()
             ->route('student.home')
             ->with($result['success'] ? 'success' : 'error', $result['message']);
+    }
+
+    protected function blockingViolationMessage(Student $student): ?string
+    {
+        /** @var Violation|null $violation */
+        $violation = $student->violations()
+            ->where('status', 'open')
+            ->orderByDesc('occurred_at')
+            ->first();
+
+        if (! $violation) {
+            return null;
+        }
+
+        $occurredAt = $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i');
+        $timeSuffix = $occurredAt ? " ({$occurredAt})" : '';
+
+        return "Есть открытое нарушение: {$violation->rule_title_snapshot}{$timeSuffix}. Закройте его у наставника, прежде чем продолжать расписание.";
     }
 }

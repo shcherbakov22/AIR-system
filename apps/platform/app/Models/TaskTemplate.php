@@ -12,19 +12,19 @@ class TaskTemplate extends Model
     use HasFactory;
 
     protected $fillable = [
+        'legacy_task_id',
         'title',
         'summary',
         'instructions',
         'default_duration_minutes',
-        'is_active',
         'created_by_user_id',
     ];
 
     protected function casts(): array
     {
         return [
+            'legacy_task_id' => 'integer',
             'default_duration_minutes' => 'integer',
-            'is_active' => 'boolean',
         ];
     }
 

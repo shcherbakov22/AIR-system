@@ -10,6 +10,7 @@ use App\Models\ScheduleRunBlock;
 use App\Models\Student;
 use App\Models\TaskAssignment;
 use App\Models\TaskSession;
+use App\Services\AutomaticObserveTheTimeViolationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -57,6 +58,7 @@ class TaskSessionController extends Controller
                 'task_instructions_snapshot' => $taskAssignment->taskTemplate->instructions,
                 'assignment_notes_snapshot' => $taskAssignment->notes,
                 'planned_duration_minutes' => $taskAssignment->taskTemplate->default_duration_minutes,
+                'duration_seconds' => 0,
                 'started_at' => now(),
                 'started_by_user_id' => $request->user()->id,
             ]);
@@ -78,16 +80,20 @@ class TaskSessionController extends Controller
             ->with('success', $result['message']);
     }
 
-    public function stop(StopTaskSessionRequest $request, TaskSession $taskSession): RedirectResponse
-    {
+    public function stop(
+        StopTaskSessionRequest $request,
+        TaskSession $taskSession,
+        AutomaticObserveTheTimeViolationService $automaticViolationService,
+    ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
         if (! $studentId) {
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $taskSession) {
-            Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+        $result = DB::transaction(function () use ($request, $studentId, $taskSession, $automaticViolationService) {
+            $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+            $automaticViolationService->evaluate($student);
 
             $lockedTaskSession = TaskSession::query()
                 ->with(['taskAssignment', 'scheduleRun', 'scheduleRunBlock'])
@@ -104,7 +110,10 @@ class TaskSessionController extends Controller
             }
 
             $endedAt = now();
-            $durationSeconds = (int) max(0, $lockedTaskSession->started_at?->diffInSeconds($endedAt) ?? 0);
+            $durationSeconds = (int) max(
+                0,
+                (int) ($lockedTaskSession->duration_seconds ?? 0) + ($lockedTaskSession->started_at?->diffInSeconds($endedAt) ?? 0),
+            );
 
             $lockedTaskSession->update([
                 'status' => 'completed',

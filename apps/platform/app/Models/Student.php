@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Violation;
 
 class Student extends Model
 {
@@ -54,9 +55,9 @@ class Student extends Model
         return $this->hasMany(Violation::class);
     }
 
-    public function penaltyAccount(): HasOne
+    public function hasOpenViolations(): bool
     {
-        return $this->hasOne(PenaltyAccount::class);
+        return $this->violations()->where('status', 'open')->exists();
     }
 
     public function setting(): HasOne

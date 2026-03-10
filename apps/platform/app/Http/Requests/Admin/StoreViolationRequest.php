@@ -39,7 +39,6 @@ class StoreViolationRequest extends FormRequest
                 Rule::exists('rule_definitions', 'id')->where(fn ($query) => $query->where('is_active', true)),
             ],
             'occurred_at' => ['required', 'date'],
-            'penalty_units' => ['required', 'integer', 'min:0', 'max:100000'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }

@@ -43,7 +43,6 @@ class StoreRuleDefinitionRequest extends FormRequest
                 'integer',
                 Rule::exists('students', 'id'),
             ],
-            'default_penalty_units' => ['required', 'integer', 'min:0', 'max:100000'],
             'is_active' => ['required', 'boolean'],
         ];
     }

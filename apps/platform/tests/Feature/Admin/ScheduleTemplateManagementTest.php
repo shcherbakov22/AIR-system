@@ -265,8 +265,7 @@ class ScheduleTemplateManagementTest extends TestCase
             'student_id' => $secondStudent->id,
             'name' => 'Wednesday Writing',
             'weekday' => ScheduleWeekday::Wednesday->value,
-            'is_active' => false,
-            'notes' => 'Midweek writing focus.',
+                        'notes' => 'Midweek writing focus.',
             'task_template_id' => $secondTaskTemplate->id,
             'start_time' => '10:30',
             'duration_minutes' => 50,
@@ -282,8 +281,7 @@ class ScheduleTemplateManagementTest extends TestCase
             'student_id' => $secondStudent->id,
             'name' => 'Wednesday Writing',
             'weekday' => ScheduleWeekday::Wednesday->value,
-            'is_active' => false,
-            'notes' => 'Midweek writing focus.',
+                        'notes' => 'Midweek writing focus.',
             'created_by_user_id' => $admin->id,
         ]);
 
@@ -301,7 +299,7 @@ class ScheduleTemplateManagementTest extends TestCase
         $this->assertSame('10:30', substr((string) $entry->start_time, 0, 5));
     }
 
-    public function test_admin_can_keep_an_inactive_current_task_template_when_updating_a_schedule(): void
+    public function test_admin_can_keep_the_current_task_template_when_updating_a_schedule(): void
     {
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
@@ -320,13 +318,12 @@ class ScheduleTemplateManagementTest extends TestCase
             'notes' => null,
         ]);
 
-        $inactiveTaskTemplate = TaskTemplate::create([
-            'title' => 'Archived Reading Block',
+        $currentTaskTemplate = TaskTemplate::create([
+            'title' => 'Reading Block',
             'summary' => 'Legacy block.',
             'instructions' => 'Keep the existing block intact.',
             'default_duration_minutes' => 25,
-            'is_active' => false,
-            'created_by_user_id' => $admin->id,
+                        'created_by_user_id' => $admin->id,
         ]);
 
         $scheduleTemplate = ScheduleTemplate::create([
@@ -339,7 +336,7 @@ class ScheduleTemplateManagementTest extends TestCase
         ]);
 
         $scheduleTemplate->entries()->create([
-            'task_template_id' => $inactiveTaskTemplate->id,
+            'task_template_id' => $currentTaskTemplate->id,
             'position' => 1,
             'start_time' => '08:30',
             'duration_minutes' => 25,
@@ -352,8 +349,7 @@ class ScheduleTemplateManagementTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/ScheduleTemplates/Edit')
                 ->has('taskTemplates', 1)
-                ->where('taskTemplates.0.id', $inactiveTaskTemplate->id)
-                ->where('taskTemplates.0.is_active', false)
+                ->where('taskTemplates.0.id', $currentTaskTemplate->id)
             );
 
         $this->actingAs($admin)
@@ -363,10 +359,10 @@ class ScheduleTemplateManagementTest extends TestCase
                 'weekday' => ScheduleWeekday::Monday->value,
                 'is_active' => true,
                 'notes' => 'Legacy schedule updated.',
-                'task_template_id' => $inactiveTaskTemplate->id,
+                'task_template_id' => $currentTaskTemplate->id,
                 'start_time' => '08:45',
                 'duration_minutes' => 25,
-                'entry_notes' => 'Still tied to the archived task.',
+                'entry_notes' => 'Still tied to the current task.',
             ])
             ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
             ->assertSessionHas('success', 'Расписание Archived Monday Reading обновлено.');
@@ -375,7 +371,7 @@ class ScheduleTemplateManagementTest extends TestCase
         $entry = $scheduleTemplate->entries()->firstOrFail();
 
         $this->assertSame('Legacy schedule updated.', $scheduleTemplate->notes);
-        $this->assertSame('Still tied to the archived task.', $entry->notes);
+        $this->assertSame('Still tied to the current task.', $entry->notes);
         $this->assertSame('08:45', substr((string) $entry->start_time, 0, 5));
     }
 

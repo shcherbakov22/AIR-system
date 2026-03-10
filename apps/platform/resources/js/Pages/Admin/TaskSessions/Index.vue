@@ -2,8 +2,8 @@
 import type { PageProps } from '@/types';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { labelStudentStatus, labelTaskSessionSourceType } from '@/lib/labels';
-import { computed, reactive } from 'vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { computed, reactive, ref } from 'vue';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{
     taskSessions: Array<{
@@ -90,6 +90,26 @@ const resetFilters = () => {
     filters.status = '';
     applyFilters();
 };
+
+const clearForm = useForm({
+    filter: 'all',
+});
+
+const showClearConfirm = ref(false);
+
+const clearSessions = () => {
+    if (!showClearConfirm.value) {
+        showClearConfirm.value = true;
+        return;
+    }
+
+    clearForm.delete(route('admin.task-sessions.destroy-all'), {
+        onSuccess: () => {
+            showClearConfirm.value = false;
+            clearForm.filter = 'all';
+        },
+    });
+};
 </script>
 
 <template>
@@ -99,7 +119,7 @@ const resetFilters = () => {
         <template #header>
             <div class="flex flex-col gap-2">
                 <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Панель администратора
+                    Панель наставника
                 </p>
                 <h2 class="font-serif text-4xl leading-none text-stone-950">
                     Сессии заданий
@@ -222,11 +242,38 @@ const resetFilters = () => {
             </section>
 
             <section class="mt-6 overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">
-                <div
-                    class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-between"
-                >
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-stone-200 px-6 py-5">
                     <p class="text-sm text-stone-600">
-                        Здесь показаны все зафиксированные старты и остановки для проверки администратором.
+                        Просматривайте рабочие сессии учеников и фильтруйте список по ученику
+                        или текущему статусу сессии.
+                    </p>
+
+                    <div class="flex items-center gap-3">
+                        <select
+                            v-model="clearForm.filter"
+                            class="rounded-2xl border border-stone-300 px-4 py-2 text-sm text-stone-900 focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                        >
+                            <option value="all">Все сессии</option>
+                            <option value="active">Только активные</option>
+                            <option value="completed">Только завершённые</option>
+                        </select>
+
+                        <button
+                            type="button"
+                            class="inline-flex rounded-full border border-rose-300 px-5 py-2 text-sm font-semibold uppercase tracking-[0.2em] text-rose-700 transition hover:border-rose-500 hover:bg-rose-50"
+                            :disabled="clearForm.processing"
+                            @click="clearSessions"
+                        >
+                            {{ showClearConfirm ? 'Подтвердить удаление' : 'Очистить логи' }}
+                        </button>
+                    </div>
+                </div>
+
+                <form id="clear-form" class="hidden" @submit.prevent="clearSessions"></form>
+
+                <div class="border-b border-stone-200 px-6 py-5 md:hidden">
+                    <p class="text-sm text-stone-600">
+                        Здесь показаны все зафиксированные старты и остановки для проверки наставником.
                     </p>
 
                     <Link

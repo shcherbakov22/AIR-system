@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate([
             'username' => 'admin',
         ], [
-            'name' => 'Локальный администратор',
+            'name' => 'Локальный наставник',
             'email' => 'admin@school-system.local',
             'role' => UserRole::Admin,
             'is_active' => true,
@@ -64,5 +64,8 @@ class DatabaseSeeder extends Seeder
             'legacy_owner_user_id' => null,
             'notes' => null,
         ]);
+
+        $this->call(LegacyTaskTemplateSeeder::class);
+        $this->call(LegacyRuleDefinitionSeeder::class);
     }
 }

@@ -20,7 +20,6 @@ class TaskTemplateController extends Controller
             'summary' => $taskTemplate->summary,
             'instructions' => $taskTemplate->instructions,
             'default_duration_minutes' => $taskTemplate->default_duration_minutes,
-            'is_active' => $taskTemplate->is_active,
             'created_at' => $taskTemplate->created_at?->toDateTimeString(),
         ];
     }
@@ -29,7 +28,6 @@ class TaskTemplateController extends Controller
     {
         return Inertia::render('Admin/TaskTemplates/Index', [
             'taskTemplates' => TaskTemplate::query()
-                ->orderByDesc('is_active')
                 ->orderBy('title')
                 ->get()
                 ->map(fn (TaskTemplate $taskTemplate) => $this->toPayload($taskTemplate)),
@@ -55,7 +53,6 @@ class TaskTemplateController extends Controller
             'summary' => $request->input('summary'),
             'instructions' => $request->input('instructions'),
             'default_duration_minutes' => (int) $request->input('default_duration_minutes'),
-            'is_active' => $request->boolean('is_active'),
             'created_by_user_id' => $request->user()->id,
         ]);
 
@@ -71,11 +68,21 @@ class TaskTemplateController extends Controller
             'summary' => $request->input('summary'),
             'instructions' => $request->input('instructions'),
             'default_duration_minutes' => (int) $request->input('default_duration_minutes'),
-            'is_active' => $request->boolean('is_active'),
         ]);
 
         return redirect()
             ->route('admin.task-templates.index')
             ->with('success', "Шаблон задания {$taskTemplate->fresh()->title} обновлён.");
+    }
+
+    public function destroy(TaskTemplate $taskTemplate): RedirectResponse
+    {
+        $taskTemplateTitle = $taskTemplate->title;
+
+        $taskTemplate->delete();
+
+        return redirect()
+            ->route('admin.task-templates.index')
+            ->with('success', "Шаблон задания {$taskTemplateTitle} удалён.");
     }
 }
