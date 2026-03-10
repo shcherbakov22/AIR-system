@@ -8,12 +8,10 @@ class StoreTaskTemplateRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
-        $summary = trim((string) $this->input('summary'));
         $instructions = trim((string) $this->input('instructions'));
 
         $this->merge([
             'title' => trim((string) $this->input('title')),
-            'summary' => $summary === '' ? null : $summary,
             'instructions' => $instructions === '' ? null : $instructions,
         ]);
     }
@@ -30,7 +28,6 @@ class StoreTaskTemplateRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:150'],
-            'summary' => ['nullable', 'string', 'max:1000'],
             'instructions' => ['nullable', 'string', 'max:5000'],
             'default_duration_minutes' => ['required', 'integer', 'min:1', 'max:10000'],
         ];

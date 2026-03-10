@@ -14,13 +14,11 @@ defineProps<{
             id: number;
             position: number;
             task_title: string;
-            task_summary?: string | null;
             task_instructions?: string | null;
             duration_minutes: number;
             notes?: string | null;
             task: {
                 title: string;
-                summary?: string | null;
                 instructions?: string | null;
             };
         }>;
@@ -109,11 +107,11 @@ const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
                     </Link>
                 </div>
 
-                <div v-else class="mt-8 space-y-5">
+                <div v-else class="mt-6 space-y-4">
                     <article
                         v-for="scheduleTemplate in scheduleTemplates"
                         :key="scheduleTemplate.id"
-                        class="rounded-[1.75rem] bg-stone-100 p-6"
+                        class="rounded-[1.5rem] bg-stone-100 p-5"
                     >
                         <div class="flex flex-col gap-4 border-b border-stone-200 pb-5 md:flex-row md:items-start md:justify-between">
                             <div>
@@ -157,31 +155,29 @@ const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
                             </div>
                         </div>
 
-                        <div class="mt-5 space-y-4">
+                        <div class="mt-4 space-y-3">
                             <article
                                 v-for="entry in scheduleTemplate.entries"
                                 :key="entry.id"
-                                class="grid gap-4 rounded-[1.5rem] bg-white px-5 py-4 md:grid-cols-[0.7fr_1.3fr]"
+                                class="grid gap-3 rounded-[1.1rem] bg-white px-4 py-3 md:grid-cols-[auto_1fr_auto]"
                             >
                                 <div>
-                                    <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
+                                    <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
                                         Блок {{ entry.position }}
-                                    </p>
-                                    <p class="mt-2 text-sm text-stone-600">
-                                        {{ entry.duration_minutes }} минут
                                     </p>
                                 </div>
 
                                 <div>
-                                    <h5 class="text-lg font-semibold text-stone-950">
+                                    <h5 class="text-sm font-semibold text-stone-950">
                                         {{ entry.task.title }}
                                     </h5>
-                                    <p class="mt-2 text-sm leading-6 text-stone-600">
-                                        {{ entry.task.summary || 'Описание задания не указано.' }}
-                                    </p>
-                                    <p class="mt-2 text-sm leading-6 text-stone-600">
+                                    <p class="mt-1 text-sm leading-6 text-stone-600">
                                         {{ entry.notes || 'Заметка для этого блока не указана.' }}
                                     </p>
+                                </div>
+
+                                <div class="text-sm font-medium text-stone-600">
+                                    {{ entry.duration_minutes }} минут
                                 </div>
                             </article>
                         </div>

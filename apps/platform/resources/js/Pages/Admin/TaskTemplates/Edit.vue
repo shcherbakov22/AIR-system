@@ -10,7 +10,6 @@ const props = defineProps<{
     taskTemplate: {
         id: number;
         title: string;
-        summary?: string | null;
         instructions?: string | null;
         default_duration_minutes: number;
     };
@@ -18,7 +17,6 @@ const props = defineProps<{
 
 const form = useForm({
     title: props.taskTemplate.title,
-    summary: props.taskTemplate.summary ?? '',
     instructions: props.taskTemplate.instructions ?? '',
     default_duration_minutes: String(props.taskTemplate.default_duration_minutes),
 });
@@ -102,17 +100,6 @@ const submit = () => {
                             class="mt-2 block w-full rounded-xl border-stone-300"
                         />
                         <InputError class="mt-2" :message="form.errors.default_duration_minutes" />
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <InputLabel for="summary" value="Краткое описание" />
-                        <textarea
-                            id="summary"
-                            v-model="form.summary"
-                            rows="3"
-                            class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                        />
-                        <InputError class="mt-2" :message="form.errors.summary" />
                     </div>
 
                     <div class="md:col-span-2">

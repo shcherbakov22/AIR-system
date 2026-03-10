@@ -17,7 +17,6 @@ class TaskTemplateController extends Controller
         return [
             'id' => $taskTemplate->id,
             'title' => $taskTemplate->title,
-            'summary' => $taskTemplate->summary,
             'instructions' => $taskTemplate->instructions,
             'default_duration_minutes' => $taskTemplate->default_duration_minutes,
             'created_at' => $taskTemplate->created_at?->toDateTimeString(),
@@ -50,7 +49,7 @@ class TaskTemplateController extends Controller
     {
         $taskTemplate = TaskTemplate::create([
             'title' => $request->string('title')->toString(),
-            'summary' => $request->input('summary'),
+            'summary' => null,
             'instructions' => $request->input('instructions'),
             'default_duration_minutes' => (int) $request->input('default_duration_minutes'),
             'created_by_user_id' => $request->user()->id,
@@ -65,7 +64,7 @@ class TaskTemplateController extends Controller
     {
         $taskTemplate->update([
             'title' => $request->string('title')->toString(),
-            'summary' => $request->input('summary'),
+            'summary' => null,
             'instructions' => $request->input('instructions'),
             'default_duration_minutes' => (int) $request->input('default_duration_minutes'),
         ]);

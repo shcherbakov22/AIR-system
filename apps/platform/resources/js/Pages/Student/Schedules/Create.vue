@@ -7,7 +7,6 @@ defineProps<{
     taskTemplates: Array<{
         id: number;
         title: string;
-        summary?: string | null;
         instructions?: string | null;
         default_duration_minutes: number;
         is_active: boolean;
@@ -39,8 +38,8 @@ defineProps<{
             </div>
         </template>
 
-        <div class="mx-auto max-w-5xl px-6 py-10">
-            <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
+        <div class="mx-auto max-w-5xl px-5 py-6">
+            <div class="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                 <div class="max-w-3xl">
                     <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
                         Планировщик
@@ -53,7 +52,7 @@ defineProps<{
                     </p>
                 </div>
 
-                <div class="mt-10">
+                <div class="mt-6">
                     <ScheduleForm mode="create" :task-templates="taskTemplates" />
                 </div>
             </div>

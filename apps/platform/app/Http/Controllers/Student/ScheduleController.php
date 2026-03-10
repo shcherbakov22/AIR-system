@@ -64,7 +64,6 @@ class ScheduleController extends Controller
             ->map(fn (TaskTemplate $taskTemplate) => [
                 'id' => $taskTemplate->id,
                 'title' => $taskTemplate->title,
-                'summary' => $taskTemplate->summary,
                 'instructions' => $taskTemplate->instructions,
                 'default_duration_minutes' => $taskTemplate->default_duration_minutes,
             ])
@@ -103,14 +102,12 @@ class ScheduleController extends Controller
                     'position' => $entry->position,
                     'task_template_id' => $entry->task_template_id,
                     'task_title' => $entry->resolvedTaskTitle(),
-                    'task_summary' => $entry->resolvedTaskSummary(),
                     'task_instructions' => $entry->resolvedTaskInstructions(),
                     'start_time' => substr((string) $entry->start_time, 0, 5),
                     'duration_minutes' => $entry->duration_minutes,
                     'notes' => $entry->notes,
                     'task' => [
                         'title' => $entry->resolvedTaskTitle(),
-                        'summary' => $entry->resolvedTaskSummary(),
                         'instructions' => $entry->resolvedTaskInstructions(),
                     ],
                 ])
@@ -132,7 +129,6 @@ class ScheduleController extends Controller
                 ->map(fn (array $entry) => [
                     'task_template_id' => $entry['task_template_id'],
                     'task_title' => (string) $entry['task_title'],
-                    'task_summary' => (string) ($entry['task_summary'] ?? ''),
                     'task_instructions' => (string) ($entry['task_instructions'] ?? ''),
                     'duration_minutes' => $entry['duration_minutes'],
                     'notes' => $entry['notes'] ?? '',

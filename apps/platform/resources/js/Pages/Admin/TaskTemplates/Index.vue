@@ -8,7 +8,6 @@ const props = defineProps<{
     taskTemplates: Array<{
         id: number;
         title: string;
-        summary?: string | null;
         instructions?: string | null;
         default_duration_minutes: number;
     }>;
@@ -69,7 +68,7 @@ const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) =
                     <article
                         v-for="taskTemplate in props.taskTemplates"
                         :key="taskTemplate.id"
-                        class="grid gap-4 px-6 py-6 lg:grid-cols-[1.1fr_0.8fr_1.1fr]"
+                        class="grid gap-4 px-6 py-6 lg:grid-cols-[1.1fr_0.7fr_1.2fr]"
                     >
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
@@ -78,9 +77,6 @@ const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) =
                             <h3 class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ taskTemplate.title }}
                             </h3>
-                            <p class="mt-3 text-sm leading-6 text-stone-600">
-                                {{ taskTemplate.summary || 'Краткое описание пока не добавлено.' }}
-                            </p>
 
                             <div class="mt-4 flex flex-wrap gap-3">
                                 <Link

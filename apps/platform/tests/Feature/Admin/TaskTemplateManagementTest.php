@@ -63,7 +63,7 @@ class TaskTemplateManagementTest extends TestCase
 
         $this->assertDatabaseHas('task_templates', [
             'title' => 'Math Drill',
-            'summary' => 'Short arithmetic practice block.',
+            'summary' => null,
             'instructions' => 'Work through the worksheet without skipping problems.',
             'default_duration_minutes' => 25,
             'is_active' => true,
