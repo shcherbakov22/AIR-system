@@ -372,6 +372,57 @@ class ScheduleRunController extends Controller
             ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
+    public function complete(
+        ResumeScheduleRunRequest $request,
+        ScheduleRun $scheduleRun,
+    ): RedirectResponse {
+        $studentId = $request->user()?->student?->id;
+
+        if (! $studentId) {
+            abort(403);
+        }
+
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun) {
+            $ownedScheduleRun = ScheduleRun::query()
+                ->whereKey($scheduleRun->id)
+                ->where('student_id', $studentId)
+                ->whereIn('status', ['active', 'paused'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $hasActiveScheduleTaskSession = TaskSession::query()
+                ->where('student_id', $studentId)
+                ->where('schedule_run_id', $ownedScheduleRun->id)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->exists();
+
+            if ($hasActiveScheduleTaskSession) {
+                return [
+                    'success' => false,
+                    'message' => 'Finish the current schedule task before completing the schedule.',
+                ];
+            }
+
+            $completedAt = now();
+
+            $ownedScheduleRun->update([
+                'status' => 'completed',
+                'completed_at' => $completedAt,
+                'completed_by_user_id' => $request->user()->id,
+            ]);
+
+            return [
+                'success' => true,
+                'message' => "Schedule {$ownedScheduleRun->schedule_name_snapshot} finished.",
+            ];
+        });
+
+        return redirect()
+            ->route('student.home')
+            ->with($result['success'] ? 'success' : 'error', $result['message']);
+    }
+
     protected function blockingViolationMessage(Student $student): ?string
     {
         /** @var Violation|null $violation */

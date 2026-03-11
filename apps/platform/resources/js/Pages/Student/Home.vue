@@ -413,6 +413,14 @@ const resumeScheduleRun = () => {
     router.post(route('student.schedule-runs.resume', props.activeScheduleRun.id), {}, { preserveScroll: true });
 };
 
+const completeScheduleRun = () => {
+    if (!props.activeScheduleRun) {
+        return;
+    }
+
+    router.post(route('student.schedule-runs.complete', props.activeScheduleRun.id), {}, { preserveScroll: true });
+};
+
 const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['blocks'][number]): boolean => {
     return (
         props.activeScheduleRun !== null &&
@@ -552,6 +560,15 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 @click="startNextScheduleTask"
                             >
                                 Next block
+                            </button>
+
+                            <button
+                                v-if="activeScheduleRun && !activeScheduleTaskIsRunning"
+                                type="button"
+                                class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                @click="completeScheduleRun"
+                            >
+                                Finish schedule
                             </button>
 
                             <div

@@ -270,6 +270,69 @@ class ScheduleRunFlowTest extends TestCase
             );
     }
 
+    public function test_student_can_finish_a_schedule_with_uncompleted_blocks(): void
+    {
+        Carbon::setTestNow('2026-03-08 09:00:00');
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_finish_student',
+        ]);
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate));
+
+        $scheduleRun = ScheduleRun::query()
+            ->with('blocks')
+            ->where('student_id', $student->id)
+            ->sole();
+
+        $firstBlock = $scheduleRun->blocks->firstWhere('position', 1);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [
+                'scheduleRun' => $scheduleRun,
+                'scheduleRunBlock' => $firstBlock,
+            ]));
+
+        $taskSession = TaskSession::query()
+            ->where('student_id', $student->id)
+            ->where('status', 'active')
+            ->sole();
+
+        Carbon::setTestNow('2026-03-08 09:20:00');
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $taskSession));
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.complete', $scheduleRun))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tuesday Run') && str_contains($message, 'finished'));
+
+        $scheduleRun->refresh();
+        $scheduleRun->load('blocks');
+
+        $this->assertSame('completed', $scheduleRun->status);
+        $this->assertNotNull($scheduleRun->completed_at);
+        $this->assertSame($studentUser->id, $scheduleRun->completed_by_user_id);
+        $this->assertSame('completed', $scheduleRun->blocks->firstWhere('position', 1)->status);
+        $this->assertSame('pending', $scheduleRun->blocks->firstWhere('position', 2)->status);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/Home')
+                ->where('activeScheduleRun', null)
+            );
+
+        Carbon::setTestNow();
+    }
+
     public function test_student_can_pause_a_running_schedule_block_for_an_own_timer_and_resume_it(): void
     {
         Carbon::setTestNow('2026-03-08 09:00:00');
