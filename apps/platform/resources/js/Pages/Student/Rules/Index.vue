@@ -66,7 +66,7 @@ defineProps<{
                     <article
                         v-for="rule in rules"
                         :key="rule.id"
-                        class="grid gap-5 py-5 md:grid-cols-[1.2fr_0.8fr]"
+                        class="py-5"
                     >
                         <div>
                             <div class="flex flex-wrap items-center gap-3">
@@ -92,19 +92,6 @@ defineProps<{
                                     rule.created_at_label
                                         ? `Добавлено ${rule.created_at_label}`
                                         : 'Дата добавления не сохранена.'
-                                }}
-                            </p>
-                        </div>
-
-                        <div class="rounded-[1.5rem] bg-stone-100 px-5 py-4">
-                            <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Область действия
-                            </p>
-                            <p class="mt-3 text-sm text-stone-600">
-                                {{
-                                    rule.scope === 'student' && rule.student
-                                        ? `Правило назначено для ${rule.student.display_name}.`
-                                        : 'Правило действует для всех учеников.'
                                 }}
                             </p>
                         </div>
