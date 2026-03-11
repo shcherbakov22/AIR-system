@@ -16,16 +16,16 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Панель наставника" />
+    <Head title="Mentor dashboard" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2">
                 <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Панель наставника
+                    Mentor dashboard
                 </p>
                 <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    Обзор платформы
+                    Platform overview
                 </h2>
             </div>
         </template>
@@ -34,7 +34,7 @@ defineProps<{
             <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-7">
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Ученики
+                        Students
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ metrics.students_total }}
@@ -43,7 +43,7 @@ defineProps<{
 
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Активные ученики
+                        Active students
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ metrics.students_active }}
@@ -52,7 +52,7 @@ defineProps<{
 
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Учётные записи наставников
+                        Mentor accounts
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ metrics.admins_total }}
@@ -61,7 +61,7 @@ defineProps<{
 
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Шаблоны заданий
+                        Task templates
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ metrics.task_templates_total }}
@@ -70,7 +70,7 @@ defineProps<{
 
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Сессии заданий
+                        Task sessions
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ metrics.task_sessions_total }}
@@ -79,7 +79,7 @@ defineProps<{
 
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Активные сессии
+                        Active sessions
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ metrics.task_sessions_active }}
@@ -88,7 +88,7 @@ defineProps<{
 
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Шаблоны расписаний
+                        Schedule templates
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ metrics.schedule_templates_total }}

@@ -27,17 +27,17 @@ const submit = () => {
 </script>
 
 <template>
-    <Head :title="`Изменение: ${props.taskTemplate.title}`" />
+    <Head :title="`Edit: ${props.taskTemplate.title}`" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель наставника
+                        Mentor dashboard
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Изменение шаблона задания
+                        Edit task template
                     </h2>
                 </div>
 
@@ -45,7 +45,7 @@ const submit = () => {
                     :href="route('admin.task-templates.index')"
                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                 >
-                    Назад к библиотеке заданий
+                    Back to task library
                 </Link>
             </div>
         </template>
@@ -55,29 +55,29 @@ const submit = () => {
                 <div class="grid gap-6 border-b border-stone-200 pb-8 lg:grid-cols-[1.1fr_0.9fr]">
                     <div>
                         <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                            Обслуживание шаблона задания
+                            Task template maintenance
                         </p>
                         <h3 class="mt-4 font-serif text-3xl text-stone-950">
                             {{ props.taskTemplate.title }}
                         </h3>
                         <p class="mt-4 text-sm leading-7 text-stone-600">
-                            Измените повторно используемый шаблон задания, не назначая его ученикам.
+                            Update this reusable task template without assigning it directly to students.
                         </p>
                     </div>
 
                     <div class="rounded-[1.5rem] bg-stone-100 p-5">
                         <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                            Текущее значение по умолчанию
+                            Current default value
                         </p>
                         <p class="mt-3 text-lg font-semibold text-stone-950">
-                            {{ props.taskTemplate.default_duration_minutes }} минут
+                            {{ props.taskTemplate.default_duration_minutes }} min
                         </p>
                     </div>
                 </div>
 
                 <form class="mt-10 grid gap-6 md:grid-cols-2" @submit.prevent="submit">
                     <div class="md:col-span-2">
-                        <InputLabel for="title" value="Название задания" />
+                        <InputLabel for="title" value="Task title" />
                         <TextInput
                             id="title"
                             v-model="form.title"
@@ -90,7 +90,7 @@ const submit = () => {
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="default_duration_minutes" value="Длительность по умолчанию (минуты)" />
+                        <InputLabel for="default_duration_minutes" value="Default duration (minutes)" />
                         <TextInput
                             id="default_duration_minutes"
                             v-model="form.default_duration_minutes"
@@ -103,7 +103,7 @@ const submit = () => {
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="instructions" value="Инструкции" />
+                        <InputLabel for="instructions" value="Instructions" />
                         <textarea
                             id="instructions"
                             v-model="form.instructions"
@@ -115,14 +115,14 @@ const submit = () => {
 
                     <div class="md:col-span-2 flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-sm text-stone-500">
-                            Назначения ученикам и привязка к расписаниям остаются отдельными частями системы.
+                            Student assignments and schedule links remain separate parts of the system.
                         </p>
 
                         <PrimaryButton
                             :disabled="form.processing"
                             class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600"
                         >
-                            Сохранить изменения
+                            Save changes
                         </PrimaryButton>
                     </div>
                 </form>

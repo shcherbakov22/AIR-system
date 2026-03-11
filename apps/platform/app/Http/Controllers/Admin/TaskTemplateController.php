@@ -57,7 +57,7 @@ class TaskTemplateController extends Controller
 
         return redirect()
             ->route('admin.task-templates.index')
-            ->with('success', "Шаблон задания {$taskTemplate->title} создан.");
+            ->with('success', "Task template {$taskTemplate->title} has been created.");
     }
 
     public function update(UpdateTaskTemplateRequest $request, TaskTemplate $taskTemplate): RedirectResponse
@@ -71,7 +71,7 @@ class TaskTemplateController extends Controller
 
         return redirect()
             ->route('admin.task-templates.index')
-            ->with('success', "Шаблон задания {$taskTemplate->fresh()->title} обновлён.");
+            ->with('success', "Task template {$taskTemplate->fresh()->title} has been updated.");
     }
 
     public function destroy(TaskTemplate $taskTemplate): RedirectResponse
@@ -82,6 +82,6 @@ class TaskTemplateController extends Controller
 
         return redirect()
             ->route('admin.task-templates.index')
-            ->with('success', "Шаблон задания {$taskTemplateTitle} удалён.");
+            ->with('success', "Task template {$taskTemplateTitle} has been deleted.");
     }
 }

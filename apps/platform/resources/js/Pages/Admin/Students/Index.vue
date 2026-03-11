@@ -26,16 +26,16 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
 </script>
 
 <template>
-    <Head title="Ученики" />
+    <Head title="Students" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2">
                 <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Панель наставника
+                    Mentor dashboard
                 </p>
                 <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    Ученики
+                    Students
                 </h2>
             </div>
         </template>
@@ -48,14 +48,14 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
             <div class="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">
                 <div class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-between">
                     <p class="text-sm text-stone-600">
-                        Текущие профили учеников, созданные в новой платформе.
+                        Current student profiles created in the new platform.
                     </p>
 
                     <Link
                         :href="route('admin.students.create')"
                         class="inline-flex rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-stone-800"
                     >
-                        Добавить ученика
+                        Add student
                     </Link>
                 </div>
 
@@ -67,37 +67,37 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                     >
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Отображаемое имя
+                                Display name
                             </p>
                             <h3 class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ student.display_name }}
                             </h3>
                             <p class="mt-2 text-sm text-stone-600">
-                                Имя учётной записи: {{ student.user.name }}
+                                Account name: {{ student.user.name }}
                             </p>
                             <Link
                                 :href="route('admin.students.edit', student.id)"
                                 class="mt-4 inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                             >
-                                Изменить ученика
+                                Edit student
                             </Link>
                         </div>
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Вход
+                                Login
                             </p>
                             <p class="mt-2 text-sm font-semibold text-stone-950">
                                 {{ student.user.username }}
                             </p>
                             <p class="mt-2 text-sm text-stone-600">
-                                {{ student.user.email || 'Электронная почта не указана' }}
+                                {{ student.user.email || 'No email address provided' }}
                             </p>
                         </div>
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Статус
+                                Status
                             </p>
                             <div class="mt-2 flex flex-wrap items-center gap-3">
                                 <span
@@ -118,9 +118,9 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                                             : 'bg-rose-100 text-rose-700'
                                     "
                                 >
-                                {{ student.user.is_active ? 'вход разрешён' : 'вход запрещён' }}
-                            </span>
-                        </div>
+                                    {{ student.user.is_active ? 'login allowed' : 'login disabled' }}
+                                </span>
+                            </div>
                             <p v-if="student.notes" class="mt-3 text-sm leading-6 text-stone-600">
                                 {{ student.notes }}
                             </p>
@@ -130,10 +130,10 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
 
                 <div v-else class="px-6 py-12 text-center">
                     <p class="text-sm uppercase tracking-[0.3em] text-stone-500">
-                        Учеников пока нет
+                        No students yet
                     </p>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Создайте первую учётную запись ученика, чтобы начать наполнять платформу.
+                        Create the first student account to start filling out the platform.
                     </p>
                 </div>
             </div>

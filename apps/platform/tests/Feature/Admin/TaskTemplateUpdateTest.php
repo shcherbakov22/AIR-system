@@ -58,19 +58,18 @@ class TaskTemplateUpdateTest extends TestCase
 
         $response = $this->actingAs($admin)->put(route('admin.task-templates.update', $taskTemplate), [
             'title' => 'Reading Review Updated',
-            'summary' => 'Longer reading block.',
             'instructions' => 'Read carefully and write a three-point recap.',
             'default_duration_minutes' => 60,
         ]);
 
         $response
             ->assertRedirect(route('admin.task-templates.index', absolute: false))
-            ->assertSessionHas('success', 'Шаблон задания Reading Review Updated обновлён.');
+            ->assertSessionHas('success', 'Task template Reading Review Updated has been updated.');
 
         $taskTemplate->refresh();
 
         $this->assertSame('Reading Review Updated', $taskTemplate->title);
-        $this->assertSame('Longer reading block.', $taskTemplate->summary);
+        $this->assertNull($taskTemplate->summary);
         $this->assertSame('Read carefully and write a three-point recap.', $taskTemplate->instructions);
         $this->assertSame(60, $taskTemplate->default_duration_minutes);
     }

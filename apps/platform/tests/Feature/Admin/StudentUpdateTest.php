@@ -91,7 +91,7 @@ class StudentUpdateTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.students.index', absolute: false))
-            ->assertSessionHas('success', 'Ученик Edited Student обновлён.');
+            ->assertSessionHas('success', 'Student Edited Student has been updated.');
 
         $studentUser->refresh();
         $student->refresh();

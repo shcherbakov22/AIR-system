@@ -18,17 +18,17 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Создание шаблона задания" />
+    <Head title="Create task template" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель наставника
+                        Mentor dashboard
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Создание шаблона задания
+                        Create task template
                     </h2>
                 </div>
 
@@ -36,7 +36,7 @@ const submit = () => {
                     :href="route('admin.task-templates.index')"
                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                 >
-                    Назад к библиотеке заданий
+                    Back to task library
                 </Link>
             </div>
         </template>
@@ -45,20 +45,19 @@ const submit = () => {
             <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <div class="max-w-2xl">
                     <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Проектирование задания
+                        Task design
                     </p>
                     <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        Добавить повторно используемый шаблон задания
+                        Add a reusable task template
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Этот шаблон пока никому не назначает работу. Он только определяет задание,
-                        на которое позже смогут ссылаться расписания и сессии ученика.
+                        This template does not assign work to anyone yet. It only defines a task that schedules and student sessions can reference later.
                     </p>
                 </div>
 
                 <form class="mt-10 grid gap-6 md:grid-cols-2" @submit.prevent="submit">
                     <div class="md:col-span-2">
-                        <InputLabel for="title" value="Название задания" />
+                        <InputLabel for="title" value="Task title" />
                         <TextInput
                             id="title"
                             v-model="form.title"
@@ -71,7 +70,7 @@ const submit = () => {
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="default_duration_minutes" value="Длительность по умолчанию (минуты)" />
+                        <InputLabel for="default_duration_minutes" value="Default duration (minutes)" />
                         <TextInput
                             id="default_duration_minutes"
                             v-model="form.default_duration_minutes"
@@ -84,7 +83,7 @@ const submit = () => {
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="instructions" value="Инструкции" />
+                        <InputLabel for="instructions" value="Instructions" />
                         <textarea
                             id="instructions"
                             v-model="form.instructions"
@@ -96,14 +95,14 @@ const submit = () => {
 
                     <div class="md:col-span-2 flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-sm text-stone-500">
-                            Сосредоточьтесь на самом задании. Правила для конкретного ученика задаются отдельно.
+                            Focus on the task itself here. Student-specific rules are managed separately.
                         </p>
 
                         <PrimaryButton
                             :disabled="form.processing"
                             class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600"
                         >
-                            Создать шаблон задания
+                            Create task template
                         </PrimaryButton>
                     </div>
                 </form>

@@ -56,17 +56,17 @@ const submit = () => {
 </script>
 
 <template>
-    <Head :title="`Изменение: ${props.student.display_name}`" />
+    <Head :title="`Edit: ${props.student.display_name}`" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель наставника
+                        Mentor dashboard
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Изменение ученика
+                        Edit student
                     </h2>
                 </div>
 
@@ -74,7 +74,7 @@ const submit = () => {
                     :href="route('admin.students.index')"
                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                 >
-                    Назад к ученикам
+                    Back to students
                 </Link>
             </div>
         </template>
@@ -84,97 +84,66 @@ const submit = () => {
                 <div class="grid gap-6 border-b border-stone-200 pb-8 lg:grid-cols-[1.1fr_0.9fr]">
                     <div>
                         <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                            Обслуживание ученика
+                            Student maintenance
                         </p>
                         <h3 class="mt-4 font-serif text-3xl text-stone-950">
                             {{ props.student.display_name }}
                         </h3>
                         <p class="mt-4 text-sm leading-7 text-stone-600">
-                            Обновите профиль учётной записи и настройте, может ли этот ученик входить в систему.
+                            Update the account profile and decide whether this student can log in.
                         </p>
                     </div>
 
                     <div class="rounded-[1.5rem] bg-stone-100 p-5">
                         <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                            Текущий логин
+                            Current login
                         </p>
                         <p class="mt-3 text-lg font-semibold text-stone-950">
                             {{ props.student.user.username }}
                         </p>
                         <p class="mt-2 text-sm text-stone-600">
-                            {{ props.student.user.email || 'Электронная почта не указана' }}
+                            {{ props.student.user.email || 'No email address provided' }}
                         </p>
                     </div>
                 </div>
 
                 <form class="mt-10 grid gap-6 md:grid-cols-2" @submit.prevent="submit">
                     <div>
-                        <InputLabel for="username" value="Имя пользователя" />
-                        <TextInput
-                            id="username"
-                            v-model="form.username"
-                            type="text"
-                            class="mt-2 block w-full rounded-xl border-stone-300"
-                            autofocus
-                            autocomplete="off"
-                        />
+                        <InputLabel for="username" value="Username" />
+                        <TextInput id="username" v-model="form.username" type="text" class="mt-2 block w-full rounded-xl border-stone-300" autofocus autocomplete="off" />
                         <InputError class="mt-2" :message="form.errors.username" />
                     </div>
 
                     <div>
-                        <InputLabel for="display_name" value="Отображаемое имя" />
-                        <TextInput
-                            id="display_name"
-                            v-model="form.display_name"
-                            type="text"
-                            class="mt-2 block w-full rounded-xl border-stone-300"
-                        />
+                        <InputLabel for="display_name" value="Display name" />
+                        <TextInput id="display_name" v-model="form.display_name" type="text" class="mt-2 block w-full rounded-xl border-stone-300" />
                         <InputError class="mt-2" :message="form.errors.display_name" />
                     </div>
 
                     <div>
-                        <InputLabel for="name" value="Имя учётной записи" />
-                        <TextInput
-                            id="name"
-                            v-model="form.name"
-                            type="text"
-                            class="mt-2 block w-full rounded-xl border-stone-300"
-                        />
+                        <InputLabel for="name" value="Account name" />
+                        <TextInput id="name" v-model="form.name" type="text" class="mt-2 block w-full rounded-xl border-stone-300" />
                         <InputError class="mt-2" :message="form.errors.name" />
                     </div>
 
                     <div>
-                        <InputLabel for="email" value="Электронная почта (необязательно)" />
-                        <TextInput
-                            id="email"
-                            v-model="form.email"
-                            type="email"
-                            class="mt-2 block w-full rounded-xl border-stone-300"
-                        />
+                        <InputLabel for="email" value="Email (optional)" />
+                        <TextInput id="email" v-model="form.email" type="email" class="mt-2 block w-full rounded-xl border-stone-300" />
                         <InputError class="mt-2" :message="form.errors.email" />
                     </div>
 
                     <div>
-                        <InputLabel for="status" value="Статус ученика" />
-                        <select
-                            id="status"
-                            v-model="form.status"
-                            class="mt-2 block w-full rounded-xl border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                        >
-                            <option value="active">Активен</option>
-                            <option value="paused">Пауза</option>
+                        <InputLabel for="status" value="Student status" />
+                        <select id="status" v-model="form.status" class="mt-2 block w-full rounded-xl border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700">
+                            <option value="active">Active</option>
+                            <option value="paused">Paused</option>
                         </select>
                         <InputError class="mt-2" :message="form.errors.status" />
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="notes" value="Заметки" />
-                        <textarea
-                            id="notes"
-                            v-model="form.notes"
-                            rows="5"
-                            class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                        />
+                        <InputLabel for="notes" value="Notes" />
+                        <textarea id="notes" v-model="form.notes" rows="5" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700" />
                         <InputError class="mt-2" :message="form.errors.notes" />
                     </div>
 
@@ -182,7 +151,7 @@ const submit = () => {
                         <label class="inline-flex items-center gap-3">
                             <Checkbox v-model:checked="form.is_active" />
                             <span class="text-sm text-stone-700">
-                                Разрешить этому ученику вход
+                                Allow this student to log in
                             </span>
                         </label>
                         <InputError class="mt-2" :message="form.errors.is_active" />
@@ -190,14 +159,14 @@ const submit = () => {
 
                     <div class="md:col-span-2 rounded-[1.5rem] bg-stone-100 p-6">
                         <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                            Разрешения во время работы
+                            Work permissions
                         </p>
                         <div class="mt-5 grid gap-5 md:grid-cols-2">
                             <div>
                                 <label class="inline-flex items-center gap-3">
                                     <Checkbox v-model:checked="form.can_manage_own_schedule" />
                                     <span class="text-sm text-stone-700">
-                                        Разрешить ученику управлять своим расписанием
+                                        Let the student manage their own schedule
                                     </span>
                                 </label>
                                 <InputError class="mt-2" :message="form.errors.can_manage_own_schedule" />
@@ -207,20 +176,15 @@ const submit = () => {
                                 <label class="inline-flex items-center gap-3">
                                     <Checkbox v-model:checked="form.can_use_ad_hoc_timer" />
                                     <span class="text-sm text-stone-700">
-                                        Разрешить собственные таймеры при прерывании расписания
+                                        Allow own timers while pausing a schedule
                                     </span>
                                 </label>
                                 <InputError class="mt-2" :message="form.errors.can_use_ad_hoc_timer" />
                             </div>
 
                             <div class="md:col-span-2">
-                                <InputLabel for="preferred_timezone" value="Предпочитаемый часовой пояс (необязательно)" />
-                                <TextInput
-                                    id="preferred_timezone"
-                                    v-model="form.preferred_timezone"
-                                    type="text"
-                                    class="mt-2 block w-full rounded-xl border-stone-300"
-                                />
+                                <InputLabel for="preferred_timezone" value="Preferred timezone (optional)" />
+                                <TextInput id="preferred_timezone" v-model="form.preferred_timezone" type="text" class="mt-2 block w-full rounded-xl border-stone-300" />
                                 <InputError class="mt-2" :message="form.errors.preferred_timezone" />
                             </div>
                         </div>
@@ -228,43 +192,24 @@ const submit = () => {
 
                     <div class="md:col-span-2 rounded-[1.5rem] bg-stone-100 p-6">
                         <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                            Профиль последствий
+                            Consequence profile
                         </p>
                         <div class="mt-5 grid gap-5 md:grid-cols-2">
                             <div>
-                                <InputLabel for="default_push_up_count" value="Количество отжиманий по умолчанию" />
-                                <TextInput
-                                    id="default_push_up_count"
-                                    v-model="form.default_push_up_count"
-                                    type="number"
-                                    min="0"
-                                    max="1000"
-                                    class="mt-2 block w-full rounded-xl border-stone-300"
-                                />
+                                <InputLabel for="default_push_up_count" value="Default push-up count" />
+                                <TextInput id="default_push_up_count" v-model="form.default_push_up_count" type="number" min="0" max="1000" class="mt-2 block w-full rounded-xl border-stone-300" />
                                 <InputError class="mt-2" :message="form.errors.default_push_up_count" />
                             </div>
 
                             <div>
-                                <InputLabel for="rest_duration_seconds" value="Длительность отдыха (секунды)" />
-                                <TextInput
-                                    id="rest_duration_seconds"
-                                    v-model="form.rest_duration_seconds"
-                                    type="number"
-                                    min="0"
-                                    max="86400"
-                                    class="mt-2 block w-full rounded-xl border-stone-300"
-                                />
+                                <InputLabel for="rest_duration_seconds" value="Rest duration (seconds)" />
+                                <TextInput id="rest_duration_seconds" v-model="form.rest_duration_seconds" type="number" min="0" max="86400" class="mt-2 block w-full rounded-xl border-stone-300" />
                                 <InputError class="mt-2" :message="form.errors.rest_duration_seconds" />
                             </div>
 
                             <div class="md:col-span-2">
-                                <InputLabel for="consequence_notes" value="Заметки по последствиям" />
-                                <textarea
-                                    id="consequence_notes"
-                                    v-model="form.consequence_notes"
-                                    rows="4"
-                                    class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                                />
+                                <InputLabel for="consequence_notes" value="Consequence notes" />
+                                <textarea id="consequence_notes" v-model="form.consequence_notes" rows="4" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700" />
                                 <InputError class="mt-2" :message="form.errors.consequence_notes" />
                             </div>
                         </div>
@@ -272,14 +217,11 @@ const submit = () => {
 
                     <div class="md:col-span-2 flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-sm text-stone-500">
-                            Изменение пароля пока вынесено из этого экрана и будет добавлено позже.
+                            Password changes are still handled outside this screen and will be added here later.
                         </p>
 
-                        <PrimaryButton
-                            :disabled="form.processing"
-                            class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600"
-                        >
-                            Сохранить изменения
+                        <PrimaryButton :disabled="form.processing" class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600">
+                            Save changes
                         </PrimaryButton>
                     </div>
                 </form>

@@ -59,7 +59,7 @@ class TaskTemplateManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.task-templates.index', absolute: false))
-            ->assertSessionHas('success', 'Шаблон задания Math Drill создан.');
+            ->assertSessionHas('success', 'Task template Math Drill has been created.');
 
         $this->assertDatabaseHas('task_templates', [
             'title' => 'Math Drill',
@@ -117,7 +117,7 @@ class TaskTemplateManagementTest extends TestCase
         $this->actingAs($admin)
             ->delete(route('admin.task-templates.destroy', $taskTemplate))
             ->assertRedirect(route('admin.task-templates.index', absolute: false))
-            ->assertSessionHas('success', 'Шаблон задания Reading Session удалён.');
+            ->assertSessionHas('success', 'Task template Reading Session has been deleted.');
 
         $this->assertDatabaseMissing('task_templates', [
             'id' => $taskTemplate->id,

@@ -53,7 +53,7 @@ class StudentCreationTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.students.index', absolute: false))
-            ->assertSessionHas('success', 'Ученик New Student создан.');
+            ->assertSessionHas('success', 'Student New Student has been created.');
 
         $this->assertDatabaseHas('users', [
             'username' => 'new_student',

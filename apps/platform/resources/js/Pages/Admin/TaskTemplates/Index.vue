@@ -17,7 +17,7 @@ const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
 
 const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) => {
-    if (!window.confirm(`Удалить шаблон "${taskTemplateTitle}"? Это также уберёт его из связанных расписаний и назначений.`)) {
+    if (!window.confirm(`Delete template "${taskTemplateTitle}"? This will also remove it from linked schedules and assignments.`)) {
         return;
     }
 
@@ -28,16 +28,16 @@ const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) =
 </script>
 
 <template>
-    <Head title="Шаблоны заданий" />
+    <Head title="Task templates" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2">
                 <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Панель наставника
+                    Mentor dashboard
                 </p>
                 <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    Библиотека заданий
+                    Task library
                 </h2>
             </div>
         </template>
@@ -53,14 +53,14 @@ const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) =
             <div class="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">
                 <div class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-between">
                     <p class="text-sm text-stone-600">
-                        Повторно используемые определения заданий для будущих расписаний и назначений.
+                        Reusable task definitions for future schedules and assignments.
                     </p>
 
                     <Link
                         :href="route('admin.task-templates.create')"
                         class="inline-flex rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-stone-800"
                     >
-                        Добавить шаблон
+                        Add template
                     </Link>
                 </div>
 
@@ -72,7 +72,7 @@ const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) =
                     >
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Название задания
+                                Task title
                             </p>
                             <h3 class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ taskTemplate.title }}
@@ -83,7 +83,7 @@ const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) =
                                     :href="route('admin.task-templates.edit', taskTemplate.id)"
                                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                                 >
-                                    Изменить шаблон
+                                    Edit template
                                 </Link>
 
                                 <button
@@ -91,26 +91,26 @@ const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) =
                                     class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
                                     @click="deleteTaskTemplate(taskTemplate.id, taskTemplate.title)"
                                 >
-                                    Удалить
+                                    Delete
                                 </button>
                             </div>
                         </div>
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Значения по умолчанию
+                                Default values
                             </p>
                             <p class="mt-2 text-sm font-semibold text-stone-950">
-                                {{ taskTemplate.default_duration_minutes }} минут
+                                {{ taskTemplate.default_duration_minutes }} min
                             </p>
                         </div>
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Инструкции
+                                Instructions
                             </p>
                             <p class="mt-2 text-sm leading-6 text-stone-600">
-                                {{ taskTemplate.instructions || 'Инструкции к заданию пока не добавлены.' }}
+                                {{ taskTemplate.instructions || 'No task instructions have been added yet.' }}
                             </p>
                         </div>
                     </article>
@@ -118,10 +118,10 @@ const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) =
 
                 <div v-else class="px-6 py-12 text-center">
                     <p class="text-sm uppercase tracking-[0.3em] text-stone-500">
-                        Шаблонов заданий пока нет
+                        No task templates yet
                     </p>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Создайте первый шаблон задания, чтобы будущие расписания учеников могли на него ссылаться.
+                        Create the first task template so future student schedules can reference it.
                     </p>
                 </div>
             </div>

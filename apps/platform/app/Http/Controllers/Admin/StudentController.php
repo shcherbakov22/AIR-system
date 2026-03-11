@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreStudentRequest;
 use App\Http\Requests\Admin\UpdateStudentRequest;
-use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\StudentConsequenceProfile;
 use App\Models\StudentSetting;
@@ -92,7 +92,7 @@ class StudentController extends Controller
 
         return redirect()
             ->route('admin.students.index')
-            ->with('success', "Ученик {$student->display_name} создан.");
+            ->with('success', "Student {$student->display_name} has been created.");
     }
 
     public function edit(Student $student): Response
@@ -141,12 +141,9 @@ class StudentController extends Controller
 
         return redirect()
             ->route('admin.students.index')
-            ->with('success', "Ученик {$student->fresh()->display_name} обновлён.");
+            ->with('success', "Student {$student->fresh()->display_name} has been updated.");
     }
 
-    /**
-     * Display a listing of the resource.
-     */
     public function index(): Response
     {
         return Inertia::render('Admin/Students/Index', [
