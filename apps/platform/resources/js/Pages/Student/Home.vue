@@ -558,12 +558,12 @@ const resumeScheduleRun = () => {
 
                             <div
                                 v-if="canPauseForOwnTimer || activeTaskSession"
-                                class="grid w-full grid-cols-2 gap-2 sm:w-auto"
+                                class="inline-flex flex-nowrap items-center gap-2"
                             >
                                 <button
                                     v-if="canPauseForOwnTimer"
                                     type="button"
-                                    class="inline-flex w-full justify-center whitespace-nowrap rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    class="inline-flex shrink-0 justify-center whitespace-nowrap rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                                     :disabled="!hasTaskTemplates"
                                     @click="togglePauseOwnTimerForm"
                                 >
@@ -572,12 +572,12 @@ const resumeScheduleRun = () => {
                                 <form
                                     v-if="activeTaskSession"
                                     @submit.prevent="stopTaskSession"
-                                    class="w-full"
+                                    class="shrink-0"
                                 >
                                     <button
                                         type="submit"
                                         :disabled="stopTaskSessionForm.processing"
-                                        class="inline-flex w-full justify-center whitespace-nowrap rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                        class="inline-flex shrink-0 justify-center whitespace-nowrap rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         Завершить
                                     </button>
@@ -624,7 +624,7 @@ const resumeScheduleRun = () => {
                             <button
                                 type="submit"
                                 :disabled="pauseOwnTimerForm.processing || !hasTaskTemplates"
-                                class="inline-flex w-full justify-center whitespace-nowrap rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                class="inline-flex shrink-0 justify-center whitespace-nowrap rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 Пауза
                             </button>
