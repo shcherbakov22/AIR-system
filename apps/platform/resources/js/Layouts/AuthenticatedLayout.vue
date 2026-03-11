@@ -141,7 +141,7 @@ const closeMobileNav = () => {
         </aside>
 
         <div class="min-w-0 lg:pl-[15.5rem]">
-            <div class="border-b border-stone-200 bg-white/90 px-3 py-3 backdrop-blur">
+            <div class="border-b border-stone-200 bg-white/90 px-3 py-3 backdrop-blur lg:hidden">
                 <div class="flex items-center justify-end gap-2">
                     <button
                         type="button"
