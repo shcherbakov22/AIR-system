@@ -287,6 +287,26 @@ const activeTaskEndsAtLabel = computed(() => {
     return formatClockTime(activeTaskStartedAtMs.value + remainingCurrentSegmentSeconds * 1000);
 });
 
+const currentSummaryDetail = computed(() => {
+    if (props.activeTaskSession?.source_type === 'ad_hoc') {
+        return 'Your own timer is keeping the schedule paused.';
+    }
+
+    if (props.activeTaskSession?.schedule_run_block_position) {
+        return `Block ${props.activeTaskSession.schedule_run_block_position} is running now.`;
+    }
+
+    if (props.activeScheduleRun?.paused_block) {
+        return `Block ${props.activeScheduleRun.paused_block.position} is paused.`;
+    }
+
+    if (props.activeScheduleRun?.next_block) {
+        return `Next block: ${props.activeScheduleRun.next_block.position}.`;
+    }
+
+    return null;
+});
+
 const stopTaskSession = () => {
     if (!props.activeTaskSession) {
         return;
@@ -451,18 +471,11 @@ const resumeScheduleRun = () => {
                             }}
                         </p>
 
-                        <p class="mt-1 text-sm text-stone-600">
-                            {{
-                                activeTaskSession?.source_type === 'ad_hoc'
-                                    ? 'Your own timer is keeping the schedule paused.'
-                                    : activeTaskSession?.schedule_run_block_position
-                                      ? `Block ${activeTaskSession.schedule_run_block_position} is running now.`
-                                      : activeScheduleRun?.paused_block
-                                        ? `Block ${activeScheduleRun.paused_block.position} is paused.`
-                                        : activeScheduleRun?.next_block
-                                          ? `Next block: ${activeScheduleRun.next_block.position}.`
-                                          : `Schedules available: ${weeklyScheduleTemplates.length}.`
-                            }}
+                        <p
+                            v-if="currentSummaryDetail"
+                            class="mt-1 text-sm text-stone-600"
+                        >
+                            {{ currentSummaryDetail }}
                         </p>
 
                         <div class="mt-3 flex flex-wrap gap-3 text-xs text-stone-500">
