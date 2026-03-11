@@ -558,8 +558,8 @@ const resumeScheduleRun = () => {
 
                             <div
                                 v-if="canPauseForOwnTimer || activeTaskSession"
-                                class="flex flex-row items-center gap-2"
-                                style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0.5rem;"
+                                class="inline-flex items-center gap-2"
+                                style="display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0.5rem;"
                             >
                                 <button
                                     v-if="canPauseForOwnTimer"
