@@ -556,28 +556,33 @@ const resumeScheduleRun = () => {
                                 Следующий блок
                             </button>
 
-                            <button
-                                v-if="canPauseForOwnTimer"
-                                type="button"
-                                class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                                :disabled="!hasTaskTemplates"
-                                @click="togglePauseOwnTimerForm"
-                            >
-                                {{ pauseOwnTimerFormOpen ? 'Скрыть свой таймер' : 'Свой таймер' }}
-                            </button>
-                            <form
-                                v-if="activeTaskSession"
-                                @submit.prevent="stopTaskSession"
-                                class="inline-block"
+                            <div
+                                v-if="canPauseForOwnTimer || activeTaskSession"
+                                class="flex flex-nowrap items-center gap-2"
                             >
                                 <button
-                                    type="submit"
-                                    :disabled="stopTaskSessionForm.processing"
-                                    class="inline-flex rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    v-if="canPauseForOwnTimer"
+                                    type="button"
+                                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    :disabled="!hasTaskTemplates"
+                                    @click="togglePauseOwnTimerForm"
                                 >
-                                    Завершить
+                                    {{ pauseOwnTimerFormOpen ? 'Скрыть свой таймер' : 'Свой таймер' }}
                                 </button>
-                            </form>
+                                <form
+                                    v-if="activeTaskSession"
+                                    @submit.prevent="stopTaskSession"
+                                    class="shrink-0"
+                                >
+                                    <button
+                                        type="submit"
+                                        :disabled="stopTaskSessionForm.processing"
+                                        class="inline-flex rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        Завершить
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                         <div
                             v-if="!hasTaskTemplates && canPauseForOwnTimer"
