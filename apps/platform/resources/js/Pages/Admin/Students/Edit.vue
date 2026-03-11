@@ -5,7 +5,9 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import type { PageProps } from '@/types';
+import { computed } from 'vue';
 
 const props = defineProps<{
     student: {
@@ -30,9 +32,13 @@ const props = defineProps<{
             name: string;
             email?: string | null;
             is_active: boolean;
+            last_login_at?: string | null;
         };
     };
 }>();
+
+const page = usePage<PageProps>();
+const successMessage = computed(() => page.props.flash?.success ?? null);
 
 const form = useForm({
     username: props.student.user.username,
@@ -50,8 +56,26 @@ const form = useForm({
     consequence_notes: props.student.consequence_profile.notes ?? '',
 });
 
+const passwordForm = useForm({
+    password: '',
+    password_confirmation: '',
+});
+
 const submit = () => {
     form.put(route('admin.students.update', props.student.id));
+};
+
+const submitPassword = () => {
+    passwordForm.patch(route('admin.students.password.update', props.student.id), {
+        preserveScroll: true,
+        onSuccess: () => passwordForm.reset(),
+    });
+};
+
+const resetPasswordToTemp = () => {
+    passwordForm.password = '0';
+    passwordForm.password_confirmation = '0';
+    submitPassword();
 };
 </script>
 
@@ -80,6 +104,13 @@ const submit = () => {
         </template>
 
         <div class="mx-auto max-w-5xl px-6 py-10">
+            <div
+                v-if="successMessage"
+                class="mb-5 rounded-[1.5rem] bg-emerald-50 px-6 py-4 text-sm text-emerald-800 ring-1 ring-emerald-200"
+            >
+                {{ successMessage }}
+            </div>
+
             <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <div class="grid gap-6 border-b border-stone-200 pb-8 lg:grid-cols-[1.1fr_0.9fr]">
                     <div>
@@ -103,6 +134,9 @@ const submit = () => {
                         </p>
                         <p class="mt-2 text-sm text-stone-600">
                             {{ props.student.user.email || 'No email address provided' }}
+                        </p>
+                        <p v-if="props.student.user.last_login_at" class="mt-2 text-sm text-stone-500">
+                            Last login: {{ new Date(props.student.user.last_login_at).toLocaleString() }}
                         </p>
                     </div>
                 </div>
@@ -215,11 +249,46 @@ const submit = () => {
                         </div>
                     </div>
 
-                    <div class="md:col-span-2 flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                        <p class="text-sm text-stone-500">
-                            Password changes are still handled outside this screen and will be added here later.
-                        </p>
+                    <div class="md:col-span-2 rounded-[1.5rem] bg-stone-100 p-6">
+                        <div class="flex flex-col gap-2">
+                            <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
+                                Password
+                            </p>
+                            <p class="text-sm text-stone-600">
+                                Stored passwords are not viewable. Use this form to set a new password or reset the student to the temporary password <code>0</code>.
+                            </p>
+                        </div>
 
+                        <form class="mt-5 grid gap-5 md:grid-cols-2" @submit.prevent="submitPassword">
+                            <div>
+                                <InputLabel for="password" value="New password" />
+                                <TextInput id="password" v-model="passwordForm.password" type="text" class="mt-2 block w-full rounded-xl border-stone-300" />
+                                <InputError class="mt-2" :message="passwordForm.errors.password" />
+                            </div>
+
+                            <div>
+                                <InputLabel for="password_confirmation" value="Confirm password" />
+                                <TextInput id="password_confirmation" v-model="passwordForm.password_confirmation" type="text" class="mt-2 block w-full rounded-xl border-stone-300" />
+                            </div>
+
+                            <div class="md:col-span-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <button
+                                    type="button"
+                                    class="inline-flex justify-center rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    :disabled="passwordForm.processing"
+                                    @click="resetPasswordToTemp"
+                                >
+                                    Reset To 0
+                                </button>
+
+                                <PrimaryButton :disabled="passwordForm.processing" class="justify-center rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-white hover:bg-stone-800 focus:bg-stone-800 active:bg-stone-950">
+                                    Save password
+                                </PrimaryButton>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="md:col-span-2 flex justify-end border-t border-stone-200 pt-6">
                         <PrimaryButton :disabled="form.processing" class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600">
                             Save changes
                         </PrimaryButton>

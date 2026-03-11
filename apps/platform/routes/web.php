@@ -64,6 +64,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/students', [AdminStudentController::class, 'store'])->name('students.store');
         Route::get('/students/{student}/edit', [AdminStudentController::class, 'edit'])->name('students.edit');
         Route::put('/students/{student}', [AdminStudentController::class, 'update'])->name('students.update');
+        Route::patch('/students/{student}/password', [AdminStudentController::class, 'updatePassword'])->name('students.password.update');
         Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
     });
 

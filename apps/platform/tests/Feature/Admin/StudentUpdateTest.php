@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -44,6 +45,7 @@ class StudentUpdateTest extends TestCase
                 ->where('student.display_name', 'Editable Student')
                 ->where('student.user.username', 'editable_student')
                 ->where('student.user.is_active', false)
+                ->where('student.user.last_login_at', null)
                 ->where('student.settings.can_manage_own_schedule', true)
                 ->where('student.consequence_profile.default_push_up_count', 0)
             );
@@ -117,6 +119,39 @@ class StudentUpdateTest extends TestCase
             'rest_duration_seconds' => 120,
             'notes' => 'Updated consequence profile.',
         ]);
+    }
+
+    public function test_admin_can_update_a_student_password(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_password_editor',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'password_student',
+            'password' => Hash::make('before'),
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Password Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.password.update', $student), [
+                'password' => '0',
+                'password_confirmation' => '0',
+            ])
+            ->assertRedirect(route('admin.students.edit', $student, absolute: false))
+            ->assertSessionHas('success', 'Password for Password Student has been updated.');
+
+        $studentUser->refresh();
+
+        $this->assertTrue(Hash::check('0', $studentUser->password));
     }
 
     public function test_students_are_redirected_away_from_the_edit_student_screen(): void

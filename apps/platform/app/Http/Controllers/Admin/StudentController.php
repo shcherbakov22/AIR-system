@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreStudentRequest;
+use App\Http\Requests\Admin\UpdateStudentPasswordRequest;
 use App\Http\Requests\Admin\UpdateStudentRequest;
 use App\Models\Student;
 use App\Models\StudentConsequenceProfile;
@@ -44,6 +45,7 @@ class StudentController extends Controller
                 'name' => $student->user->name,
                 'email' => $student->user->email,
                 'is_active' => $student->user->is_active,
+                'last_login_at' => $student->user->last_login_at?->toAtomString(),
             ],
         ];
     }
@@ -142,6 +144,19 @@ class StudentController extends Controller
         return redirect()
             ->route('admin.students.index')
             ->with('success', "Student {$student->fresh()->display_name} has been updated.");
+    }
+
+    public function updatePassword(UpdateStudentPasswordRequest $request, Student $student): RedirectResponse
+    {
+        $student->loadMissing('user');
+
+        $student->user->update([
+            'password' => Hash::make($request->string('password')->toString()),
+        ]);
+
+        return redirect()
+            ->route('admin.students.edit', $student)
+            ->with('success', "Password for {$student->display_name} has been updated.");
     }
 
     public function index(): Response
