@@ -558,7 +558,8 @@ const resumeScheduleRun = () => {
 
                             <div
                                 v-if="canPauseForOwnTimer || activeTaskSession"
-                                class="inline-flex flex-nowrap items-center gap-2"
+                                class="flex flex-row items-center gap-2"
+                                style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0.5rem;"
                             >
                                 <button
                                     v-if="canPauseForOwnTimer"
@@ -573,6 +574,7 @@ const resumeScheduleRun = () => {
                                     v-if="activeTaskSession"
                                     @submit.prevent="stopTaskSession"
                                     class="shrink-0"
+                                    style="display: flex;"
                                 >
                                     <button
                                         type="submit"
