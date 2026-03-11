@@ -92,10 +92,17 @@ const activeSessions = computed(() =>
                 taskSession.duration_seconds ?? 0,
                 (taskSession.duration_seconds ?? 0) + Math.floor((liveNowMs.value - startedAtMs) / 1000),
             );
+        const plannedSeconds = taskSession.planned_duration_minutes
+            ? taskSession.planned_duration_minutes * 60
+            : null;
+        const remainingSeconds = plannedSeconds === null
+            ? null
+            : Math.max(plannedSeconds - elapsedSeconds, 0);
 
         return {
             ...taskSession,
             elapsedLabel: formatDuration(elapsedSeconds),
+            remainingLabel: remainingSeconds === null ? null : formatDuration(remainingSeconds),
         };
     }),
 );
@@ -155,6 +162,14 @@ const activeSessions = computed(() =>
                             <p class="mt-2 font-mono text-2xl font-semibold text-stone-950">
                                 {{ taskSession.elapsedLabel }}
                             </p>
+                            <template v-if="taskSession.remainingLabel">
+                                <p class="mt-3 text-xs uppercase tracking-[0.22em] text-stone-500">
+                                    Remaining
+                                </p>
+                                <p class="mt-2 font-mono text-lg font-semibold text-stone-700">
+                                    {{ taskSession.remainingLabel }}
+                                </p>
+                            </template>
                         </div>
                     </div>
 
