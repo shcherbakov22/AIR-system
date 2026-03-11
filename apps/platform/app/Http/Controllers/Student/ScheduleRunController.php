@@ -273,16 +273,38 @@ class ScheduleRunController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $hasActiveTaskSession = TaskSession::query()
+            $activeTaskSession = TaskSession::query()
                 ->where('student_id', $studentId)
                 ->where('status', 'active')
-                ->exists();
+                ->lockForUpdate()
+                ->first();
 
-            if ($hasActiveTaskSession) {
+            if ($activeTaskSession && $activeTaskSession->schedule_run_id !== null) {
                 return [
                     'success' => false,
                     'message' => 'Остановите текущий таймер перед возобновлением расписания.',
                 ];
+            }
+
+            $completedAdHocTaskTitle = null;
+
+            if ($activeTaskSession) {
+                $endedAt = now();
+                $durationSeconds = (int) max(
+                    0,
+                    (int) ($activeTaskSession->duration_seconds ?? 0)
+                        + ($activeTaskSession->started_at?->diffInSeconds($endedAt) ?? 0),
+                );
+
+                $activeTaskSession->update([
+                    'status' => 'completed',
+                    'ended_at' => $endedAt,
+                    'duration_seconds' => $durationSeconds,
+                    'completion_notes' => 'Автоматически завершено при возобновлении расписания.',
+                    'stopped_by_user_id' => $request->user()->id,
+                ]);
+
+                $completedAdHocTaskTitle = $activeTaskSession->task_title_snapshot;
             }
 
             /** @var ScheduleRunBlock|null $pausedBlock */
@@ -339,7 +361,9 @@ class ScheduleRunController extends Controller
 
             return [
                 'success' => true,
-                'message' => "Сессия задания {$pausedBlock->task_title_snapshot} возобновлена.",
+                'message' => $completedAdHocTaskTitle !== null
+                    ? "Свой таймер {$completedAdHocTaskTitle} завершён. Сессия задания {$pausedBlock->task_title_snapshot} возобновлена."
+                    : "Сессия задания {$pausedBlock->task_title_snapshot} возобновлена.",
             ];
         });
 

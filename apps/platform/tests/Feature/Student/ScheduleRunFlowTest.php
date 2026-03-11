@@ -369,22 +369,22 @@ class ScheduleRunFlowTest extends TestCase
         Carbon::setTestNow('2026-03-08 09:27:00');
 
         $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $adHocTaskSession), [
-                'completion_notes' => 'Interruption handled.',
-            ])
-            ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Сессия задания Break Timer завершена. Возобновите расписание Tuesday Run, когда будете готовы.');
-
-        $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.resume', $scheduleRun))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Сессия задания Essay Draft возобновлена.');
+            ->assertSessionHas('success', 'Свой таймер Break Timer завершён. Сессия задания Essay Draft возобновлена.');
 
         $scheduleRun->refresh();
         $scheduleRun->load('blocks');
 
         $this->assertSame('active', $scheduleRun->status);
         $this->assertSame('in_progress', $scheduleRun->blocks->firstWhere('position', 1)->status);
+
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $adHocTaskSession->id,
+            'student_id' => $student->id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Break Timer',
+        ]);
 
         $this->assertDatabaseHas('task_sessions', [
             'student_id' => $student->id,
