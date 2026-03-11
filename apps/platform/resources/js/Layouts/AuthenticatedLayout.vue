@@ -12,7 +12,7 @@ const mobileNavOpen = ref(false);
 const navItems = computed(() => {
     const items = [
         {
-            label: 'Обзор',
+            label: 'Overview',
             href: route('dashboard'),
             active:
                 user.value.role === 'admin'
@@ -23,45 +23,45 @@ const navItems = computed(() => {
 
     if (user.value.role === 'admin') {
         items.push({
-            label: 'Ученики',
+            label: 'Students',
             href: route('admin.students.index'),
             active: route().current('admin.students.*'),
         });
         items.push({
-            label: 'Задания',
+            label: 'Tasks',
             href: route('admin.task-templates.index'),
             active: route().current('admin.task-templates.*'),
         });
         items.push({
-            label: 'Правила',
+            label: 'Rules',
             href: route('admin.rule-definitions.index'),
             active: route().current('admin.rule-definitions.*'),
         });
         items.push({
-            label: 'Нарушения',
+            label: 'Violations',
             href: route('admin.violations.index'),
             active: route().current('admin.violations.*'),
         });
         items.push({
-            label: 'Сессии',
+            label: 'Sessions',
             href: route('admin.task-sessions.index'),
             active: route().current('admin.task-sessions.*'),
         });
         items.push({
-            label: 'Расписания',
+            label: 'Schedules',
             href: route('admin.schedule-templates.index'),
             active: route().current('admin.schedule-templates.*'),
         });
     } else {
         items.push({
-            label: 'Правила',
+            label: 'Rules',
             href: route('student.rules.index'),
             active: route().current('student.rules.*'),
         });
 
         if (studentSettings.value?.can_manage_own_schedule !== false) {
             items.push({
-                label: 'Расписания',
+                label: 'Schedules',
                 href: route('student.schedules.index'),
                 active: route().current('student.schedules.*'),
             });
@@ -69,7 +69,7 @@ const navItems = computed(() => {
     }
 
     items.push({
-        label: 'Профиль',
+        label: 'Profile',
         href: route('profile.edit'),
         active: route().current('profile.*'),
     });
@@ -105,7 +105,7 @@ const closeMobileNav = () => {
                     class="rounded-full border border-stone-200 p-2 text-stone-500 transition hover:border-stone-400 hover:text-stone-900"
                     @click="closeMobileNav"
                 >
-                    <span class="sr-only">Закрыть меню</span>
+                    <span class="sr-only">Close menu</span>
                     <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
                         <path d="M5 5L15 15" stroke-linecap="round" />
                         <path d="M15 5L5 15" stroke-linecap="round" />
@@ -135,7 +135,7 @@ const closeMobileNav = () => {
                     as="button"
                     class="flex w-full items-center justify-center rounded-[0.9rem] border border-stone-300 px-3 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
                 >
-                    Выйти
+                    Log out
                 </Link>
             </div>
         </aside>
@@ -148,7 +148,7 @@ const closeMobileNav = () => {
                         class="inline-flex items-center rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 lg:hidden"
                         @click="mobileNavOpen = true"
                     >
-                        Меню
+                        Menu
                     </button>
                 </div>
             </div>

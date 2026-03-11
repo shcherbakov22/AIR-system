@@ -9,9 +9,9 @@ enum UserRole: string
 
     public function label(): string
     {
-        return match ($this) {
-            self::Admin => 'Наставник',
-            self::Student => 'Ученик',
+            self::Admin => 'Mentor',
+            self::Student => 'Student',
+            self::Student => 'Ð£Ñ‡ÐµÐ½Ð¸Ðº',
         };
     }
 }

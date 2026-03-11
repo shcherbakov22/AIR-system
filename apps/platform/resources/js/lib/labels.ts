@@ -1,9 +1,9 @@
 export const labelStudentStatus = (status: string): string => {
     switch (status) {
         case 'active':
-            return 'активен';
+            return 'active';
         case 'paused':
-            return 'пауза';
+            return 'paused';
         default:
             return status;
     }
@@ -12,11 +12,11 @@ export const labelStudentStatus = (status: string): string => {
 export const labelTaskSessionSourceType = (sourceType: string): string => {
     switch (sourceType) {
         case 'schedule':
-            return 'расписание';
+            return 'schedule';
         case 'assignment':
-            return 'назначение';
+            return 'assignment';
         case 'ad_hoc':
-            return 'свой таймер';
+            return 'own timer';
         default:
             return sourceType;
     }
@@ -25,9 +25,9 @@ export const labelTaskSessionSourceType = (sourceType: string): string => {
 export const labelViolationResolutionAction = (action: string): string => {
     switch (action) {
         case 'resolved':
-            return 'решено';
+            return 'resolved';
         case 'waived':
-            return 'отменено';
+            return 'waived';
         default:
             return action;
     }
@@ -36,11 +36,11 @@ export const labelViolationResolutionAction = (action: string): string => {
 export const labelPenaltyTransactionType = (type: string): string => {
     switch (type) {
         case 'manual_charge':
-            return 'ручное начисление';
+            return 'manual charge';
         case 'manual_credit':
-            return 'ручное списание';
+            return 'manual credit';
         case 'violation_charge':
-            return 'начисление за нарушение';
+            return 'violation charge';
         default:
             return type;
     }
@@ -49,13 +49,13 @@ export const labelPenaltyTransactionType = (type: string): string => {
 export const labelImportRunStatus = (status: string): string => {
     switch (status) {
         case 'pending':
-            return 'ожидает';
+            return 'pending';
         case 'running':
-            return 'выполняется';
+            return 'running';
         case 'completed':
-            return 'завершён';
+            return 'completed';
         case 'failed':
-            return 'ошибка';
+            return 'failed';
         default:
             return status;
     }
@@ -64,13 +64,13 @@ export const labelImportRunStatus = (status: string): string => {
 export const labelImportIssueSeverity = (severity: string): string => {
     switch (severity) {
         case 'low':
-            return 'низкая';
+            return 'low';
         case 'medium':
-            return 'средняя';
+            return 'medium';
         case 'high':
-            return 'высокая';
+            return 'high';
         case 'critical':
-            return 'критическая';
+            return 'critical';
         default:
             return severity;
     }
