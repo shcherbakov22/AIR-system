@@ -8,7 +8,6 @@ const props = defineProps<{
     ruleDefinitions: Array<{
         id: number;
         title: string;
-        is_active: boolean;
     }>;
 }>();
 
@@ -67,50 +66,27 @@ const deleteRuleDefinition = (ruleDefinitionId: number, ruleDefinitionTitle: str
                     <article
                         v-for="ruleDefinition in props.ruleDefinitions"
                         :key="ruleDefinition.id"
-                        class="grid gap-5 px-6 py-6 lg:grid-cols-[1fr_0.7fr]"
+                        class="px-6 py-6"
                     >
-                        <div>
-                            <div class="flex items-start justify-between gap-4">
-                                <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                    Rule
-                                </p>
-
-                                <div class="flex flex-wrap items-center justify-end gap-2">
-                                    <Link
-                                        :href="route('admin.rule-definitions.edit', ruleDefinition.id)"
-                                        class="inline-flex rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                                    >
-                                        Edit
-                                    </Link>
-                                    <button
-                                        type="button"
-                                        class="inline-flex rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
-                                        @click="deleteRuleDefinition(ruleDefinition.id, ruleDefinition.title)"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                            <h3 class="mt-2 text-2xl font-semibold text-stone-950">
+                        <div class="flex items-start justify-between gap-4">
+                            <h3 class="text-2xl font-semibold text-stone-950">
                                 {{ ruleDefinition.title }}
                             </h3>
-                        </div>
 
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Status
-                            </p>
-                            <div class="mt-3">
-                                <span
-                                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                    :class="
-                                        ruleDefinition.is_active
-                                            ? 'bg-emerald-100 text-emerald-800'
-                                            : 'bg-stone-200 text-stone-700'
-                                    "
+                            <div class="flex flex-wrap items-center justify-end gap-2">
+                                <Link
+                                    :href="route('admin.rule-definitions.edit', ruleDefinition.id)"
+                                    class="inline-flex rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                                 >
-                                    {{ ruleDefinition.is_active ? 'Active' : 'Inactive' }}
-                                </span>
+                                    Edit
+                                </Link>
+                                <button
+                                    type="button"
+                                    class="inline-flex rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
+                                    @click="deleteRuleDefinition(ruleDefinition.id, ruleDefinition.title)"
+                                >
+                                    Delete
+                                </button>
                             </div>
                         </div>
                     </article>
