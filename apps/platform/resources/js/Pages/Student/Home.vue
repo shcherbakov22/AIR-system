@@ -348,6 +348,14 @@ const startNextScheduleTask = () => {
         return;
     }
 
+    startScheduleBlock(props.activeScheduleRun.next_block.id);
+};
+
+const startScheduleBlock = (scheduleRunBlockId: number) => {
+    if (!props.activeScheduleRun) {
+        return;
+    }
+
     if (showBlockingViolationDialog()) {
         return;
     }
@@ -355,7 +363,7 @@ const startNextScheduleTask = () => {
     router.post(
         route('student.schedule-run-blocks.start', {
             scheduleRun: props.activeScheduleRun.id,
-            scheduleRunBlock: props.activeScheduleRun.next_block.id,
+            scheduleRunBlock: scheduleRunBlockId,
         }),
         {},
         { preserveScroll: true },
@@ -403,6 +411,15 @@ const resumeScheduleRun = () => {
     }
 
     router.post(route('student.schedule-runs.resume', props.activeScheduleRun.id), {}, { preserveScroll: true });
+};
+
+const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['blocks'][number]): boolean => {
+    return (
+        props.activeScheduleRun !== null &&
+        props.activeScheduleRun.status === 'active' &&
+        props.activeTaskSession === null &&
+        block.status === 'pending'
+    );
 };
 </script>
 
@@ -700,6 +717,14 @@ const resumeScheduleRun = () => {
                             <p class="text-xs text-stone-600">
                                 {{ block.duration_minutes }} min
                             </p>
+                            <button
+                                v-if="canStartBlock(block)"
+                                type="button"
+                                class="inline-flex shrink-0 rounded-full bg-stone-950 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-stone-800"
+                                @click="startScheduleBlock(block.id)"
+                            >
+                                Start
+                            </button>
                         </article>
                     </div>
                 </div>

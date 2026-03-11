@@ -81,18 +81,6 @@ class ScheduleRunTaskSessionController extends Controller
                 ];
             }
 
-            $hasIncompleteEarlierBlock = $ownedScheduleRun->blocks()
-                ->where('position', '<', $ownedScheduleRunBlock->position)
-                ->where('status', '!=', 'completed')
-                ->exists();
-
-            if ($hasIncompleteEarlierBlock) {
-                return [
-                    'success' => false,
-                    'message' => 'Start schedule tasks in order.',
-                ];
-            }
-
             $startedAt = now();
 
             $ownedScheduleRunBlock->update([

@@ -147,7 +147,7 @@ class ScheduleRunFlowTest extends TestCase
             );
     }
 
-    public function test_student_can_only_start_schedule_blocks_in_order(): void
+    public function test_student_can_start_any_pending_schedule_block_out_of_order(): void
     {
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
@@ -174,27 +174,24 @@ class ScheduleRunFlowTest extends TestCase
                 'scheduleRunBlock' => $secondBlock,
             ]))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('error', fn (?string $message) => is_string($message) && $message !== '');
-
-        $this->actingAs($studentUser)
-            ->post(route('student.schedule-run-blocks.start', [
-                'scheduleRun' => $scheduleRun,
-                'scheduleRunBlock' => $firstBlock,
-            ]))
-            ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Essay Draft'));
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Reading Review'));
 
         $this->assertDatabaseHas('task_sessions', [
             'student_id' => $student->id,
             'schedule_run_id' => $scheduleRun->id,
-            'schedule_run_block_id' => $firstBlock->id,
+            'schedule_run_block_id' => $secondBlock->id,
             'status' => 'active',
-            'task_title_snapshot' => 'Essay Draft',
+            'task_title_snapshot' => 'Reading Review',
+        ]);
+
+        $this->assertDatabaseHas('schedule_run_blocks', [
+            'id' => $secondBlock->id,
+            'status' => 'in_progress',
         ]);
 
         $this->assertDatabaseHas('schedule_run_blocks', [
             'id' => $firstBlock->id,
-            'status' => 'in_progress',
+            'status' => 'pending',
         ]);
     }
 
