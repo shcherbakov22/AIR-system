@@ -217,7 +217,7 @@ class ScheduleController extends Controller
 
         return redirect()
             ->route('student.schedules.index')
-            ->with('success', "Расписание {$scheduleTemplate->name} сохранено.");
+            ->with('success', "Schedule {$scheduleTemplate->name} saved.");
     }
 
     public function edit(Request $request, ScheduleTemplate $scheduleTemplate): Response
@@ -284,7 +284,7 @@ class ScheduleController extends Controller
 
         return redirect()
             ->route('student.schedules.index')
-            ->with('success', "Расписание {$scheduleTemplate->name} обновлено.");
+            ->with('success', "Schedule {$scheduleTemplate->name} updated.");
     }
 
     public function destroy(Request $request, ScheduleTemplate $scheduleTemplate): RedirectResponse
@@ -302,6 +302,6 @@ class ScheduleController extends Controller
 
         return redirect()
             ->route('student.schedules.index')
-            ->with('success', "Расписание {$scheduleTemplateName} удалено.");
+            ->with('success', "Schedule {$scheduleTemplateName} deleted.");
     }
 }

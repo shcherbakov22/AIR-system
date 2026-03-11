@@ -100,7 +100,7 @@ class TaskAssignmentController extends Controller
 
         return redirect()
             ->route('admin.task-assignments.index')
-            ->with('success', "Назначение задания {$taskAssignment->taskTemplate->title} создано.");
+            ->with('success', "Task assignment {$taskAssignment->taskTemplate->title} created.");
     }
 
     public function edit(TaskAssignment $taskAssignment): Response
@@ -133,6 +133,6 @@ class TaskAssignmentController extends Controller
 
         return redirect()
             ->route('admin.task-assignments.index')
-            ->with('success', "Назначение задания {$taskAssignment->taskTemplate->title} обновлено.");
+            ->with('success', "Task assignment {$taskAssignment->taskTemplate->title} updated.");
     }
 }

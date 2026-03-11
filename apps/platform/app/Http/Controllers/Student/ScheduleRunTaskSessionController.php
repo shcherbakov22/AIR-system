@@ -59,7 +59,7 @@ class ScheduleRunTaskSessionController extends Controller
             if ($hasActiveTaskSession) {
                 return [
                     'success' => false,
-                    'message' => 'Остановите текущую сессию задания, прежде чем запускать новую.',
+                    'message' => 'Stop the current task session before starting a new one.',
                 ];
             }
 
@@ -70,14 +70,14 @@ class ScheduleRunTaskSessionController extends Controller
             if ($hasRunningScheduleBlock) {
                 return [
                     'success' => false,
-                    'message' => 'Завершите текущий блок расписания, прежде чем запускать другой.',
+                    'message' => 'Finish the current schedule block before starting another one.',
                 ];
             }
 
             if ($ownedScheduleRunBlock->status !== 'pending') {
                 return [
                     'success' => false,
-                    'message' => 'Этот блок расписания сейчас недоступен для запуска.',
+                    'message' => 'This schedule block is not available to start right now.',
                 ];
             }
 
@@ -89,7 +89,7 @@ class ScheduleRunTaskSessionController extends Controller
             if ($hasIncompleteEarlierBlock) {
                 return [
                     'success' => false,
-                    'message' => 'Запускайте задания расписания по порядку.',
+                    'message' => 'Start schedule tasks in order.',
                 ];
             }
 
@@ -119,7 +119,7 @@ class ScheduleRunTaskSessionController extends Controller
 
             return [
                 'success' => true,
-                'message' => "Сессия задания {$ownedScheduleRunBlock->task_title_snapshot} началась.",
+                'message' => "Task session {$ownedScheduleRunBlock->task_title_snapshot} started.",
             ];
         });
 
@@ -143,6 +143,6 @@ class ScheduleRunTaskSessionController extends Controller
         $occurredAt = $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i');
         $timeSuffix = $occurredAt ? " ({$occurredAt})" : '';
 
-        return "Есть открытое нарушение: {$violation->rule_title_snapshot}{$timeSuffix}. Закройте его у наставника, прежде чем продолжать расписание.";
+        return "There is an open violation: {$violation->rule_title_snapshot}{$timeSuffix}. Ask your mentor to close it before continuing the schedule.";
     }
 }

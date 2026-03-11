@@ -30,7 +30,7 @@ class ScheduleRunController extends Controller
             return ScheduleWeekday::tryFrom($weekday)?->label() ?? $weekday;
         }
 
-        return 'Без дня';
+        return 'No day';
     }
 
     public function store(
@@ -65,7 +65,7 @@ class ScheduleRunController extends Controller
             if ($ownedScheduleTemplate->entries->isEmpty()) {
                 return [
                     'success' => false,
-                    'message' => 'В этом расписании пока нет блоков для выполнения.',
+                    'message' => 'This schedule has no blocks to run yet.',
                 ];
             }
 
@@ -77,7 +77,7 @@ class ScheduleRunController extends Controller
             if ($hasActiveRun) {
                 return [
                     'success' => false,
-                    'message' => 'Завершите текущее расписание, прежде чем запускать другое.',
+                    'message' => 'Finish the current schedule before starting another one.',
                 ];
             }
 
@@ -89,7 +89,7 @@ class ScheduleRunController extends Controller
             if ($hasActiveTaskSession) {
                 return [
                     'success' => false,
-                    'message' => 'Остановите текущую сессию задания перед запуском расписания.',
+                    'message' => 'Stop the current task session before starting a schedule.',
                 ];
             }
 
@@ -121,7 +121,7 @@ class ScheduleRunController extends Controller
 
             return [
                 'success' => true,
-                'message' => "Расписание {$ownedScheduleTemplate->name} запущено.",
+                'message' => "Schedule {$ownedScheduleTemplate->name} started.",
             ];
         });
 
@@ -145,7 +145,7 @@ class ScheduleRunController extends Controller
         if (! $student->canUseAdHocTimer()) {
             return redirect()
                 ->route('student.home')
-                ->with('error', 'Собственные таймеры для этого ученика отключены.');
+                ->with('error', 'Own timers are disabled for this student.');
         }
 
         $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService) {
@@ -179,7 +179,7 @@ class ScheduleRunController extends Controller
             if ($activeTaskSession && $activeTaskSession->schedule_run_id !== $ownedScheduleRun->id) {
                 return [
                     'success' => false,
-                    'message' => 'Остановите текущий таймер перед постановкой расписания на паузу.',
+                    'message' => 'Stop the current timer before pausing the schedule.',
                 ];
             }
 
@@ -202,7 +202,7 @@ class ScheduleRunController extends Controller
                     'status' => 'paused',
                     'ended_at' => $endedAt,
                     'duration_seconds' => $durationSeconds,
-                    'completion_notes' => 'Пауза для собственного таймера.',
+                    'completion_notes' => 'Paused for an own timer.',
                     'stopped_by_user_id' => $request->user()->id,
                 ]);
 
@@ -234,7 +234,7 @@ class ScheduleRunController extends Controller
 
             return [
                 'success' => true,
-                'message' => "Расписание {$ownedScheduleRun->schedule_name_snapshot} поставлено на паузу. Собственный таймер запущен.",
+                'message' => "Schedule {$ownedScheduleRun->schedule_name_snapshot} paused. Own timer started.",
             ];
         });
 
@@ -282,7 +282,7 @@ class ScheduleRunController extends Controller
             if ($activeTaskSession && $activeTaskSession->schedule_run_id !== null) {
                 return [
                     'success' => false,
-                    'message' => 'Остановите текущий таймер перед возобновлением расписания.',
+                    'message' => 'Stop the current timer before resuming the schedule.',
                 ];
             }
 
@@ -300,7 +300,7 @@ class ScheduleRunController extends Controller
                     'status' => 'completed',
                     'ended_at' => $endedAt,
                     'duration_seconds' => $durationSeconds,
-                    'completion_notes' => 'Автоматически завершено при возобновлении расписания.',
+                    'completion_notes' => 'Automatically finished when resuming the schedule.',
                     'stopped_by_user_id' => $request->user()->id,
                 ]);
 
@@ -322,7 +322,7 @@ class ScheduleRunController extends Controller
             if (! $pausedBlock) {
                 return [
                     'success' => true,
-                    'message' => "Расписание {$ownedScheduleRun->schedule_name_snapshot} возобновлено.",
+                    'message' => "Schedule {$ownedScheduleRun->schedule_name_snapshot} resumed.",
                 ];
             }
 
@@ -362,8 +362,8 @@ class ScheduleRunController extends Controller
             return [
                 'success' => true,
                 'message' => $completedAdHocTaskTitle !== null
-                    ? "Свой таймер {$completedAdHocTaskTitle} завершён. Сессия задания {$pausedBlock->task_title_snapshot} возобновлена."
-                    : "Сессия задания {$pausedBlock->task_title_snapshot} возобновлена.",
+                    ? "Own timer {$completedAdHocTaskTitle} finished. Task session {$pausedBlock->task_title_snapshot} resumed."
+                    : "Task session {$pausedBlock->task_title_snapshot} resumed.",
             ];
         });
 
@@ -387,6 +387,6 @@ class ScheduleRunController extends Controller
         $occurredAt = $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i');
         $timeSuffix = $occurredAt ? " ({$occurredAt})" : '';
 
-        return "Есть открытое нарушение: {$violation->rule_title_snapshot}{$timeSuffix}. Закройте его у наставника, прежде чем продолжать расписание.";
+        return "There is an open violation: {$violation->rule_title_snapshot}{$timeSuffix}. Ask your mentor to close it before continuing the schedule.";
     }
 }

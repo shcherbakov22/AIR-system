@@ -107,7 +107,7 @@ class TaskAssignmentManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.task-assignments.index', absolute: false))
-            ->assertSessionHas('success', 'Назначение задания Science Reading создано.');
+            ->assertSessionHas('success', 'Task assignment Science Reading created.');
 
         $this->assertDatabaseHas('task_assignments', [
             'student_id' => $student->id,
@@ -239,7 +239,7 @@ class TaskAssignmentManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.task-assignments.index', absolute: false))
-            ->assertSessionHas('success', 'Назначение задания Writing Sprint обновлено.');
+            ->assertSessionHas('success', 'Task assignment Writing Sprint updated.');
 
         $this->assertDatabaseHas('task_assignments', [
             'id' => $taskAssignment->id,
@@ -279,7 +279,7 @@ class TaskAssignmentManagementTest extends TestCase
             'summary' => 'Legacy task.',
             'instructions' => 'Keep the older assignment intact.',
             'default_duration_minutes' => 25,
-                        'created_by_user_id' => $admin->id,
+            'created_by_user_id' => $admin->id,
         ]);
 
         $taskAssignment = TaskAssignment::create([

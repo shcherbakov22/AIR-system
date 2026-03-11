@@ -37,7 +37,7 @@ class TaskSessionController extends Controller
             if ($hasActiveSession) {
                 return [
                     'success' => false,
-                    'message' => 'Остановите текущую сессию задания, прежде чем запускать новую.',
+                    'message' => 'Stop the current task session before starting a new one.',
                 ];
             }
 
@@ -65,7 +65,7 @@ class TaskSessionController extends Controller
 
             return [
                 'success' => true,
-                'message' => "Сессия задания {$taskAssignment->taskTemplate->title} началась.",
+                'message' => "Task session {$taskAssignment->taskTemplate->title} started.",
             ];
         });
 
@@ -105,7 +105,7 @@ class TaskSessionController extends Controller
             if ($lockedTaskSession->status !== 'active') {
                 return [
                     'success' => false,
-                    'message' => 'Эта сессия задания больше не активна.',
+                    'message' => 'This task session is no longer active.',
                 ];
             }
 
@@ -169,10 +169,10 @@ class TaskSessionController extends Controller
                 }
             }
 
-            $message = "Сессия задания {$lockedTaskSession->task_title_snapshot} завершена.";
+            $message = "Task session {$lockedTaskSession->task_title_snapshot} finished.";
 
             if ($completedScheduleName !== null) {
-                $message .= " Расписание {$completedScheduleName} завершено.";
+                $message .= " Schedule {$completedScheduleName} completed.";
             }
 
             if (
@@ -190,7 +190,7 @@ class TaskSessionController extends Controller
             }
 
             if ($resumePausedScheduleName !== null) {
-                $message .= " Возобновите расписание {$resumePausedScheduleName}, когда будете готовы.";
+                $message .= " Resume schedule {$resumePausedScheduleName} when you're ready.";
             }
 
             return [

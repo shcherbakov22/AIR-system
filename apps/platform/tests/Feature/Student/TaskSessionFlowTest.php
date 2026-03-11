@@ -9,8 +9,8 @@ use App\Models\TaskAssignment;
 use App\Models\TaskSession;
 use App\Models\TaskTemplate;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -116,7 +116,7 @@ class TaskSessionFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/Home')
                 ->where('serverNow', '2026-03-07T09:20:00+00:00')
-                                ->where('violationSummary.open_violations', 0)
+                ->where('violationSummary.open_violations', 0)
                 ->where('activeTaskSession.task_title', 'Reading Review')
                 ->where('activeTaskSession.task_assignment_id', $firstAssignment->id)
                 ->missing('taskAssignments')
@@ -154,7 +154,7 @@ class TaskSessionFlowTest extends TestCase
 
         $response
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Сессия задания Math Review началась.');
+            ->assertSessionHas('success', 'Task session Math Review started.');
 
         $this->assertDatabaseHas('task_sessions', [
             'student_id' => $student->id,
@@ -211,7 +211,7 @@ class TaskSessionFlowTest extends TestCase
 
         $response
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('error', 'Остановите текущую сессию задания, прежде чем запускать новую.');
+            ->assertSessionHas('error', 'Stop the current task session before starting a new one.');
 
         $this->assertSame(1, TaskSession::query()->where('student_id', $student->id)->where('status', 'active')->count());
     }
@@ -260,7 +260,7 @@ class TaskSessionFlowTest extends TestCase
 
         $response
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Сессия задания Math Review завершена.');
+            ->assertSessionHas('success', 'Task session Math Review finished.');
 
         $this->assertDatabaseHas('task_sessions', [
             'id' => $taskSession->id,

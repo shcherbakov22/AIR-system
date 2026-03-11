@@ -36,17 +36,17 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Создание назначения" />
+    <Head title="Create assignment" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель наставника
+                        Mentor panel
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Создание назначения
+                        Create assignment
                     </h2>
                 </div>
 
@@ -54,7 +54,7 @@ const submit = () => {
                     :href="route('admin.task-assignments.index')"
                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                 >
-                    Назад к назначениям
+                    Back to assignments
                 </Link>
             </div>
         </template>
@@ -63,28 +63,30 @@ const submit = () => {
             <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <div class="max-w-2xl">
                     <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Конструктор назначений
+                        Assignment builder
                     </p>
                     <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        Назначить задание ученику
+                        Assign a task to a student
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Выберите ученика, шаблон задания и задайте статус назначения.
+                        Choose a student, a task template, and the current
+                        assignment status.
                     </p>
                 </div>
 
                 <div v-if="!canSubmit" class="mt-8 rounded-[1.5rem] bg-stone-100 px-6 py-8">
                     <p class="text-sm uppercase tracking-[0.25em] text-stone-500">
-                        Не хватает данных
+                        Missing data
                     </p>
                     <p class="mt-3 text-sm leading-7 text-stone-600">
-                        Для создания назначения нужен как минимум один ученик и один шаблон задания.
+                        You need at least one student and one task template
+                        before you can create an assignment.
                     </p>
                 </div>
 
                 <form v-else class="mt-10 grid gap-6 md:grid-cols-2" @submit.prevent="submit">
                     <div>
-                        <InputLabel for="student_id" value="Ученик" />
+                        <InputLabel for="student_id" value="Student" />
                         <select
                             id="student_id"
                             v-model="form.student_id"
@@ -96,7 +98,7 @@ const submit = () => {
                                 :value="String(student.id)"
                             >
                                 {{ student.display_name }} ({{ student.username }}){{
-                                    student.is_active ? '' : ' - вход запрещён'
+                                    student.is_active ? '' : ' - sign-in disabled'
                                 }}
                             </option>
                         </select>
@@ -104,7 +106,7 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <InputLabel for="task_template_id" value="Шаблон задания" />
+                        <InputLabel for="task_template_id" value="Task template" />
                         <select
                             id="task_template_id"
                             v-model="form.task_template_id"
@@ -122,21 +124,21 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <InputLabel for="status" value="Статус назначения" />
+                        <InputLabel for="status" value="Assignment status" />
                         <select
                             id="status"
                             v-model="form.status"
                             class="mt-2 block w-full rounded-xl border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
                         >
-                            <option value="assigned">Назначено</option>
-                            <option value="paused">Пауза</option>
-                            <option value="completed">Завершено</option>
+                            <option value="assigned">Assigned</option>
+                            <option value="paused">Paused</option>
+                            <option value="completed">Completed</option>
                         </select>
                         <InputError class="mt-2" :message="form.errors.status" />
                     </div>
 
                     <div>
-                        <InputLabel for="due_on" value="Срок выполнения (необязательно)" />
+                        <InputLabel for="due_on" value="Due date (optional)" />
                         <input
                             id="due_on"
                             v-model="form.due_on"
@@ -147,7 +149,7 @@ const submit = () => {
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="notes" value="Заметки к назначению" />
+                        <InputLabel for="notes" value="Assignment notes" />
                         <textarea
                             id="notes"
                             v-model="form.notes"
@@ -161,15 +163,15 @@ const submit = () => {
                         class="md:col-span-2 flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between"
                     >
                         <p class="text-sm text-stone-500">
-                            Расписания и автоматическая последовательность появятся позже. Здесь
-                            создаётся только прямое назначение.
+                            Schedules and automatic sequencing can stay separate
+                            for now. This screen creates a direct assignment only.
                         </p>
 
                         <PrimaryButton
                             :disabled="form.processing"
                             class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600"
                         >
-                            Создать назначение
+                            Create assignment
                         </PrimaryButton>
                     </div>
                 </form>
