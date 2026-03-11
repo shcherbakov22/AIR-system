@@ -8,7 +8,6 @@ const props = defineProps<{
     ruleDefinitions: Array<{
         id: number;
         title: string;
-        description?: string | null;
         scope: string;
         is_active: boolean;
         student?: {
@@ -101,9 +100,6 @@ const deleteRuleDefinition = (ruleDefinitionId: number, ruleDefinitionTitle: str
                             <h3 class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ ruleDefinition.title }}
                             </h3>
-                            <p class="mt-3 text-sm leading-6 text-stone-600">
-                                {{ ruleDefinition.description || 'No rule description has been added yet.' }}
-                            </p>
                         </div>
 
                         <div>

@@ -15,14 +15,12 @@ defineProps<{
     rules: Array<{
         id: number;
         title: string;
-        description?: string | null;
         scope: string;
         student?: {
             id: number;
             display_name: string;
             username: string;
         } | null;
-        created_at_label?: string | null;
     }>;
 }>();
 </script>
@@ -84,16 +82,6 @@ defineProps<{
                                     {{ rule.scope === 'student' ? 'Personal' : 'Shared' }}
                                 </span>
                             </div>
-                            <p class="mt-3 text-sm leading-7 text-stone-600">
-                                {{ rule.description || 'No description has been added for this rule yet.' }}
-                            </p>
-                            <p class="mt-3 text-sm text-stone-500">
-                                {{
-                                    rule.created_at_label
-                                        ? `Added ${rule.created_at_label}`
-                                        : 'Added date not recorded.'
-                                }}
-                            </p>
                         </div>
                     </article>
                 </div>
