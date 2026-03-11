@@ -558,13 +558,13 @@ const resumeScheduleRun = () => {
 
                             <div
                                 v-if="canPauseForOwnTimer || activeTaskSession"
-                                class="inline-flex items-center gap-2"
-                                style="display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0.5rem;"
+                                style="white-space: nowrap;"
                             >
                                 <button
                                     v-if="canPauseForOwnTimer"
                                     type="button"
-                                    class="inline-flex shrink-0 justify-center whitespace-nowrap rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    class="inline-block rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    style="display: inline-block; vertical-align: middle;"
                                     :disabled="!hasTaskTemplates"
                                     @click="togglePauseOwnTimerForm"
                                 >
@@ -574,7 +574,8 @@ const resumeScheduleRun = () => {
                                     v-if="activeTaskSession"
                                     type="button"
                                     :disabled="stopTaskSessionForm.processing"
-                                    class="inline-flex shrink-0 justify-center whitespace-nowrap rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    class="inline-block rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    style="display: inline-block; vertical-align: middle; margin-left: 0.5rem;"
                                     @click="stopTaskSession"
                                 >
                                     Завершить
