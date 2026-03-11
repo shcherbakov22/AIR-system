@@ -53,17 +53,17 @@ const submit = () => {
 </script>
 
 <template>
-    <Head :title="`Изменение: ${props.scheduleTemplate.name}`" />
+    <Head :title="`Edit: ${props.scheduleTemplate.name}`" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель наставника
+                        Mentor panel
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Изменение расписания
+                        Edit schedule
                     </h2>
                 </div>
 
@@ -71,7 +71,7 @@ const submit = () => {
                     :href="route('admin.schedule-templates.index')"
                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                 >
-                    Назад к расписаниям
+                    Back to schedules
                 </Link>
             </div>
         </template>
@@ -81,20 +81,20 @@ const submit = () => {
                 <div class="grid gap-6 border-b border-stone-200 pb-8 lg:grid-cols-[1.1fr_0.9fr]">
                     <div>
                         <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                            Недельный планировщик
+                            Weekly planner
                         </p>
                         <h3 class="mt-4 font-serif text-3xl text-stone-950">
                             {{ props.scheduleTemplate.name }}
                         </h3>
                         <p class="mt-4 text-sm leading-7 text-stone-600">
-                            Измените шаблон расписания и его единственный блок, не переходя пока
-                            к будущему редактору с несколькими блоками.
+                            Update this schedule template and its single block
+                            without jumping to a future multi-block editor yet.
                         </p>
                     </div>
 
                     <div class="rounded-[1.5rem] bg-stone-100 p-5">
                         <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                            Текущее расписание
+                            Current schedule
                         </p>
                         <p class="mt-3 text-lg font-semibold text-stone-950">
                             {{ props.scheduleTemplate.name }}
@@ -111,7 +111,7 @@ const submit = () => {
 
                 <form class="mt-10 grid gap-6 md:grid-cols-2" @submit.prevent="submit">
                     <div>
-                        <InputLabel for="student_id" value="Ученик" />
+                        <InputLabel for="student_id" value="Student" />
                         <select
                             id="student_id"
                             v-model="form.student_id"
@@ -123,7 +123,7 @@ const submit = () => {
                                 :value="String(student.id)"
                             >
                                 {{ student.display_name }} ({{ student.username }}){{
-                                    student.is_active ? '' : ' - вход запрещён'
+                                    student.is_active ? '' : ' - sign-in disabled'
                                 }}
                             </option>
                         </select>
@@ -131,7 +131,7 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <InputLabel for="weekday" value="День недели" />
+                        <InputLabel for="weekday" value="Weekday" />
                         <select
                             id="weekday"
                             v-model="form.weekday"
@@ -149,7 +149,7 @@ const submit = () => {
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="name" value="Название расписания" />
+                        <InputLabel for="name" value="Schedule name" />
                         <input
                             id="name"
                             v-model="form.name"
@@ -161,7 +161,7 @@ const submit = () => {
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="notes" value="Заметки к расписанию" />
+                        <InputLabel for="notes" value="Schedule notes" />
                         <textarea
                             id="notes"
                             v-model="form.notes"
@@ -173,12 +173,12 @@ const submit = () => {
 
                     <div class="md:col-span-2 rounded-[1.75rem] bg-stone-100 p-6">
                         <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                            Единственный блок расписания
+                            Single schedule block
                         </p>
 
                         <div class="mt-5 grid gap-6 md:grid-cols-3">
                             <div class="md:col-span-3">
-                                <InputLabel for="task_template_id" value="Шаблон задания" />
+                                <InputLabel for="task_template_id" value="Task template" />
                                 <select
                                     id="task_template_id"
                                     v-model="form.task_template_id"
@@ -196,7 +196,7 @@ const submit = () => {
                             </div>
 
                             <div>
-                                <InputLabel for="start_time" value="Время начала" />
+                                <InputLabel for="start_time" value="Start time" />
                                 <input
                                     id="start_time"
                                     v-model="form.start_time"
@@ -207,7 +207,7 @@ const submit = () => {
                             </div>
 
                             <div>
-                                <InputLabel for="duration_minutes" value="Длительность (минуты)" />
+                                <InputLabel for="duration_minutes" value="Duration (minutes)" />
                                 <input
                                     id="duration_minutes"
                                     v-model="form.duration_minutes"
@@ -220,7 +220,7 @@ const submit = () => {
                             </div>
 
                             <div class="md:col-span-3">
-                                <InputLabel for="entry_notes" value="Заметка к блоку" />
+                                <InputLabel for="entry_notes" value="Block note" />
                                 <textarea
                                     id="entry_notes"
                                     v-model="form.entry_notes"
@@ -236,15 +236,15 @@ const submit = () => {
                         class="md:col-span-2 flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between"
                     >
                         <p class="text-sm text-stone-500">
-                            Редактирование нескольких блоков остаётся задачей на потом. Этот экран
-                            поддерживает только текущую модель с одним блоком.
+                            Multi-block editing can come later. This screen
+                            still supports the current single-block model only.
                         </p>
 
                         <PrimaryButton
                             :disabled="form.processing"
                             class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600"
                         >
-                            Сохранить изменения
+                            Save changes
                         </PrimaryButton>
                     </div>
                 </form>

@@ -113,16 +113,16 @@ const clearSessions = () => {
 </script>
 
 <template>
-    <Head title="Сессии заданий" />
+    <Head title="Task sessions" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2">
                 <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Панель наставника
+                    Mentor panel
                 </p>
                 <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    Сессии заданий
+                    Task sessions
                 </h2>
             </div>
         </template>
@@ -138,7 +138,7 @@ const clearSessions = () => {
             <div class="grid gap-5 md:grid-cols-3">
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Всего сессий
+                        Total sessions
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ props.metrics.total }}
@@ -147,7 +147,7 @@ const clearSessions = () => {
 
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Активные сессии
+                        Active sessions
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ props.metrics.active }}
@@ -156,7 +156,7 @@ const clearSessions = () => {
 
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Сессии на паузе
+                        Paused sessions
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ props.metrics.paused }}
@@ -165,7 +165,7 @@ const clearSessions = () => {
 
                 <article class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Завершённые сессии
+                        Completed sessions
                     </p>
                     <p class="mt-4 text-4xl font-semibold text-stone-950">
                         {{ props.metrics.completed }}
@@ -176,20 +176,20 @@ const clearSessions = () => {
             <section class="mt-6 overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">
                 <div class="border-b border-stone-200 px-6 py-5">
                     <p class="text-sm text-stone-600">
-                        Просматривайте рабочие сессии учеников и фильтруйте список по ученику
-                        или текущему статусу сессии.
+                        Review student work sessions and filter the list by
+                        student or current session status.
                     </p>
                 </div>
 
                 <form class="grid gap-4 px-6 py-5 md:grid-cols-[1fr_1fr_auto]" @submit.prevent="applyFilters">
                     <label class="flex flex-col gap-2 text-sm font-medium text-stone-700">
-                        Ученик
+                        Student
                         <select
                             v-model="filters.student_id"
                             class="rounded-2xl border border-stone-300 px-4 py-3 text-sm text-stone-900 focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-200"
                         >
                             <option value="">
-                                Все ученики
+                                All students
                             </option>
                             <option
                                 v-for="student in props.students"
@@ -202,23 +202,17 @@ const clearSessions = () => {
                     </label>
 
                     <label class="flex flex-col gap-2 text-sm font-medium text-stone-700">
-                        Статус
+                        Status
                         <select
                             v-model="filters.status"
                             class="rounded-2xl border border-stone-300 px-4 py-3 text-sm text-stone-900 focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-200"
                         >
                             <option value="">
-                                Любой статус
+                                Any status
                             </option>
-                            <option value="active">
-                                активно
-                            </option>
-                            <option value="paused">
-                                пауза
-                            </option>
-                            <option value="completed">
-                                завершено
-                            </option>
+                            <option value="active">active</option>
+                            <option value="paused">paused</option>
+                            <option value="completed">completed</option>
                         </select>
                     </label>
 
@@ -227,7 +221,7 @@ const clearSessions = () => {
                             type="submit"
                             class="inline-flex rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-stone-800"
                         >
-                            Применить
+                            Apply
                         </button>
 
                         <button
@@ -235,7 +229,7 @@ const clearSessions = () => {
                             class="inline-flex rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                             @click="resetFilters"
                         >
-                            Сбросить
+                            Reset
                         </button>
                     </div>
                 </form>
@@ -244,8 +238,8 @@ const clearSessions = () => {
             <section class="mt-6 overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">
                 <div class="flex flex-wrap items-center justify-between gap-4 border-b border-stone-200 px-6 py-5">
                     <p class="text-sm text-stone-600">
-                        Просматривайте рабочие сессии учеников и фильтруйте список по ученику
-                        или текущему статусу сессии.
+                        Review student work sessions and filter the list by
+                        student or current session status.
                     </p>
 
                     <div class="flex items-center gap-3">
@@ -253,9 +247,9 @@ const clearSessions = () => {
                             v-model="clearForm.filter"
                             class="rounded-2xl border border-stone-300 px-4 py-2 text-sm text-stone-900 focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-200"
                         >
-                            <option value="all">Все сессии</option>
-                            <option value="active">Только активные</option>
-                            <option value="completed">Только завершённые</option>
+                            <option value="all">All sessions</option>
+                            <option value="active">Active only</option>
+                            <option value="completed">Completed only</option>
                         </select>
 
                         <button
@@ -264,7 +258,7 @@ const clearSessions = () => {
                             :disabled="clearForm.processing"
                             @click="clearSessions"
                         >
-                            {{ showClearConfirm ? 'Подтвердить удаление' : 'Очистить логи' }}
+                            {{ showClearConfirm ? 'Confirm delete' : 'Clear logs' }}
                         </button>
                     </div>
                 </div>
@@ -273,14 +267,15 @@ const clearSessions = () => {
 
                 <div class="border-b border-stone-200 px-6 py-5 md:hidden">
                     <p class="text-sm text-stone-600">
-                        Здесь показаны все зафиксированные старты и остановки для проверки наставником.
+                        This list shows all recorded starts and stops for mentor
+                        review.
                     </p>
 
                     <Link
                         :href="route('admin.task-assignments.index')"
                         class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                     >
-                        Открыть назначения
+                        Open assignments
                     </Link>
                 </div>
 
@@ -292,7 +287,7 @@ const clearSessions = () => {
                     >
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Ученик
+                                Student
                             </p>
                             <h3 class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ taskSession.student.display_name }}
@@ -309,7 +304,7 @@ const clearSessions = () => {
                                             : 'bg-stone-200 text-stone-700'
                                     "
                                 >
-                                    {{ taskSession.student.is_active ? 'вход разрешён' : 'вход запрещён' }}
+                                    {{ taskSession.student.is_active ? 'sign-in enabled' : 'sign-in disabled' }}
                                 </span>
                                 <span
                                     class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700"
@@ -321,19 +316,19 @@ const clearSessions = () => {
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Задание
+                                Task
                             </p>
                             <h3 class="mt-2 text-xl font-semibold text-stone-950">
                                 {{ taskSession.task_title }}
                             </h3>
                             <p class="mt-2 text-sm leading-6 text-stone-600">
-                                {{ taskSession.task_summary || 'Описание задания не сохранено.' }}
+                                {{ taskSession.task_summary || 'No task description was saved.' }}
                             </p>
                             <p class="mt-3 text-sm text-stone-600">
                                 {{
                                     taskSession.planned_duration_minutes
-                                        ? `Запланировано ${taskSession.planned_duration_minutes} мин.`
-                                        : 'Плановая длительность не сохранена'
+                                        ? `Planned ${taskSession.planned_duration_minutes} min`
+                                        : 'Planned duration was not saved'
                                 }}
                             </p>
                             <p
@@ -348,13 +343,13 @@ const clearSessions = () => {
                                 v-if="taskSession.task_assignment?.due_on"
                                 class="mt-2 text-sm text-stone-600"
                             >
-                                Срок: {{ taskSession.task_assignment.due_on }}
+                                Due: {{ taskSession.task_assignment.due_on }}
                             </p>
                         </div>
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Сессия
+                                Session
                             </p>
                             <div class="mt-2 flex flex-wrap items-center gap-3">
                                 <span
@@ -369,10 +364,10 @@ const clearSessions = () => {
                                 >
                                     {{
                                         taskSession.status === 'active'
-                                            ? 'активна'
+                                            ? 'active'
                                             : taskSession.status === 'paused'
-                                              ? 'пауза'
-                                              : 'завершена'
+                                              ? 'paused'
+                                              : 'completed'
                                     }}
                                 </span>
                                 <span
@@ -384,47 +379,47 @@ const clearSessions = () => {
                                     v-if="taskSession.task_assignment"
                                     class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700"
                                 >
-                                    Назначение {{
+                                    Assignment {{
                                         taskSession.task_assignment.status === 'assigned'
-                                            ? 'назначено'
+                                            ? 'assigned'
                                             : taskSession.task_assignment.status === 'paused'
-                                              ? 'пауза'
-                                              : 'завершено'
+                                              ? 'paused'
+                                              : 'completed'
                                     }}
                                 </span>
                                 <span
                                     v-if="taskSession.schedule_run_block"
                                     class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700"
                                 >
-                                    Блок {{ taskSession.schedule_run_block.position }}
+                                    Block {{ taskSession.schedule_run_block.position }}
                                 </span>
                             </div>
                             <p class="mt-3 text-sm text-stone-600">
-                                {{ taskSession.started_at_label || 'Время начала не сохранено' }}
+                                {{ taskSession.started_at_label || 'Start time was not saved' }}
                             </p>
                             <p class="mt-2 text-sm text-stone-600">
                                 {{
                                     taskSession.ended_at_label
-                                        ? `Завершено: ${taskSession.ended_at_label}`
-                                        : 'Ещё активно'
+                                        ? `Ended: ${taskSession.ended_at_label}`
+                                        : 'Still active'
                                 }}
                             </p>
                             <p class="mt-2 text-sm text-stone-600">
-                                {{ taskSession.duration_label || 'Длительность ещё не рассчитана' }}
+                                {{ taskSession.duration_label || 'Duration has not been calculated yet' }}
                             </p>
                         </div>
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Заметки
+                                Notes
                             </p>
                             <p class="mt-2 text-sm leading-6 text-stone-600">
-                                {{ taskSession.context_notes || 'Сохранённых заметок нет.' }}
+                                {{ taskSession.context_notes || 'No saved notes.' }}
                             </p>
                             <p class="mt-3 text-sm leading-6 text-stone-600">
                                 {{
                                     taskSession.completion_notes ||
-                                    'Заметка о завершении для этой сессии не записана.'
+                                    'No completion note was saved for this session.'
                                 }}
                             </p>
                         </div>
@@ -433,11 +428,11 @@ const clearSessions = () => {
 
                 <div v-else class="px-6 py-16 text-center">
                     <p class="text-lg font-semibold text-stone-950">
-                        Сессий заданий пока нет
+                        No task sessions yet
                     </p>
                     <p class="mt-3 text-sm leading-6 text-stone-600">
-                        Рабочие сессии учеников появятся здесь после того, как ученик начнёт и
-                        завершит работу в портале.
+                        Student work sessions will appear here after a student
+                        starts and finishes work in the portal.
                     </p>
                 </div>
             </section>

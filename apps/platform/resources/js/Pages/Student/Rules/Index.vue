@@ -28,17 +28,17 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Правила" />
+    <Head title="Rules" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Портал ученика
+                        Student portal
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Правила
+                        Rules
                     </h2>
                 </div>
 
@@ -46,7 +46,7 @@ defineProps<{
                     :href="route('student.home')"
                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                 >
-                    Назад к обзору
+                    Back to overview
                 </Link>
             </div>
         </template>
@@ -55,10 +55,10 @@ defineProps<{
             <section class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.3em] text-stone-500">
-                        Актуальные правила
+                        Active rules
                     </p>
                     <h3 class="font-serif text-3xl text-stone-950">
-                        Что важно соблюдать
+                        What you need to follow
                     </h3>
                 </div>
 
@@ -81,17 +81,17 @@ defineProps<{
                                             : 'bg-stone-200 text-stone-700'
                                     "
                                 >
-                                    {{ rule.scope === 'student' ? 'Личное' : 'Общее' }}
+                                    {{ rule.scope === 'student' ? 'Personal' : 'Shared' }}
                                 </span>
                             </div>
                             <p class="mt-3 text-sm leading-7 text-stone-600">
-                                {{ rule.description || 'Описание правила пока не добавлено.' }}
+                                {{ rule.description || 'No description has been added for this rule yet.' }}
                             </p>
                             <p class="mt-3 text-sm text-stone-500">
                                 {{
                                     rule.created_at_label
-                                        ? `Добавлено ${rule.created_at_label}`
-                                        : 'Дата добавления не сохранена.'
+                                        ? `Added ${rule.created_at_label}`
+                                        : 'Added date not recorded.'
                                 }}
                             </p>
                         </div>
@@ -100,7 +100,7 @@ defineProps<{
 
                 <div v-else class="mt-8 rounded-[1.5rem] bg-stone-100 px-5 py-6">
                     <p class="text-sm text-stone-600">
-                        Для этой учётной записи наставник пока не добавил активных правил.
+                        No active rules have been added for this account yet.
                     </p>
                 </div>
             </section>

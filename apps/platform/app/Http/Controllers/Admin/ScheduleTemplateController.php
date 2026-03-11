@@ -6,8 +6,8 @@ use App\Enums\ScheduleWeekday;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreScheduleTemplateRequest;
 use App\Http\Requests\Admin\UpdateScheduleTemplateRequest;
-use App\Models\ScheduleTemplate;
 use App\Models\ScheduleEntry;
+use App\Models\ScheduleTemplate;
 use App\Models\Student;
 use App\Models\TaskTemplate;
 use Carbon\CarbonImmutable;
@@ -164,7 +164,7 @@ class ScheduleTemplateController extends Controller
 
         return redirect()
             ->route('admin.schedule-templates.index')
-            ->with('success', "Расписание {$scheduleTemplate->name} создано.");
+            ->with('success', "Schedule {$scheduleTemplate->name} created.");
     }
 
     public function edit(ScheduleTemplate $scheduleTemplate): Response
@@ -229,6 +229,6 @@ class ScheduleTemplateController extends Controller
 
         return redirect()
             ->route('admin.schedule-templates.index')
-            ->with('success', "Расписание {$scheduleTemplate->name} обновлено.");
+            ->with('success', "Schedule {$scheduleTemplate->name} updated.");
     }
 }

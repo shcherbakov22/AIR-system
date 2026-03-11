@@ -28,14 +28,14 @@ const submit = () => {
 
 <template>
     <GuestLayout>
-        <Head title="Вход" />
+        <Head title="Log in" />
 
         <header class="mb-8 text-center">
             <p class="text-xs uppercase tracking-[0.3em] text-amber-700/80">
-                Вход
+                Log in
             </p>
             <h2 class="mt-3 font-serif text-4xl leading-none text-stone-950">
-                Доступ к платформе
+                Access the platform
             </h2>
         </header>
 
@@ -48,7 +48,7 @@ const submit = () => {
 
         <form @submit.prevent="submit" class="space-y-5">
             <div>
-                <InputLabel for="username" value="Имя пользователя" />
+                <InputLabel for="username" value="Username" />
 
                 <TextInput
                     id="username"
@@ -64,7 +64,7 @@ const submit = () => {
             </div>
 
             <div>
-                <InputLabel for="password" value="Пароль" />
+                <InputLabel for="password" value="Password" />
 
                 <TextInput
                     id="password"
@@ -80,7 +80,7 @@ const submit = () => {
 
             <label class="flex items-center gap-3 rounded-2xl bg-stone-100 px-4 py-3">
                 <Checkbox name="remember" v-model:checked="form.remember" />
-                <span class="text-sm text-stone-700">Запомнить этот браузер</span>
+                <span class="text-sm text-stone-700">Remember this browser</span>
             </label>
 
             <PrimaryButton
@@ -88,7 +88,7 @@ const submit = () => {
                 :class="{ 'opacity-25': form.processing }"
                 :disabled="form.processing"
             >
-                Войти
+                Log in
             </PrimaryButton>
         </form>
     </GuestLayout>

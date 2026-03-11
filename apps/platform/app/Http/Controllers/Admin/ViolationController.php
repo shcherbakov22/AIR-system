@@ -139,7 +139,7 @@ class ViolationController extends Controller
 
         return redirect()
             ->route('admin.violations.index')
-            ->with('success', "Нарушение {$violation->rule_title_snapshot} создано.");
+            ->with('success', "Violation {$violation->rule_title_snapshot} created.");
     }
 
     public function show(Violation $violation): Response
@@ -177,7 +177,7 @@ class ViolationController extends Controller
             if ($lockedViolation->status !== 'open') {
                 return [
                     'success' => false,
-                    'message' => 'Это нарушение уже закрыто.',
+                    'message' => 'This violation is already closed.',
                 ];
             }
 
@@ -197,8 +197,8 @@ class ViolationController extends Controller
             return [
                 'success' => true,
                 'message' => $action === 'waived'
-                    ? "Нарушение {$lockedViolation->rule_title_snapshot} отмечено как отменённое."
-                    : "Нарушение {$lockedViolation->rule_title_snapshot} отмечено как решённое.",
+                    ? "Violation {$lockedViolation->rule_title_snapshot} marked as waived."
+                    : "Violation {$lockedViolation->rule_title_snapshot} marked as resolved.",
                 'resolution_id' => $resolution->id,
             ];
         });
@@ -243,6 +243,6 @@ class ViolationController extends Controller
 
         return redirect()
             ->route('admin.violations.index')
-            ->with('success', 'Нарушение '.$violationTitle.' удалено.');
+            ->with('success', 'Violation '.$violationTitle.' deleted.');
     }
 }

@@ -97,7 +97,7 @@ class RuleDefinitionController extends Controller
 
         return redirect()
             ->route('admin.rule-definitions.index')
-            ->with('success', "Правило {$ruleDefinition->title} создано.");
+            ->with('success', "Rule {$ruleDefinition->title} created.");
     }
 
     public function update(UpdateRuleDefinitionRequest $request, RuleDefinition $ruleDefinition): RedirectResponse
@@ -113,8 +113,9 @@ class RuleDefinitionController extends Controller
 
         return redirect()
             ->route('admin.rule-definitions.index')
-            ->with('success', "Правило {$ruleDefinition->fresh()->title} обновлено.");
+            ->with('success', "Rule {$ruleDefinition->fresh()->title} updated.");
     }
+
     public function destroy(RuleDefinition $ruleDefinition): RedirectResponse
     {
         $ruleDefinitionTitle = $ruleDefinition->title;
@@ -123,6 +124,6 @@ class RuleDefinitionController extends Controller
 
         return redirect()
             ->route('admin.rule-definitions.index')
-            ->with('success', 'Правило '.$ruleDefinitionTitle.' удалено.');
+            ->with('success', 'Rule '.$ruleDefinitionTitle.' deleted.');
     }
 }

@@ -74,7 +74,7 @@ class RuleDefinitionManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.rule-definitions.index', absolute: false))
-            ->assertSessionHas('success', 'Правило Stay on assigned work создано.');
+            ->assertSessionHas('success', 'Rule Stay on assigned work created.');
 
         $this->assertDatabaseHas('rule_definitions', [
             'title' => 'Stay on assigned work',
@@ -116,7 +116,7 @@ class RuleDefinitionManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.rule-definitions.index', absolute: false))
-            ->assertSessionHas('success', 'Правило No unscheduled breaks создано.');
+            ->assertSessionHas('success', 'Rule No unscheduled breaks created.');
 
         $this->assertDatabaseHas('rule_definitions', [
             'title' => 'No unscheduled breaks',
@@ -192,7 +192,7 @@ class RuleDefinitionManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.rule-definitions.index', absolute: false))
-            ->assertSessionHas('success', 'Правило No unscheduled breaks revised обновлено.');
+            ->assertSessionHas('success', 'Rule No unscheduled breaks revised updated.');
 
         $this->assertDatabaseHas('rule_definitions', [
             'id' => $ruleDefinition->id,
@@ -224,7 +224,7 @@ class RuleDefinitionManagementTest extends TestCase
         $this->actingAs($admin)
             ->delete(route('admin.rule-definitions.destroy', $ruleDefinition))
             ->assertRedirect(route('admin.rule-definitions.index', absolute: false))
-            ->assertSessionHas('success', 'Правило Stay on assigned work удалено.');
+            ->assertSessionHas('success', 'Rule Stay on assigned work deleted.');
 
         $this->assertDatabaseMissing('rule_definitions', [
             'id' => $ruleDefinition->id,

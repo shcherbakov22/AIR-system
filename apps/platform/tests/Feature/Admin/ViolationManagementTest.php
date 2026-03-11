@@ -116,7 +116,7 @@ class ViolationManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.violations.index', absolute: false))
-            ->assertSessionHas('success', 'Нарушение Stay on assigned work создано.');
+            ->assertSessionHas('success', 'Violation Stay on assigned work created.');
 
         $this->assertDatabaseHas('violations', [
             'student_id' => $student->id,
@@ -161,7 +161,7 @@ class ViolationManagementTest extends TestCase
         $response
             ->assertRedirect(route('admin.violations.create', absolute: false))
             ->assertSessionHasErrors([
-                'rule_definition_id' => 'Выбранное правило не применяется к этому ученику.',
+                'rule_definition_id' => 'The selected rule does not apply to this student.',
             ]);
 
         $this->assertDatabaseCount('violations', 0);
@@ -289,7 +289,7 @@ class ViolationManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.violations.show', $violation, absolute: false))
-            ->assertSessionHas('success', 'Нарушение Stay on assigned work отмечено как решённое.');
+            ->assertSessionHas('success', 'Violation Stay on assigned work marked as resolved.');
 
         $this->assertDatabaseHas('violations', [
             'id' => $violation->id,
@@ -342,7 +342,7 @@ class ViolationManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.violations.show', $violation, absolute: false))
-            ->assertSessionHas('success', 'Нарушение Stay on assigned work отмечено как отменённое.');
+            ->assertSessionHas('success', 'Violation Stay on assigned work marked as waived.');
 
         $this->assertDatabaseHas('violations', [
             'id' => $violation->id,
@@ -403,7 +403,7 @@ class ViolationManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.violations.show', $violation, absolute: false))
-            ->assertSessionHas('error', 'Это нарушение уже закрыто.');
+            ->assertSessionHas('error', 'This violation is already closed.');
 
         $this->assertDatabaseCount('violation_resolutions', 1);
     }
@@ -441,7 +441,7 @@ class ViolationManagementTest extends TestCase
         $this->actingAs($admin)
             ->delete(route('admin.violations.destroy', $violation))
             ->assertRedirect(route('admin.violations.index', absolute: false))
-            ->assertSessionHas('success', 'Нарушение Stay on assigned work удалено.');
+            ->assertSessionHas('success', 'Violation Stay on assigned work deleted.');
 
         $this->assertDatabaseMissing('violations', [
             'id' => $violation->id,

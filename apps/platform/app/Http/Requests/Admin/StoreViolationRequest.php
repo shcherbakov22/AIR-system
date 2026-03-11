@@ -61,7 +61,7 @@ class StoreViolationRequest extends FormRequest
                 }
 
                 if ($ruleDefinition->scope === 'student' && $ruleDefinition->student_id !== (int) $this->input('student_id')) {
-                    $validator->errors()->add('rule_definition_id', 'Выбранное правило не применяется к этому ученику.');
+                    $validator->errors()->add('rule_definition_id', 'The selected rule does not apply to this student.');
                 }
             },
         ];

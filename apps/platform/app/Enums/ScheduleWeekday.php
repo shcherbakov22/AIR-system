@@ -15,13 +15,13 @@ enum ScheduleWeekday: string
     public function label(): string
     {
         return match ($this) {
-            self::Monday => 'Понедельник',
-            self::Tuesday => 'Вторник',
-            self::Wednesday => 'Среда',
-            self::Thursday => 'Четверг',
-            self::Friday => 'Пятница',
-            self::Saturday => 'Суббота',
-            self::Sunday => 'Воскресенье',
+            self::Monday => 'Monday',
+            self::Tuesday => 'Tuesday',
+            self::Wednesday => 'Wednesday',
+            self::Thursday => 'Thursday',
+            self::Friday => 'Friday',
+            self::Saturday => 'Saturday',
+            self::Sunday => 'Sunday',
         };
     }
 

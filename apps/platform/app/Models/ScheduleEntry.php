@@ -45,7 +45,7 @@ class ScheduleEntry extends Model
     {
         return $this->task_title
             ?? $this->taskTemplate?->title
-            ?? 'Задание без названия';
+            ?? 'Untitled task';
     }
 
     public function resolvedTaskSummary(): ?string

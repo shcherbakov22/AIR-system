@@ -112,7 +112,7 @@ class ScheduleTemplateManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
-            ->assertSessionHas('success', 'Расписание Monday Reading создано.');
+            ->assertSessionHas('success', 'Schedule Monday Reading created.');
 
         $this->assertDatabaseHas('schedule_templates', [
             'student_id' => $student->id,
@@ -261,7 +261,7 @@ class ScheduleTemplateManagementTest extends TestCase
             'student_id' => $secondStudent->id,
             'name' => 'Wednesday Writing',
             'weekday' => ScheduleWeekday::Wednesday->value,
-                        'notes' => 'Midweek writing focus.',
+            'notes' => 'Midweek writing focus.',
             'task_template_id' => $secondTaskTemplate->id,
             'start_time' => '10:30',
             'duration_minutes' => 50,
@@ -270,14 +270,14 @@ class ScheduleTemplateManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
-            ->assertSessionHas('success', 'Расписание Wednesday Writing обновлено.');
+            ->assertSessionHas('success', 'Schedule Wednesday Writing updated.');
 
         $this->assertDatabaseHas('schedule_templates', [
             'id' => $scheduleTemplate->id,
             'student_id' => $secondStudent->id,
             'name' => 'Wednesday Writing',
             'weekday' => ScheduleWeekday::Wednesday->value,
-                        'notes' => 'Midweek writing focus.',
+            'notes' => 'Midweek writing focus.',
             'created_by_user_id' => $admin->id,
         ]);
 
@@ -319,7 +319,7 @@ class ScheduleTemplateManagementTest extends TestCase
             'summary' => 'Legacy block.',
             'instructions' => 'Keep the existing block intact.',
             'default_duration_minutes' => 25,
-                        'created_by_user_id' => $admin->id,
+            'created_by_user_id' => $admin->id,
         ]);
 
         $scheduleTemplate = ScheduleTemplate::create([
@@ -359,7 +359,7 @@ class ScheduleTemplateManagementTest extends TestCase
                 'entry_notes' => 'Still tied to the current task.',
             ])
             ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
-            ->assertSessionHas('success', 'Расписание Archived Monday Reading обновлено.');
+            ->assertSessionHas('success', 'Schedule Archived Monday Reading updated.');
 
         $scheduleTemplate->refresh();
         $entry = $scheduleTemplate->entries()->firstOrFail();

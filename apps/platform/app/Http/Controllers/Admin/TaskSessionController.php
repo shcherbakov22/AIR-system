@@ -34,12 +34,12 @@ class TaskSessionController extends Controller
         if ($durationSeconds < 60) {
             $seconds = max(1, $durationSeconds);
 
-            return $seconds === 1 ? '1 секунда' : "{$seconds} секунд";
+            return $seconds === 1 ? '1 second' : "{$seconds} seconds";
         }
 
         $minutes = (int) ceil($durationSeconds / 60);
 
-        return $minutes === 1 ? '1 минута' : "{$minutes} минут";
+        return $minutes === 1 ? '1 minute' : "{$minutes} minutes";
     }
 
     protected function toPayload(TaskSession $taskSession): array
@@ -157,6 +157,6 @@ class TaskSessionController extends Controller
         $count = $query->count();
         $query->delete();
 
-        return back()->with('success', "Удалено сессий: {$count}");
+        return back()->with('success', "Deleted sessions: {$count}");
     }
 }
