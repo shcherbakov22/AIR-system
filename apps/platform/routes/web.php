@@ -4,7 +4,6 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
 use App\Http\Controllers\Admin\TaskAssignmentController as AdminTaskAssignmentController;
-use App\Http\Controllers\Admin\TaskSessionController as AdminTaskSessionController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
@@ -56,8 +55,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/task-assignments', [AdminTaskAssignmentController::class, 'store'])->name('task-assignments.store');
         Route::get('/task-assignments/{taskAssignment}/edit', [AdminTaskAssignmentController::class, 'edit'])->name('task-assignments.edit');
         Route::put('/task-assignments/{taskAssignment}', [AdminTaskAssignmentController::class, 'update'])->name('task-assignments.update');
-        Route::get('/task-sessions', [AdminTaskSessionController::class, 'index'])->name('task-sessions.index');
-        Route::delete('/task-sessions', [AdminTaskSessionController::class, 'destroyAll'])->name('task-sessions.destroy-all');
         Route::get('/task-templates', [AdminTaskTemplateController::class, 'index'])->name('task-templates.index');
         Route::get('/task-templates/create', [AdminTaskTemplateController::class, 'create'])->name('task-templates.create');
         Route::post('/task-templates', [AdminTaskTemplateController::class, 'store'])->name('task-templates.store');

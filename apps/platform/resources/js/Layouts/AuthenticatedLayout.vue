@@ -43,11 +43,6 @@ const navItems = computed(() => {
             active: route().current('admin.violations.*'),
         });
         items.push({
-            label: 'Sessions',
-            href: route('admin.task-sessions.index'),
-            active: route().current('admin.task-sessions.*'),
-        });
-        items.push({
             label: 'Schedules',
             href: route('admin.schedule-templates.index'),
             active: route().current('admin.schedule-templates.*'),
