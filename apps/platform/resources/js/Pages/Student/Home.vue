@@ -424,7 +424,7 @@ const resumeScheduleRun = () => {
 
             <section
                 v-if="activeScheduleRun || activeTaskSession || canStartScheduleRun"
-                class="sticky top-3 z-20 mt-4 rounded-[1.5rem] bg-stone-950 p-4 text-white shadow-sm ring-1 ring-stone-800"
+                class="mt-4 rounded-[1.5rem] bg-stone-950 p-4 text-white shadow-sm ring-1 ring-stone-800"
             >
                 <div class="grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.2fr)]">
                     <div class="rounded-[1.25rem] bg-white/5 p-4">
