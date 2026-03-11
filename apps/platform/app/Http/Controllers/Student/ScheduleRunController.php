@@ -145,7 +145,7 @@ class ScheduleRunController extends Controller
         if (! $student->canUseAdHocTimer()) {
             return redirect()
                 ->route('student.home')
-                ->with('error', 'Own timers are disabled for this student.');
+                ->with('error', 'Custom timers are disabled for this student.');
         }
 
         $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService) {
@@ -202,7 +202,7 @@ class ScheduleRunController extends Controller
                     'status' => 'paused',
                     'ended_at' => $endedAt,
                     'duration_seconds' => $durationSeconds,
-                    'completion_notes' => 'Paused for an own timer.',
+                    'completion_notes' => 'Paused for a custom timer.',
                     'stopped_by_user_id' => $request->user()->id,
                 ]);
 
@@ -234,7 +234,7 @@ class ScheduleRunController extends Controller
 
             return [
                 'success' => true,
-                'message' => "Schedule {$ownedScheduleRun->schedule_name_snapshot} paused. Own timer started.",
+                'message' => "Schedule {$ownedScheduleRun->schedule_name_snapshot} paused. Custom timer started.",
             ];
         });
 
@@ -362,7 +362,7 @@ class ScheduleRunController extends Controller
             return [
                 'success' => true,
                 'message' => $completedAdHocTaskTitle !== null
-                    ? "Own timer {$completedAdHocTaskTitle} finished. Task session {$pausedBlock->task_title_snapshot} resumed."
+                    ? "Custom timer {$completedAdHocTaskTitle} finished. Task session {$pausedBlock->task_title_snapshot} resumed."
                     : "Task session {$pausedBlock->task_title_snapshot} resumed.",
             ];
         });

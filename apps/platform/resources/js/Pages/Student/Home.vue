@@ -289,7 +289,7 @@ const activeTaskEndsAtLabel = computed(() => {
 
 const currentSummaryDetail = computed(() => {
     if (props.activeTaskSession?.source_type === 'ad_hoc') {
-        return 'Your own timer is keeping the schedule paused.';
+        return 'Your custom timer is keeping the schedule paused.';
     }
 
     if (props.activeTaskSession?.schedule_run_block_position) {
@@ -298,10 +298,6 @@ const currentSummaryDetail = computed(() => {
 
     if (props.activeScheduleRun?.paused_block) {
         return `Block ${props.activeScheduleRun.paused_block.position} is paused.`;
-    }
-
-    if (props.activeScheduleRun?.next_block) {
-        return `Next block: ${props.activeScheduleRun.next_block.position}.`;
     }
 
     return null;
@@ -331,7 +327,7 @@ const showBlockingViolationDialog = () => {
             `- ${violation.rule_title}${violation.occurred_at_label ? ` (${violation.occurred_at_label})` : ''}`,
         ),
         '',
-        'Until a mentor closes them, you cannot continue the schedule or start your own timer.',
+        'Until a mentor closes them, you cannot continue the schedule or start your custom timer.',
     ];
 
     window.alert(lines.join('\n'));
@@ -435,35 +431,7 @@ const resumeScheduleRun = () => {
             >
                 <div class="grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.2fr)]">
                     <div class="rounded-[1.25rem] bg-stone-100 p-4">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <p class="text-[11px] uppercase tracking-[0.22em] text-stone-500">
-                                Current
-                            </p>
-                            <span
-                                class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                                :class="
-                                    activeTaskSession
-                                        ? 'bg-amber-200 text-stone-950'
-                                        : activeScheduleRun?.status === 'paused'
-                                          ? 'bg-stone-300 text-stone-900'
-                                          : activeScheduleRun
-                                            ? 'bg-emerald-200 text-emerald-950'
-                                            : 'bg-stone-900 text-white'
-                                "
-                            >
-                                {{
-                                    activeTaskSession
-                                        ? 'timer running'
-                                        : activeScheduleRun?.status === 'paused'
-                                          ? 'paused'
-                                          : activeScheduleRun
-                                            ? 'schedule active'
-                                            : 'ready to start'
-                                }}
-                            </span>
-                        </div>
-
-                        <p class="mt-2 truncate text-lg font-semibold text-stone-950">
+                        <p class="truncate text-lg font-semibold text-stone-950">
                             {{
                                 activeTaskSession?.task_title ??
                                 activeScheduleRun?.schedule_name ??
@@ -581,7 +549,7 @@ const resumeScheduleRun = () => {
                                     :disabled="!hasTaskTemplates"
                                     @click="togglePauseOwnTimerForm"
                                 >
-                                    {{ pauseOwnTimerFormOpen ? 'Hide own timer' : 'Own timer' }}
+                                    {{ pauseOwnTimerFormOpen ? 'Hide custom timer' : 'Custom timer' }}
                                 </button>
                                 <button
                                     v-if="activeTaskSession"
@@ -599,7 +567,7 @@ const resumeScheduleRun = () => {
                             v-if="!hasTaskTemplates && canPauseForOwnTimer"
                             class="mt-3 rounded-[1rem] bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200"
                         >
-                            There are no tasks in the catalog for an own timer yet.
+                            There are no tasks in the catalog for a custom timer yet.
                         </div>
 
                         <form
@@ -668,7 +636,7 @@ const resumeScheduleRun = () => {
                 >
                     <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                         <p class="font-medium">
-                            Until a mentor closes these violations, you cannot continue the schedule or start your own timer.
+                            Until a mentor closes these violations, you cannot continue the schedule or start your custom timer.
                         </p>
                         <div class="min-w-0 space-y-1 text-sm">
                             <p
