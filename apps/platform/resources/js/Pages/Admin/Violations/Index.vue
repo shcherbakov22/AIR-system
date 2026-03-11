@@ -34,7 +34,7 @@ const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
 
 const deleteViolation = (violationId: number, ruleTitle: string) => {
-    if (!window.confirm(`Удалить нарушение "${ruleTitle}"? Связанные записи разбора тоже будут удалены.`)) {
+    if (!window.confirm(`Delete violation "${ruleTitle}"? Linked review records will also be deleted.`)) {
         return;
     }
 
@@ -45,16 +45,16 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
 </script>
 
 <template>
-    <Head title="Нарушения" />
+    <Head title="Violations" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2">
                 <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Панель наставника
+                    Mentor dashboard
                 </p>
                 <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    Нарушения
+                    Violations
                 </h2>
             </div>
         </template>
@@ -68,18 +68,16 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
             </div>
 
             <div class="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">
-                <div
-                    class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-between"
-                >
+                <div class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-between">
                     <p class="text-sm text-stone-600">
-                        Фиксируйте нарушения учеников и обрабатывайте их через действия «решено» или «отменено».
+                        Record student violations and resolve them through “resolved” or “waived” actions.
                     </p>
 
                     <Link
                         :href="route('admin.violations.create')"
                         class="inline-flex rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-stone-800"
                     >
-                        Добавить нарушение
+                        Add violation
                     </Link>
                 </div>
 
@@ -91,7 +89,7 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
                     >
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Ученик
+                                Student
                             </p>
                             <h3 class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ violation.student.display_name }}
@@ -103,21 +101,21 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Нарушение
+                                Violation
                             </p>
                             <h3 class="mt-2 text-xl font-semibold text-stone-950">
                                 {{ violation.rule_title }}
                             </h3>
                             <p class="mt-2 text-sm text-stone-600">
-                                {{ violation.occurred_at_label || 'Время нарушения не сохранено.' }}
+                                {{ violation.occurred_at_label || 'Violation time was not recorded.' }}
                             </p>
                             <p class="mt-2 text-sm text-stone-600">
                                 {{
                                     violation.rule_definition?.scope === 'student'
-                                        ? 'Правило для конкретного ученика'
+                                        ? 'Student-specific rule'
                                         : violation.rule_definition?.scope === 'global'
-                                            ? 'Глобальное правило'
-                                            : 'Правило больше не связано'
+                                          ? 'Global rule'
+                                          : 'Rule is no longer linked'
                                 }}
                             </p>
                         </div>
@@ -130,15 +128,15 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
                                         violation.status === 'open'
                                             ? 'bg-amber-100 text-amber-800'
                                             : violation.status === 'resolved'
-                                                ? 'bg-emerald-100 text-emerald-800'
-                                                : 'bg-stone-200 text-stone-700'
+                                              ? 'bg-emerald-100 text-emerald-800'
+                                              : 'bg-stone-200 text-stone-700'
                                     "
                                 >
-                                    {{ violation.status === 'open' ? 'Открыто' : violation.status === 'resolved' ? 'Решено' : 'Отменено' }}
+                                    {{ violation.status === 'open' ? 'Open' : violation.status === 'resolved' ? 'Resolved' : 'Waived' }}
                                 </span>
                             </div>
                             <p class="mt-4 text-sm leading-6 text-stone-600">
-                                {{ violation.notes || 'Заметки о нарушении не указаны.' }}
+                                {{ violation.notes || 'No violation notes were provided.' }}
                             </p>
                             <p
                                 v-if="violation.latest_resolution"
@@ -153,14 +151,14 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
                                     :href="route('admin.violations.show', violation.id)"
                                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                                 >
-                                    Проверить
+                                    Review
                                 </Link>
                                 <button
                                     type="button"
                                     class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
                                     @click="deleteViolation(violation.id, violation.rule_title)"
                                 >
-                                    Удалить
+                                    Delete
                                 </button>
                             </div>
                         </div>
@@ -169,10 +167,10 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
 
                 <div v-else class="px-6 py-12 text-center">
                     <p class="text-sm uppercase tracking-[0.3em] text-stone-500">
-                        Нарушений пока нет
+                        No violations yet
                     </p>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Создайте первое нарушение после настройки правил, чтобы наставник мог отслеживать открытые случаи и их решения.
+                        Create the first violation after rules are configured so mentors can track open cases and resolutions.
                     </p>
                 </div>
             </div>

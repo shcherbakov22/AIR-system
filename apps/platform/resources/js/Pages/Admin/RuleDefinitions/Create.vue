@@ -39,17 +39,17 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Создание правила" />
+    <Head title="Create rule" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель наставника
+                        Mentor dashboard
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Создание правила
+                        Create rule
                     </h2>
                 </div>
 
@@ -57,7 +57,7 @@ const submit = () => {
                     :href="route('admin.rule-definitions.index')"
                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                 >
-                    Назад к правилам
+                    Back to rules
                 </Link>
             </div>
         </template>
@@ -66,62 +66,37 @@ const submit = () => {
             <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <div class="max-w-2xl">
                     <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Проектирование правила
+                        Rule design
                     </p>
                     <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        Добавить повторно используемое правило поведения
+                        Add a reusable behavior rule
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Здесь задаётся только правило. Сами нарушения фиксируются отдельно.
+                        This creates only the rule definition. Violations are recorded separately.
                     </p>
                 </div>
 
                 <form class="mt-10 grid gap-6 md:grid-cols-2" @submit.prevent="submit">
                     <div class="md:col-span-2">
-                        <InputLabel for="title" value="Название правила" />
-                        <TextInput
-                            id="title"
-                            v-model="form.title"
-                            type="text"
-                            class="mt-2 block w-full rounded-xl border-stone-300"
-                            autofocus
-                            autocomplete="off"
-                        />
+                        <InputLabel for="title" value="Rule title" />
+                        <TextInput id="title" v-model="form.title" type="text" class="mt-2 block w-full rounded-xl border-stone-300" autofocus autocomplete="off" />
                         <InputError class="mt-2" :message="form.errors.title" />
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="scope" value="Область действия" />
-                        <select
-                            id="scope"
-                            v-model="form.scope"
-                            class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                        >
-                            <option value="global">
-                                Глобальное
-                            </option>
-                            <option value="student">
-                                Для конкретного ученика
-                            </option>
+                        <InputLabel for="scope" value="Scope" />
+                        <select id="scope" v-model="form.scope" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700">
+                            <option value="global">Global</option>
+                            <option value="student">Student-specific</option>
                         </select>
                         <InputError class="mt-2" :message="form.errors.scope" />
                     </div>
 
                     <div v-if="form.scope === 'student'" class="md:col-span-2">
-                        <InputLabel for="student_id" value="Ученик" />
-                        <select
-                            id="student_id"
-                            v-model="form.student_id"
-                            class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                        >
-                            <option value="">
-                                Выберите ученика
-                            </option>
-                            <option
-                                v-for="student in props.students"
-                                :key="student.id"
-                                :value="String(student.id)"
-                            >
+                        <InputLabel for="student_id" value="Student" />
+                        <select id="student_id" v-model="form.student_id" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700">
+                            <option value="">Choose a student</option>
+                            <option v-for="student in props.students" :key="student.id" :value="String(student.id)">
                                 {{ student.display_name }} ({{ student.username }})
                             </option>
                         </select>
@@ -129,13 +104,8 @@ const submit = () => {
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="description" value="Описание" />
-                        <textarea
-                            id="description"
-                            v-model="form.description"
-                            rows="5"
-                            class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                        />
+                        <InputLabel for="description" value="Description" />
+                        <textarea id="description" v-model="form.description" rows="5" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700" />
                         <InputError class="mt-2" :message="form.errors.description" />
                     </div>
 
@@ -143,15 +113,12 @@ const submit = () => {
                         <label class="inline-flex items-center gap-3">
                             <Checkbox v-model:checked="form.is_active" />
                             <span class="text-sm text-stone-700">
-                                Оставить это правило активным
+                                Keep this rule active
                             </span>
                         </label>
 
-                        <PrimaryButton
-                            :disabled="form.processing"
-                            class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600"
-                        >
-                            Создать правило
+                        <PrimaryButton :disabled="form.processing" class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600">
+                            Create rule
                         </PrimaryButton>
                     </div>
                 </form>

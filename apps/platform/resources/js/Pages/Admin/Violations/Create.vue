@@ -88,17 +88,17 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Создание нарушения" />
+    <Head title="Create violation" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель наставника
+                        Mentor dashboard
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Создание нарушения
+                        Create violation
                     </h2>
                 </div>
 
@@ -106,7 +106,7 @@ const submit = () => {
                     :href="route('admin.violations.index')"
                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                 >
-                    Назад к нарушениям
+                    Back to violations
                 </Link>
             </div>
         </template>
@@ -115,32 +115,22 @@ const submit = () => {
             <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <div class="max-w-2xl">
                     <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Журнал нарушений
+                        Violation log
                     </p>
                     <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        Зафиксировать открытое нарушение
+                        Record an open violation
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Сначала выберите ученика, затем правило, которое к нему применяется. Открытое нарушение само по себе блокирует продолжение расписания, пока наставник его не закроет.
+                        Choose the student first, then the rule that applies to them. An open violation blocks schedule continuation until a mentor closes it.
                     </p>
                 </div>
 
                 <form class="mt-10 grid gap-6 md:grid-cols-2" @submit.prevent="submit">
                     <div>
-                        <InputLabel for="student_id" value="Ученик" />
-                        <select
-                            id="student_id"
-                            v-model="form.student_id"
-                            class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                        >
-                            <option value="">
-                                Выберите ученика
-                            </option>
-                            <option
-                                v-for="student in props.students"
-                                :key="student.id"
-                                :value="String(student.id)"
-                            >
+                        <InputLabel for="student_id" value="Student" />
+                        <select id="student_id" v-model="form.student_id" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700">
+                            <option value="">Choose a student</option>
+                            <option v-for="student in props.students" :key="student.id" :value="String(student.id)">
                                 {{ student.display_name }} ({{ student.username }})
                             </option>
                         </select>
@@ -148,23 +138,13 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <InputLabel for="rule_definition_id" value="Правило" />
-                        <select
-                            id="rule_definition_id"
-                            v-model="form.rule_definition_id"
-                            class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                        >
-                            <option value="">
-                                Выберите правило
-                            </option>
-                            <option
-                                v-for="ruleDefinition in availableRuleDefinitions"
-                                :key="ruleDefinition.id"
-                                :value="String(ruleDefinition.id)"
-                            >
+                        <InputLabel for="rule_definition_id" value="Rule" />
+                        <select id="rule_definition_id" v-model="form.rule_definition_id" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700">
+                            <option value="">Choose a rule</option>
+                            <option v-for="ruleDefinition in availableRuleDefinitions" :key="ruleDefinition.id" :value="String(ruleDefinition.id)">
                                 {{
                                     ruleDefinition.scope === 'global'
-                                        ? `${ruleDefinition.title} (глобальное)`
+                                        ? `${ruleDefinition.title} (global)`
                                         : `${ruleDefinition.title} (${ruleDefinition.student?.display_name})`
                                 }}
                             </option>
@@ -173,20 +153,15 @@ const submit = () => {
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="occurred_at" value="Время нарушения" />
-                        <TextInput
-                            id="occurred_at"
-                            v-model="form.occurred_at"
-                            type="datetime-local"
-                            class="mt-2 block w-full rounded-xl border-stone-300"
-                        />
+                        <InputLabel for="occurred_at" value="Violation time" />
+                        <TextInput id="occurred_at" v-model="form.occurred_at" type="datetime-local" class="mt-2 block w-full rounded-xl border-stone-300" />
                         <InputError class="mt-2" :message="form.errors.occurred_at" />
                     </div>
 
                     <div class="md:col-span-2">
                         <div class="rounded-[1.5rem] bg-stone-100 p-5">
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Выбранное правило
+                                Selected rule
                             </p>
                             <template v-if="selectedRuleDefinition">
                                 <p class="mt-3 text-lg font-semibold text-stone-950">
@@ -195,44 +170,33 @@ const submit = () => {
                                 <p class="mt-2 text-sm text-stone-600">
                                     {{
                                         selectedRuleDefinition.scope === 'global'
-                                            ? 'Глобальное правило'
-                                            : `Для ученика: ${selectedRuleDefinition.student?.display_name}`
+                                            ? 'Global rule'
+                                            : `For student: ${selectedRuleDefinition.student?.display_name}`
                                     }}
                                 </p>
                                 <p class="mt-2 text-sm leading-6 text-stone-600">
-                                    {{
-                                        selectedRuleDefinition.description ||
-                                        'Описание правила не указано.'
-                                    }}
+                                    {{ selectedRuleDefinition.description || 'No rule description was provided.' }}
                                 </p>
                             </template>
                             <p v-else class="mt-3 text-sm text-stone-600">
-                                Выберите ученика и правило, чтобы перед сохранением увидеть контекст.
+                                Choose a student and rule to preview the context before saving.
                             </p>
                         </div>
                     </div>
 
                     <div class="md:col-span-2">
-                        <InputLabel for="notes" value="Заметки" />
-                        <textarea
-                            id="notes"
-                            v-model="form.notes"
-                            rows="5"
-                            class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                        />
+                        <InputLabel for="notes" value="Notes" />
+                        <textarea id="notes" v-model="form.notes" rows="5" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700" />
                         <InputError class="mt-2" :message="form.errors.notes" />
                     </div>
 
                     <div class="md:col-span-2 flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-sm text-stone-500">
-                            Это создаёт открытую запись о нарушении, которую потом можно решить или отменить.
+                            This creates an open violation record that can later be resolved or waived.
                         </p>
 
-                        <PrimaryButton
-                            :disabled="form.processing"
-                            class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600"
-                        >
-                            Создать нарушение
+                        <PrimaryButton :disabled="form.processing" class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600">
+                            Create violation
                         </PrimaryButton>
                     </div>
                 </form>

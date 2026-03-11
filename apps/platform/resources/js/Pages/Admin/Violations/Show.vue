@@ -64,7 +64,7 @@ const submit = (action: 'resolved' | 'waived') => {
 };
 
 const deleteViolation = () => {
-    if (!window.confirm(`Удалить нарушение "${props.violation.rule_title}"? Записи о разборе по нему тоже будут удалены.`)) {
+    if (!window.confirm(`Delete violation "${props.violation.rule_title}"? Review records linked to it will also be deleted.`)) {
         return;
     }
 
@@ -73,17 +73,17 @@ const deleteViolation = () => {
 </script>
 
 <template>
-    <Head :title="`Нарушение: ${props.violation.rule_title}`" />
+    <Head :title="`Violation: ${props.violation.rule_title}`" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Панель наставника
+                        Mentor dashboard
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Проверка нарушения
+                        Violation review
                     </h2>
                 </div>
 
@@ -92,14 +92,14 @@ const deleteViolation = () => {
                         :href="route('admin.violations.index')"
                         class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                     >
-                        Назад к нарушениям
+                        Back to violations
                     </Link>
                     <button
                         type="button"
                         class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
                         @click="deleteViolation"
                     >
-                        Удалить нарушение
+                        Delete violation
                     </button>
                 </div>
             </div>
@@ -125,7 +125,7 @@ const deleteViolation = () => {
                     <div class="grid gap-6 border-b border-stone-200 pb-8 md:grid-cols-2">
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Ученик
+                                Student
                             </p>
                             <h3 class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ props.violation.student.display_name }}
@@ -137,7 +137,7 @@ const deleteViolation = () => {
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Статус
+                                Status
                             </p>
                             <div class="mt-2 flex flex-wrap items-center gap-3">
                                 <span
@@ -146,11 +146,11 @@ const deleteViolation = () => {
                                         props.violation.status === 'open'
                                             ? 'bg-amber-100 text-amber-800'
                                             : props.violation.status === 'resolved'
-                                                ? 'bg-emerald-100 text-emerald-800'
-                                                : 'bg-stone-200 text-stone-700'
+                                              ? 'bg-emerald-100 text-emerald-800'
+                                              : 'bg-stone-200 text-stone-700'
                                     "
                                 >
-                                    {{ props.violation.status === 'open' ? 'Открыто' : props.violation.status === 'resolved' ? 'Решено' : 'Отменено' }}
+                                    {{ props.violation.status === 'open' ? 'Open' : props.violation.status === 'resolved' ? 'Resolved' : 'Waived' }}
                                 </span>
                             </div>
                         </div>
@@ -159,31 +159,31 @@ const deleteViolation = () => {
                     <div class="mt-8 grid gap-6 md:grid-cols-2">
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Правило
+                                Rule
                             </p>
                             <h3 class="mt-2 text-xl font-semibold text-stone-950">
                                 {{ props.violation.rule_title }}
                             </h3>
                             <p class="mt-2 text-sm text-stone-600">
-                                {{ props.violation.occurred_at_label || 'Время нарушения не сохранено.' }}
+                                {{ props.violation.occurred_at_label || 'Violation time was not recorded.' }}
                             </p>
                             <p class="mt-2 text-sm text-stone-600">
                                 {{
                                     props.violation.rule_definition?.scope === 'student'
-                                        ? 'Правило для конкретного ученика'
+                                        ? 'Student-specific rule'
                                         : props.violation.rule_definition?.scope === 'global'
-                                            ? 'Глобальное правило'
-                                            : 'Правило больше не связано'
+                                          ? 'Global rule'
+                                          : 'Rule is no longer linked'
                                 }}
                             </p>
                         </div>
 
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Зафиксированные заметки
+                                Recorded notes
                             </p>
                             <p class="mt-2 text-sm leading-7 text-stone-600">
-                                {{ props.violation.notes || 'Заметки о нарушении не указаны.' }}
+                                {{ props.violation.notes || 'No violation notes were provided.' }}
                             </p>
                         </div>
                     </div>
@@ -191,16 +191,16 @@ const deleteViolation = () => {
 
                 <section class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Решение
+                        Resolution
                     </p>
                     <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        {{ props.violation.status === 'open' ? 'Закрыть это нарушение' : 'Нарушение закрыто' }}
+                        {{ props.violation.status === 'open' ? 'Close this violation' : 'Violation is closed' }}
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
                         {{
                             props.violation.status === 'open'
-                                ? 'Выберите, нужно ли считать нарушение решённым или отменённым. Это создаст запись аудита и закроет нарушение.'
-                                : 'Это нарушение уже закрыто. Ниже показан журнал того, как оно было закрыто.'
+                                ? 'Choose whether this violation should be marked resolved or waived. This creates an audit entry and closes the violation.'
+                                : 'This violation is already closed. The audit trail below shows how it was closed.'
                         }}
                     </p>
 
@@ -209,7 +209,7 @@ const deleteViolation = () => {
                         class="mt-8"
                         @submit.prevent="submit('resolved')"
                     >
-                        <InputLabel for="notes" value="Заметки по решению" />
+                        <InputLabel for="notes" value="Resolution notes" />
                         <textarea
                             id="notes"
                             v-model="form.notes"
@@ -225,7 +225,7 @@ const deleteViolation = () => {
                                 :disabled="form.processing"
                                 class="justify-center rounded-full bg-emerald-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-white hover:bg-emerald-400 focus:bg-emerald-400 active:bg-emerald-600"
                             >
-                                Отметить как решённое
+                                Mark as resolved
                             </PrimaryButton>
 
                             <button
@@ -234,7 +234,7 @@ const deleteViolation = () => {
                                 :disabled="form.processing"
                                 @click="submit('waived')"
                             >
-                                Отметить как отменённое
+                                Mark as waived
                             </button>
                         </div>
                     </form>
@@ -244,11 +244,11 @@ const deleteViolation = () => {
                             {{
                                 props.violation.latest_resolution
                                     ? `${labelViolationResolutionAction(props.violation.latest_resolution.action)} ${props.violation.latest_resolution.recorded_at_label || ''}`.trim()
-                                    : 'Закрыто без загруженной записи о решении.'
+                                    : 'Closed without a loaded resolution record.'
                             }}
                         </p>
                         <p class="mt-3 text-sm leading-6 text-stone-600">
-                            {{ props.violation.latest_resolution?.notes || 'Заметки по решению не указаны.' }}
+                            {{ props.violation.latest_resolution?.notes || 'No resolution notes were provided.' }}
                         </p>
                     </div>
                 </section>
@@ -256,10 +256,10 @@ const deleteViolation = () => {
 
             <section class="mt-6 rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
                 <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                    Журнал аудита
+                    Audit log
                 </p>
                 <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                    История решений
+                    Resolution history
                 </h3>
 
                 <div v-if="props.resolutions.length > 0" class="mt-8 divide-y divide-stone-200">
@@ -278,24 +278,24 @@ const deleteViolation = () => {
                                             : 'bg-stone-200 text-stone-700'
                                     "
                                 >
-                                    {{ resolution.action === 'resolved' ? 'Решено' : 'Отменено' }}
+                                    {{ resolution.action === 'resolved' ? 'Resolved' : 'Waived' }}
                                 </span>
                             </div>
                             <p class="mt-3 text-sm text-stone-600">
-                                {{ resolution.recorded_at_label || 'Время решения не сохранено.' }}
+                                {{ resolution.recorded_at_label || 'Resolution time was not recorded.' }}
                             </p>
                             <p class="mt-2 text-sm text-stone-600">
                                 {{
                                     resolution.created_by
                                         ? `${resolution.created_by.name} (${resolution.created_by.username})`
-                                        : 'Неизвестный наставник'
+                                        : 'Unknown mentor'
                                 }}
                             </p>
                         </div>
 
                         <div>
                             <p class="text-sm leading-7 text-stone-600">
-                                {{ resolution.notes || 'Заметки по решению не указаны.' }}
+                                {{ resolution.notes || 'No resolution notes were provided.' }}
                             </p>
                         </div>
                     </article>
@@ -303,7 +303,7 @@ const deleteViolation = () => {
 
                 <div v-else class="mt-8 rounded-[1.5rem] bg-stone-100 px-5 py-6">
                     <p class="text-sm text-stone-600">
-                        Записей о решении пока нет. Первое действие «решить» или «отменить» появится здесь.
+                        There are no resolution records yet. The first resolve or waive action will appear here.
                     </p>
                 </div>
             </section>
