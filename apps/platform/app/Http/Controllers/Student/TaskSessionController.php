@@ -119,7 +119,7 @@ class TaskSessionController extends Controller
                 'status' => 'completed',
                 'ended_at' => $endedAt,
                 'duration_seconds' => $durationSeconds,
-                'completion_notes' => $request->input('completion_notes'),
+                'completion_notes' => null,
                 'stopped_by_user_id' => $request->user()->id,
             ]);
 

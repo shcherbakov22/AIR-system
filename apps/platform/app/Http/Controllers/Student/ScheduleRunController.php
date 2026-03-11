@@ -225,7 +225,7 @@ class ScheduleRunController extends Controller
                 'task_title_snapshot' => $taskTemplate->title,
                 'task_summary_snapshot' => $taskTemplate->summary,
                 'task_instructions_snapshot' => $taskTemplate->instructions,
-                'assignment_notes_snapshot' => $request->input('notes'),
+                'assignment_notes_snapshot' => null,
                 'planned_duration_minutes' => $taskTemplate->default_duration_minutes,
                 'duration_seconds' => 0,
                 'started_at' => now(),

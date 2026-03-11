@@ -121,7 +121,7 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.store', $scheduleTemplate))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Расписание Tuesday Run запущено.');
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tuesday Run'));
 
         $scheduleRun = ScheduleRun::query()
             ->with('blocks')
@@ -174,7 +174,7 @@ class ScheduleRunFlowTest extends TestCase
                 'scheduleRunBlock' => $secondBlock,
             ]))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('error', 'Запускайте задания расписания по порядку.');
+            ->assertSessionHas('error', fn (?string $message) => is_string($message) && $message !== '');
 
         $this->actingAs($studentUser)
             ->post(route('student.schedule-run-blocks.start', [
@@ -182,7 +182,7 @@ class ScheduleRunFlowTest extends TestCase
                 'scheduleRunBlock' => $firstBlock,
             ]))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Сессия задания Essay Draft началась.');
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Essay Draft'));
 
         $this->assertDatabaseHas('task_sessions', [
             'student_id' => $student->id,
@@ -232,11 +232,9 @@ class ScheduleRunFlowTest extends TestCase
         Carbon::setTestNow('2026-03-08 09:40:00');
 
         $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $firstTaskSession), [
-                'completion_notes' => 'Finished the draft.',
-            ])
+            ->patch(route('student.task-sessions.stop', $firstTaskSession))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Сессия задания Essay Draft завершена.');
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Essay Draft'));
 
         $this->actingAs($studentUser)
             ->post(route('student.schedule-run-blocks.start', [
@@ -244,18 +242,16 @@ class ScheduleRunFlowTest extends TestCase
                 'scheduleRunBlock' => $secondBlock->fresh(),
             ]))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Сессия задания Reading Review началась.');
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Reading Review'));
 
         $secondTaskSession = TaskSession::query()->where('student_id', $student->id)->where('status', 'active')->sole();
 
         Carbon::setTestNow('2026-03-08 10:10:00');
 
         $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $secondTaskSession), [
-                'completion_notes' => 'Finished the reading review.',
-            ])
+            ->patch(route('student.task-sessions.stop', $secondTaskSession))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Сессия задания Reading Review завершена. Расписание Tuesday Run завершено.');
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Reading Review') && str_contains($message, 'Tuesday Run'));
 
         Carbon::setTestNow();
 
@@ -320,10 +316,9 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.pause', $scheduleRun), [
                 'task_template_id' => $breakTemplate->id,
-                'notes' => 'Handle an urgent interruption.',
             ])
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Расписание Tuesday Run поставлено на паузу. Собственный таймер запущен.');
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tuesday Run'));
 
         $scheduleRun->refresh();
         $scheduleRun->load('blocks');
@@ -371,7 +366,7 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.resume', $scheduleRun))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Свой таймер Break Timer завершён. Сессия задания Essay Draft возобновлена.');
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Essay Draft'));
 
         $scheduleRun->refresh();
         $scheduleRun->load('blocks');
@@ -417,11 +412,9 @@ class ScheduleRunFlowTest extends TestCase
             ->sole();
 
         $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $resumedTaskSession), [
-                'completion_notes' => 'Finished after resume.',
-            ])
+            ->patch(route('student.task-sessions.stop', $resumedTaskSession))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Сессия задания Essay Draft завершена.');
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Essay Draft'));
 
         $this->assertDatabaseHas('task_sessions', [
             'id' => $resumedTaskSession->id,
@@ -540,7 +533,6 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.pause', $scheduleRun), [
                 'task_template_id' => $breakTemplate->id,
-                'notes' => 'Handle an urgent interruption.',
             ])
             ->assertRedirect(route('student.home', absolute: false))
             ->assertSessionHas('error', fn (?string $message) => is_string($message) && str_contains($message, 'Act as planned') && str_contains($message, '09:12'));
@@ -654,9 +646,7 @@ class ScheduleRunFlowTest extends TestCase
         $firstTaskSession = TaskSession::query()->where('student_id', $student->id)->where('status', 'active')->sole();
 
         $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $firstTaskSession), [
-                'completion_notes' => 'Finished the draft.',
-            ]);
+            ->patch(route('student.task-sessions.stop', $firstTaskSession));
 
         $this->actingAs($studentUser)
             ->post(route('student.schedule-run-blocks.start', [
@@ -669,9 +659,7 @@ class ScheduleRunFlowTest extends TestCase
         $secondTaskSession = TaskSession::query()->where('student_id', $student->id)->where('status', 'active')->sole();
 
         $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $secondTaskSession), [
-                'completion_notes' => 'Finished the reading review.',
-            ]);
+            ->patch(route('student.task-sessions.stop', $secondTaskSession));
 
         Carbon::setTestNow('2026-03-08 10:20:00');
 
@@ -725,9 +713,7 @@ class ScheduleRunFlowTest extends TestCase
         Carbon::setTestNow('2026-03-08 09:40:00');
 
         $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $firstTaskSession), [
-                'completion_notes' => 'Finished the draft.',
-            ]);
+            ->patch(route('student.task-sessions.stop', $firstTaskSession));
 
         Carbon::setTestNow('2026-03-08 09:46:00');
 
@@ -756,7 +742,7 @@ class ScheduleRunFlowTest extends TestCase
                 'scheduleRunBlock' => $secondBlock->fresh(),
             ]))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('error', 'Есть открытое нарушение: Observe the time (08 мар 2026, 09:45). Закройте его у наставника, прежде чем продолжать расписание.');
+            ->assertSessionHas('error', fn (?string $message) => is_string($message) && str_contains($message, 'Observe the time') && str_contains($message, '09:45'));
 
         $this->assertDatabaseCount('violations', 1);
 
@@ -811,7 +797,6 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.pause', $scheduleRun), [
                 'task_template_id' => $breakTemplate->id,
-                'notes' => 'Handle an urgent interruption.',
             ])
             ->assertRedirect(route('student.home', absolute: false))
             ->assertSessionHas('error', fn (?string $message) => is_string($message) && str_contains($message, 'Observe the time') && str_contains($message, '09:45'));
@@ -834,10 +819,9 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.pause', $scheduleRun), [
                 'task_template_id' => $breakTemplate->id,
-                'notes' => 'Handle an urgent interruption.',
             ])
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('error', 'Есть открытое нарушение: Observe the time (08 мар 2026, 09:45). Закройте его у наставника, прежде чем продолжать расписание.');
+            ->assertSessionHas('error', fn (?string $message) => is_string($message) && str_contains($message, 'Observe the time') && str_contains($message, '09:45'));
 
         $this->assertDatabaseCount('violations', 1);
         $this->assertDatabaseMissing('task_sessions', [

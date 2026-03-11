@@ -9,13 +9,10 @@ class PauseScheduleRunRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
-        $notes = trim((string) $this->input('notes'));
-
         $this->merge([
             'task_template_id' => ($taskTemplateId = trim((string) $this->input('task_template_id'))) === ''
                 ? null
                 : (int) $taskTemplateId,
-            'notes' => $notes === '' ? null : $notes,
         ]);
     }
 
@@ -32,7 +29,6 @@ class PauseScheduleRunRequest extends FormRequest
                 'integer',
                 Rule::exists('task_templates', 'id'),
             ],
-            'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }

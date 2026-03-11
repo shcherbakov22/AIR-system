@@ -130,12 +130,9 @@ const pauseOwnTimerFormOpen = ref(false);
 const hasTaskTemplates = computed(() => props.taskTemplates.length > 0);
 const hasBlockingViolations = computed(() => props.openViolations.length > 0);
 
-const stopTaskSessionForm = useForm({
-    completion_notes: '',
-});
+const stopTaskSessionForm = useForm({});
 const pauseOwnTimerForm = useForm({
     task_template_id: '',
-    notes: '',
 });
 const selectedPauseTaskTemplate = computed(
     () => props.taskTemplates.find((taskTemplate) => String(taskTemplate.id) === pauseOwnTimerForm.task_template_id) ?? null,
@@ -298,7 +295,7 @@ const stopTaskSession = () => {
     stopTaskSessionForm.patch(route('student.task-sessions.stop', props.activeTaskSession.id), {
         preserveScroll: true,
         onSuccess: () => {
-            stopTaskSessionForm.reset('completion_notes');
+            stopTaskSessionForm.reset();
         },
     });
 };
@@ -572,24 +569,16 @@ const resumeScheduleRun = () => {
 
                         <form
                             v-if="activeTaskSession"
-                            class="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]"
+                            class="mt-3"
                             @submit.prevent="stopTaskSession"
                         >
-                            <input
-                                id="quick_completion_notes"
-                                v-model="stopTaskSessionForm.completion_notes"
-                                type="text"
-                                placeholder="Заметка о завершении"
-                                class="block w-full rounded-full border-stone-300 bg-white px-4 py-2 text-sm text-stone-950 shadow-sm focus:border-stone-950 focus:ring-stone-950"
-                            />
                             <button
                                 type="submit"
                                 :disabled="stopTaskSessionForm.processing"
                                 class="inline-flex rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                Остановить
+                                Закончить
                             </button>
-                            <InputError class="md:col-span-2" :message="stopTaskSessionForm.errors.completion_notes" />
                         </form>
 
                         <div
@@ -601,7 +590,7 @@ const resumeScheduleRun = () => {
 
                         <form
                             v-if="pauseOwnTimerFormOpen"
-                            class="mt-3 grid gap-2 md:grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)_auto]"
+                            class="mt-3 grid gap-2 md:grid-cols-[minmax(0,1.2fr)_auto_auto]"
                             @submit.prevent="pauseScheduleForOwnTimer"
                         >
                             <select
@@ -629,14 +618,6 @@ const resumeScheduleRun = () => {
                                 }}
                             </div>
 
-                            <input
-                                id="quick_own_timer_notes"
-                                v-model="pauseOwnTimerForm.notes"
-                                type="text"
-                                placeholder="Заметка"
-                                class="block w-full rounded-full border-stone-300 bg-white px-4 py-2 text-sm text-stone-950 shadow-sm focus:border-stone-950 focus:ring-stone-950"
-                            />
-
                             <button
                                 type="submit"
                                 :disabled="pauseOwnTimerForm.processing || !hasTaskTemplates"
@@ -645,8 +626,7 @@ const resumeScheduleRun = () => {
                                 Пауза
                             </button>
 
-                            <InputError class="md:col-span-4" :message="pauseOwnTimerForm.errors.task_template_id" />
-                            <InputError class="md:col-span-4" :message="pauseOwnTimerForm.errors.notes" />
+                            <InputError class="md:col-span-3" :message="pauseOwnTimerForm.errors.task_template_id" />
                         </form>
 
                         <div v-if="canStartScheduleRun" class="mt-3 grid gap-2 sm:grid-cols-2">

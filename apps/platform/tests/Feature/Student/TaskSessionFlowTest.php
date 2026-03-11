@@ -254,9 +254,7 @@ class TaskSessionFlowTest extends TestCase
         ]);
 
         $response = $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $taskSession), [
-                'completion_notes' => 'Finished the worksheet and checked the answers.',
-            ]);
+            ->patch(route('student.task-sessions.stop', $taskSession));
 
         Carbon::setTestNow();
 
@@ -268,7 +266,7 @@ class TaskSessionFlowTest extends TestCase
             'id' => $taskSession->id,
             'status' => 'completed',
             'duration_seconds' => 1800,
-            'completion_notes' => 'Finished the worksheet and checked the answers.',
+            'completion_notes' => null,
             'stopped_by_user_id' => $studentUser->id,
         ]);
 
@@ -316,9 +314,7 @@ class TaskSessionFlowTest extends TestCase
         ]);
 
         $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $taskSession), [
-                'completion_notes' => 'Finished the work.',
-            ])
+            ->patch(route('student.task-sessions.stop', $taskSession))
             ->assertRedirect(route('student.home', absolute: false));
 
         Carbon::setTestNow();
@@ -376,9 +372,7 @@ class TaskSessionFlowTest extends TestCase
         ]);
 
         $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $taskSession), [
-                'completion_notes' => 'Not allowed.',
-            ])
+            ->patch(route('student.task-sessions.stop', $taskSession))
             ->assertNotFound();
 
         $this->assertDatabaseHas('task_sessions', [
@@ -426,9 +420,7 @@ class TaskSessionFlowTest extends TestCase
         ]);
 
         $this->actingAs($studentUser)
-            ->patch(route('student.task-sessions.stop', $taskSession), [
-                'completion_notes' => 'Finished late.',
-            ])
+            ->patch(route('student.task-sessions.stop', $taskSession))
             ->assertRedirect(route('student.home', absolute: false));
 
         $this->assertDatabaseCount('violations', 1);
