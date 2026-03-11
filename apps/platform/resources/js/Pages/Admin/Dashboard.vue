@@ -159,7 +159,7 @@ const activeSessions = computed(() =>
                             <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
                                 Elapsed
                             </p>
-                            <p class="mt-2 font-mono text-2xl font-semibold text-stone-950">
+                            <p class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ taskSession.elapsedLabel }}
                             </p>
                             <template v-if="taskSession.remainingLabel">
