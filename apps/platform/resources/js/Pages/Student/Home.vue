@@ -659,9 +659,6 @@ const resumeScheduleRun = () => {
                             >
                                 <span class="min-w-0">
                                     <span class="block truncate font-semibold text-stone-950">{{ scheduleTemplate.name }}</span>
-                                    <span class="block truncate text-[11px] uppercase tracking-[0.16em] text-stone-500">
-                                        {{ scheduleTemplate.weekday.label }}
-                                    </span>
                                 </span>
                                 <span class="ml-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-700">
                                     Старт
@@ -697,7 +694,6 @@ const resumeScheduleRun = () => {
                 >
                     <div class="flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-stone-500">
                         <span>{{ activeScheduleRun.schedule_name }}</span>
-                        <span>{{ activeScheduleRun.weekday_label }}</span>
                         <span>{{ activeScheduleRun.completed_blocks }} / {{ activeScheduleRun.total_blocks }}</span>
                     </div>
 
