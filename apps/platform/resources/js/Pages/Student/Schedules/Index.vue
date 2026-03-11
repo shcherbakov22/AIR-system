@@ -79,18 +79,6 @@ const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
             </div>
 
             <div class="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
-                <div class="max-w-3xl">
-                    <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Planner
-                    </p>
-                    <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        Build the order you want to work in
-                    </h3>
-                    <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Each schedule is made of ordered blocks. Starting from the dashboard follows that order exactly.
-                    </p>
-                </div>
-
                 <div v-if="scheduleTemplates.length === 0" class="mt-6 rounded-[1.5rem] bg-stone-100 px-5 py-6">
                     <p class="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
                         No schedules yet
@@ -106,7 +94,7 @@ const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
                     </Link>
                 </div>
 
-                <div v-else class="mt-5 space-y-4">
+                <div v-else class="space-y-4">
                     <article
                         v-for="scheduleTemplate in scheduleTemplates"
                         :key="scheduleTemplate.id"
