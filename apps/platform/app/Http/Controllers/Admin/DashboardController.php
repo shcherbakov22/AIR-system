@@ -3,12 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ScheduleTemplate;
-use App\Models\Student;
-use App\Models\TaskAssignment;
 use App\Models\TaskSession;
-use App\Models\TaskTemplate;
-use App\Models\User;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,17 +14,44 @@ class DashboardController extends Controller
      */
     public function __invoke(): Response
     {
+        $activeTaskSessions = TaskSession::query()
+            ->with(['student.user', 'scheduleRun', 'scheduleRunBlock'])
+            ->where('status', 'active')
+            ->latest('started_at')
+            ->get()
+            ->map(fn (TaskSession $taskSession) => [
+                'id' => $taskSession->id,
+                'task_title' => $taskSession->task_title_snapshot,
+                'started_at' => $taskSession->started_at?->toIso8601String(),
+                'started_at_label' => $taskSession->started_at?->format('d M, H:i'),
+                'duration_seconds' => $taskSession->duration_seconds ?? 0,
+                'planned_duration_minutes' => $taskSession->planned_duration_minutes,
+                'source_type' => $taskSession->schedule_run_id
+                    ? 'schedule'
+                    : ($taskSession->task_assignment_id ? 'assignment' : 'custom'),
+                'student' => [
+                    'id' => $taskSession->student->id,
+                    'display_name' => $taskSession->student->display_name,
+                    'username' => $taskSession->student->user->username,
+                    'status' => $taskSession->student->status,
+                ],
+                'schedule_run' => $taskSession->scheduleRun
+                    ? [
+                        'id' => $taskSession->scheduleRun->id,
+                        'name' => $taskSession->scheduleRun->schedule_name_snapshot,
+                    ]
+                    : null,
+                'schedule_run_block' => $taskSession->scheduleRunBlock
+                    ? [
+                        'position' => $taskSession->scheduleRunBlock->position,
+                    ]
+                    : null,
+            ])
+            ->all();
+
         return Inertia::render('Admin/Dashboard', [
-            'metrics' => [
-                'students_total' => Student::count(),
-                'students_active' => Student::where('status', 'active')->count(),
-                'admins_total' => User::where('role', 'admin')->count(),
-                'task_templates_total' => TaskTemplate::count(),
-                'task_assignments_total' => TaskAssignment::count(),
-                'task_sessions_total' => TaskSession::count(),
-                'task_sessions_active' => TaskSession::where('status', 'active')->count(),
-                'schedule_templates_total' => ScheduleTemplate::count(),
-            ],
+            'serverNow' => now()->toIso8601String(),
+            'activeTaskSessions' => $activeTaskSessions,
         ]);
     }
 }

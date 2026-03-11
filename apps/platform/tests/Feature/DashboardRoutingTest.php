@@ -7,6 +7,7 @@ use App\Enums\ScheduleWeekday;
 use App\Models\RuleDefinition;
 use App\Models\ScheduleTemplate;
 use App\Models\Student;
+use App\Models\TaskSession;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -32,14 +33,49 @@ class DashboardRoutingTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Dashboard')
-                ->where('metrics.students_total', 0)
-                ->where('metrics.students_active', 0)
-                ->where('metrics.admins_total', 1)
-                ->where('metrics.task_templates_total', 0)
-                ->where('metrics.task_assignments_total', 0)
-                ->where('metrics.task_sessions_total', 0)
-                ->where('metrics.task_sessions_active', 0)
-                ->where('metrics.schedule_templates_total', 0)
+                ->has('serverNow')
+                ->has('activeTaskSessions', 0)
+            );
+    }
+
+    public function test_admin_dashboard_shows_active_student_task_sessions(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_activity',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_activity',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Activity Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 40,
+            'started_at' => now()->subMinutes(12),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Dashboard')
+                ->has('activeTaskSessions', 1)
+                ->where('activeTaskSessions.0.student.display_name', 'Activity Student')
+                ->where('activeTaskSessions.0.task_title', 'Reading')
+                ->where('activeTaskSessions.0.planned_duration_minutes', 40)
             );
     }
 
@@ -114,7 +150,7 @@ class DashboardRoutingTest extends TestCase
                 ->missing('taskAssignments')
                 ->where('activeTaskSession', null)
                 ->missing('recentTaskSessions')
-                ->has('weeklyScheduleTemplates', 1)
+                ->has('weeklyScheduleTemplates', 2)
                 ->where('weeklyScheduleTemplates.0.name', 'Monday Focus Block')
                 ->where('weeklyScheduleTemplates.0.weekday.label', ScheduleWeekday::Monday->label())
                 ->where('weeklyScheduleTemplates.0.entries.0.task.title', 'Math Review')
