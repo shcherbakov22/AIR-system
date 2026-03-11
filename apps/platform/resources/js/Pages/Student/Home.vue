@@ -410,7 +410,7 @@ const resumeScheduleRun = () => {
     <Head title="Student portal" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto max-w-6xl px-5 py-6">
+        <div class="mx-auto max-w-6xl p-5">
             <div
                 v-if="flashSuccess"
                 class="mb-5 rounded-[1.5rem] bg-emerald-50 px-6 py-4 text-sm text-emerald-800 ring-1 ring-emerald-200"
@@ -427,7 +427,7 @@ const resumeScheduleRun = () => {
 
             <section
                 v-if="activeScheduleRun || activeTaskSession || canStartScheduleRun"
-                class="mt-4 rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-stone-200"
+                class="rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-stone-200"
             >
                 <div class="grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.2fr)]">
                     <div class="rounded-[1.25rem] bg-stone-100 p-4">
