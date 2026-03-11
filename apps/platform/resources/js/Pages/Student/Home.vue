@@ -269,14 +269,14 @@ const activeTaskTimerDisplay = computed(() => {
 });
 const activeTaskTimerDisplayLabel = computed(() => {
     if (activeTaskHasRemainingTime.value) {
-        return 'осталось';
+        return 'remaining';
     }
 
     if (activeTaskIsOvertime.value) {
-        return 'сверх плана';
+        return 'overtime';
     }
 
-    return 'прошло';
+    return 'elapsed';
 });
 const activeTaskEndsAtLabel = computed(() => {
     if (activeTaskStartedAtMs.value === null || activeTaskPlannedSeconds.value === null) {
@@ -306,12 +306,12 @@ const showBlockingViolationDialog = () => {
     }
 
     const lines = [
-        'Есть открытые нарушения:',
+        'There are open violations:',
         ...props.openViolations.map((violation) =>
             `- ${violation.rule_title}${violation.occurred_at_label ? ` (${violation.occurred_at_label})` : ''}`,
         ),
         '',
-        'Пока наставник не закроет их, продолжать расписание и запускать свой таймер нельзя.',
+        'Until a mentor closes them, you cannot continue the schedule or start your own timer.',
     ];
 
     window.alert(lines.join('\n'));
@@ -391,7 +391,7 @@ const resumeScheduleRun = () => {
 </script>
 
 <template>
-    <Head title="Портал ученика" />
+    <Head title="Student portal" />
 
     <AuthenticatedLayout>
         <div class="mx-auto max-w-6xl px-5 py-6">
@@ -417,7 +417,7 @@ const resumeScheduleRun = () => {
                     <div class="rounded-[1.25rem] bg-stone-100 p-4">
                         <div class="flex flex-wrap items-center gap-2">
                             <p class="text-[11px] uppercase tracking-[0.22em] text-stone-500">
-                                Сейчас
+                                Current
                             </p>
                             <span
                                 class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]"
@@ -433,12 +433,12 @@ const resumeScheduleRun = () => {
                             >
                                 {{
                                     activeTaskSession
-                                        ? 'таймер идет'
+                                        ? 'timer running'
                                         : activeScheduleRun?.status === 'paused'
-                                          ? 'пауза'
+                                          ? 'paused'
                                           : activeScheduleRun
-                                            ? 'расписание активно'
-                                            : 'готово к старту'
+                                            ? 'schedule active'
+                                            : 'ready to start'
                                 }}
                             </span>
                         </div>
@@ -447,40 +447,40 @@ const resumeScheduleRun = () => {
                             {{
                                 activeTaskSession?.task_title ??
                                 activeScheduleRun?.schedule_name ??
-                                'Выберите расписание'
+                                'Choose a schedule'
                             }}
                         </p>
 
                         <p class="mt-1 text-sm text-stone-600">
                             {{
                                 activeTaskSession?.source_type === 'ad_hoc'
-                                    ? 'Свой таймер удерживает расписание на паузе.'
+                                    ? 'Your own timer is keeping the schedule paused.'
                                     : activeTaskSession?.schedule_run_block_position
-                                      ? `Блок ${activeTaskSession.schedule_run_block_position} выполняется сейчас.`
+                                      ? `Block ${activeTaskSession.schedule_run_block_position} is running now.`
                                       : activeScheduleRun?.paused_block
-                                        ? `На паузе блок ${activeScheduleRun.paused_block.position}.`
+                                        ? `Block ${activeScheduleRun.paused_block.position} is paused.`
                                         : activeScheduleRun?.next_block
-                                          ? `Следующий блок ${activeScheduleRun.next_block.position}.`
-                                          : `Доступно расписаний: ${weeklyScheduleTemplates.length}.`
+                                          ? `Next block: ${activeScheduleRun.next_block.position}.`
+                                          : `Schedules available: ${weeklyScheduleTemplates.length}.`
                             }}
                         </p>
 
                         <div class="mt-3 flex flex-wrap gap-3 text-xs text-stone-500">
                             <span v-if="activeScheduleRun">
-                                {{ activeScheduleRun.completed_blocks }} / {{ activeScheduleRun.total_blocks }} блоков
+                                {{ activeScheduleRun.completed_blocks }} / {{ activeScheduleRun.total_blocks }} blocks
                             </span>
                             <span v-if="activeTaskSession?.planned_duration_minutes">
-                                {{ activeTaskSession.planned_duration_minutes }} минут по плану
+                                {{ activeTaskSession.planned_duration_minutes }} min planned
                             </span>
                             <span v-if="activeScheduleRun?.started_at_label">
-                                Старт {{ activeScheduleRun.started_at_label }}
+                                Start {{ activeScheduleRun.started_at_label }}
                             </span>
                         </div>
                     </div>
 
                     <div class="rounded-[1.25rem] bg-stone-100 p-4">
                         <p class="text-[11px] uppercase tracking-[0.22em] text-stone-500">
-                            Таймер
+                            Timer
                         </p>
 
                         <template v-if="activeTaskSession">
@@ -495,39 +495,39 @@ const resumeScheduleRun = () => {
                             </p>
 
                             <div class="mt-3 grid gap-2 text-sm text-stone-600 sm:grid-cols-3">
-                                <span>Прошло {{ activeTaskElapsedLabel }}</span>
-                                <span v-if="activeTaskPlannedLabel">План {{ activeTaskPlannedLabel }}</span>
-                                <span v-if="activeTaskEndsAtLabel">До {{ activeTaskEndsAtLabel }}</span>
+                                <span>Elapsed {{ activeTaskElapsedLabel }}</span>
+                                <span v-if="activeTaskPlannedLabel">Plan {{ activeTaskPlannedLabel }}</span>
+                                <span v-if="activeTaskEndsAtLabel">Until {{ activeTaskEndsAtLabel }}</span>
                             </div>
                         </template>
 
                         <template v-else-if="activeScheduleRun?.paused_block">
                             <p class="mt-2 text-lg font-semibold text-stone-950">
-                                Блок {{ activeScheduleRun.paused_block.position }}
+                                Block {{ activeScheduleRun.paused_block.position }}
                             </p>
                             <p class="mt-1 text-sm text-stone-600">
                                 {{ activeScheduleRun.paused_block.task_title }}
                             </p>
                             <p class="mt-2 text-sm text-stone-500">
-                                {{ activeScheduleRun.paused_block.duration_minutes }} минут
+                                {{ activeScheduleRun.paused_block.duration_minutes }} min
                             </p>
                         </template>
 
                         <template v-else-if="activeScheduleRun?.next_block">
                             <p class="mt-2 text-lg font-semibold text-stone-950">
-                                Блок {{ activeScheduleRun.next_block.position }}
+                                Block {{ activeScheduleRun.next_block.position }}
                             </p>
                             <p class="mt-1 text-sm text-stone-600">
                                 {{ activeScheduleRun.next_block.task_title }}
                             </p>
                             <p class="mt-2 text-sm text-stone-500">
-                                {{ activeScheduleRun.next_block.duration_minutes }} минут
+                                {{ activeScheduleRun.next_block.duration_minutes }} min
                             </p>
                         </template>
 
                         <template v-else>
                             <p class="mt-2 text-sm text-stone-600">
-                                Выберите расписание и начните первый блок.
+                                Choose a schedule and start the first block.
                             </p>
                         </template>
                     </div>
@@ -542,8 +542,8 @@ const resumeScheduleRun = () => {
                             >
                                 {{
                                     activeScheduleRun?.paused_block
-                                        ? 'Продолжить блок'
-                                        : 'Продолжить расписание'
+                                        ? 'Continue block'
+                                        : 'Continue schedule'
                                 }}
                             </button>
 
@@ -553,7 +553,7 @@ const resumeScheduleRun = () => {
                                 class="inline-flex rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800"
                                 @click="startNextScheduleTask"
                             >
-                                Следующий блок
+                                Next block
                             </button>
 
                             <div
@@ -568,7 +568,7 @@ const resumeScheduleRun = () => {
                                     :disabled="!hasTaskTemplates"
                                     @click="togglePauseOwnTimerForm"
                                 >
-                                    {{ pauseOwnTimerFormOpen ? 'Скрыть свой таймер' : 'Свой таймер' }}
+                                    {{ pauseOwnTimerFormOpen ? 'Hide own timer' : 'Own timer' }}
                                 </button>
                                 <button
                                     v-if="activeTaskSession"
@@ -578,7 +578,7 @@ const resumeScheduleRun = () => {
                                     style="display: inline-block; vertical-align: middle; margin-left: 0.5rem;"
                                     @click="stopTaskSession"
                                 >
-                                    Завершить
+                                    Finish
                                 </button>
                             </div>
                         </div>
@@ -586,7 +586,7 @@ const resumeScheduleRun = () => {
                             v-if="!hasTaskTemplates && canPauseForOwnTimer"
                             class="mt-3 rounded-[1rem] bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200"
                         >
-                            В библиотеке пока нет заданий для своего таймера.
+                            There are no tasks in the catalog for an own timer yet.
                         </div>
 
                         <form
@@ -600,7 +600,7 @@ const resumeScheduleRun = () => {
                                 class="block w-full rounded-full border-stone-300 bg-white px-4 py-2 text-sm text-stone-950 shadow-sm focus:border-stone-950 focus:ring-stone-950"
                             >
                                 <option value="">
-                                    Выберите задание
+                                    Choose a task
                                 </option>
                                 <option
                                     v-for="taskTemplate in props.taskTemplates"
@@ -614,8 +614,8 @@ const resumeScheduleRun = () => {
                             <div class="flex items-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm text-stone-700">
                                 {{
                                     selectedPauseTaskTemplate
-                                        ? `${selectedPauseTaskTemplate.default_duration_minutes} мин`
-                                        : '—'
+                                        ? `${selectedPauseTaskTemplate.default_duration_minutes} min`
+                                        : '-'
                                 }}
                             </div>
 
@@ -624,7 +624,7 @@ const resumeScheduleRun = () => {
                                 :disabled="pauseOwnTimerForm.processing || !hasTaskTemplates"
                                 class="inline-flex shrink-0 justify-center whitespace-nowrap rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                Пауза
+                                Pause
                             </button>
 
                             <InputError class="md:col-span-3" :message="pauseOwnTimerForm.errors.task_template_id" />
@@ -642,7 +642,7 @@ const resumeScheduleRun = () => {
                                     <span class="block truncate font-semibold text-stone-950">{{ scheduleTemplate.name }}</span>
                                 </span>
                                 <span class="ml-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-700">
-                                    Старт
+                                    Start
                                 </span>
                             </button>
                         </div>
@@ -655,7 +655,7 @@ const resumeScheduleRun = () => {
                 >
                     <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                         <p class="font-medium">
-                            Пока наставник не закроет нарушения, продолжать расписание и запускать свой таймер нельзя.
+                            Until a mentor closes these violations, you cannot continue the schedule or start your own timer.
                         </p>
                         <div class="min-w-0 space-y-1 text-sm">
                             <p
@@ -694,30 +694,30 @@ const resumeScheduleRun = () => {
                                         ? 'bg-emerald-200 text-emerald-950'
                                         : block.status === 'paused'
                                           ? 'bg-stone-300 text-stone-900'
-                                        : block.status === 'in_progress'
-                                          ? 'bg-amber-200 text-stone-950'
-                                          : block.is_next
-                                            ? 'bg-stone-950 text-white'
-                                            : 'bg-stone-200 text-stone-700'
+                                          : block.status === 'in_progress'
+                                            ? 'bg-amber-200 text-stone-950'
+                                            : block.is_next
+                                              ? 'bg-stone-950 text-white'
+                                              : 'bg-stone-200 text-stone-700'
                                 "
                             >
                                 {{
                                     block.status === 'completed'
-                                        ? 'готово'
+                                        ? 'done'
                                         : block.status === 'paused'
-                                          ? 'пауза'
-                                        : block.status === 'in_progress'
-                                          ? 'идет'
-                                          : block.is_next
-                                            ? 'следующий'
-                                            : 'ждет'
+                                          ? 'paused'
+                                          : block.status === 'in_progress'
+                                            ? 'running'
+                                            : block.is_next
+                                              ? 'next'
+                                              : 'waiting'
                                 }}
                             </span>
                             <p class="min-w-0 flex-1 truncate font-semibold text-stone-950">
                                 {{ block.task.title }}
                             </p>
                             <p class="text-xs text-stone-600">
-                                {{ block.duration_minutes }} мин
+                                {{ block.duration_minutes }} min
                             </p>
                         </article>
                     </div>

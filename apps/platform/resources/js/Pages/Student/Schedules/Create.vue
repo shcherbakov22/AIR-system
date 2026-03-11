@@ -15,17 +15,17 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Создание расписания" />
+    <Head title="Create schedule" />
 
     <AuthenticatedLayout>
         <template #header>
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div class="flex flex-col gap-2">
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Портал ученика
+                        Student portal
                     </p>
                     <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Создание расписания
+                        Create schedule
                     </h2>
                 </div>
 
@@ -33,7 +33,7 @@ defineProps<{
                     :href="route('student.schedules.index')"
                     class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                 >
-                    Назад к расписаниям
+                    Back to schedules
                 </Link>
             </div>
         </template>
@@ -42,13 +42,13 @@ defineProps<{
             <div class="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                 <div class="max-w-3xl">
                     <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Планировщик
+                        Planner
                     </p>
                     <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        Соберите план из упорядоченных блоков
+                        Build a plan from ordered blocks
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Выберите задания из общего каталога и расположите их в том порядке, в котором хотите выполнять.
+                        Choose tasks from the shared catalog and place them in the order you want to complete them.
                     </p>
                 </div>
 

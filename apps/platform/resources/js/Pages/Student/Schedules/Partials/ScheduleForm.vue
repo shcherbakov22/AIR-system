@@ -59,7 +59,7 @@ const buildEntry = (
 });
 
 const form = useForm({
-    name: props.scheduleTemplate?.name ?? 'План на день',
+    name: props.scheduleTemplate?.name ?? 'Plan for the day',
     notes: props.scheduleTemplate?.notes ?? '',
     entries: props.scheduleTemplate?.entries.map((entry) => buildEntry(entry)) ?? [buildEntry()],
 });
@@ -99,7 +99,7 @@ const previewInstructions = (entry: FormEntry): string | null =>
 const durationLabel = (entry: FormEntry): string => {
     const durationMinutes = selectedTaskTemplate(entry)?.default_duration_minutes ?? entry.current_duration_minutes;
 
-    return durationMinutes === null || durationMinutes === undefined ? '-' : `${durationMinutes} минут`;
+    return durationMinutes === null || durationMinutes === undefined ? '-' : `${durationMinutes} min`;
 };
 
 const isLegacyEntry = (entry: FormEntry): boolean =>
@@ -120,7 +120,7 @@ const submit = () => {
     <form class="grid gap-6" @submit.prevent="submit">
         <div class="grid gap-6 md:grid-cols-2">
             <div>
-                <InputLabel for="name" value="Название расписания" />
+                <InputLabel for="name" value="Schedule name" />
                 <input
                     id="name"
                     v-model="form.name"
@@ -132,7 +132,7 @@ const submit = () => {
             </div>
 
             <div class="md:col-span-2">
-                <InputLabel for="notes" value="Заметки к расписанию" />
+                <InputLabel for="notes" value="Schedule notes" />
                 <textarea
                     id="notes"
                     v-model="form.notes"
@@ -141,20 +141,19 @@ const submit = () => {
                 />
                 <InputError class="mt-2" :message="form.errors.notes" />
             </div>
-
         </div>
 
         <div class="rounded-[1.75rem] bg-stone-100 p-4 md:p-5">
             <div class="flex flex-col gap-3 border-b border-stone-200 pb-4 md:flex-row md:items-end md:justify-between">
                 <div>
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                        Блоки расписания
+                        Schedule blocks
                     </p>
                     <h3 class="mt-2 font-serif text-2xl text-stone-950">
-                        Упорядоченный план заданий
+                        Ordered task plan
                     </h3>
                     <p class="mt-2 text-sm leading-6 text-stone-600">
-                        Блоки можно двигать. Длительность берётся из библиотеки заданий наставника.
+                        You can move blocks around. Duration comes from the mentor task library.
                     </p>
                 </div>
 
@@ -164,7 +163,7 @@ const submit = () => {
                     :disabled="!hasTaskTemplates"
                     @click="addEntry"
                 >
-                    Добавить блок
+                    Add block
                 </button>
             </div>
 
@@ -172,7 +171,7 @@ const submit = () => {
                 v-if="!hasTaskTemplates"
                 class="mt-5 rounded-[1.5rem] bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-950 ring-1 ring-amber-200"
             >
-                В каталоге пока нет заданий. Сначала добавьте их в панели наставника.
+                There are no tasks in the catalog yet. Add them from the mentor panel first.
             </div>
 
             <InputError class="mt-4" :message="form.errors.entries" />
@@ -191,19 +190,19 @@ const submit = () => {
                         <div class="flex items-center gap-2">
                             <button
                                 type="button"
-                                class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-300 text-stone-600 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-40"
+                                class="inline-flex h-9 items-center justify-center rounded-full border border-stone-300 px-3 text-xs font-medium text-stone-600 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-40"
                                 :disabled="index === 0"
                                 @click="moveEntry(index, -1)"
                             >
-                                ↑
+                                Up
                             </button>
                             <button
                                 type="button"
-                                class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-300 text-stone-600 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-40"
+                                class="inline-flex h-9 items-center justify-center rounded-full border border-stone-300 px-3 text-xs font-medium text-stone-600 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-40"
                                 :disabled="index === form.entries.length - 1"
                                 @click="moveEntry(index, 1)"
                             >
-                                ↓
+                                Down
                             </button>
                         </div>
 
@@ -214,7 +213,7 @@ const submit = () => {
                                 class="block w-full rounded-xl border-stone-300 py-2 text-sm shadow-sm focus:border-amber-700 focus:ring-amber-700"
                             >
                                 <option value="">
-                                    Выберите задание
+                                    Choose a task
                                 </option>
                                 <option
                                     v-for="taskTemplate in props.taskTemplates"
@@ -239,7 +238,7 @@ const submit = () => {
                                 :id="`notes_${index}`"
                                 v-model="entry.notes"
                                 type="text"
-                                placeholder="Заметка"
+                                placeholder="Note"
                                 class="block w-full rounded-xl border-stone-300 py-2 text-sm shadow-sm focus:border-amber-700 focus:ring-amber-700"
                             />
                             <InputError class="mt-2" :message="entryError(index, 'notes')" />
@@ -251,34 +250,34 @@ const submit = () => {
                             :disabled="form.entries.length === 1"
                             @click="removeEntry(index)"
                         >
-                            Удалить
+                            Delete
                         </button>
                     </div>
 
                     <div
                         v-if="isLegacyEntry(entry)"
-                        class="mt-3 rounded-[1rem] bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950 ring-1 ring-amber-200"
+                        class="mt-3 rounded-[1rem] bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-950 ring-1 ring-amber-200"
                     >
-                        Этот блок раньше был задан вручную как "{{ entry.current_title }}". Выберите для него задание из каталога.
+                        This block came from an older schedule entry. Pick a task from the current catalog to fully align it.
                     </div>
 
-                    <div v-if="previewInstructions(entry)" class="mt-3 rounded-[1rem] border border-stone-200 bg-stone-50 px-4 py-3 text-sm leading-6 text-stone-700">
+                    <div
+                        v-if="previewInstructions(entry)"
+                        class="mt-3 rounded-[1rem] bg-stone-50 px-4 py-3 text-xs leading-5 text-stone-600 ring-1 ring-stone-200"
+                    >
                         {{ previewInstructions(entry) }}
                     </div>
                 </article>
             </div>
+
+            <p class="mt-4 text-xs leading-5 text-stone-500">
+                Blocks run in the order shown here when you start the schedule from the dashboard.
+            </p>
         </div>
 
-        <div class="flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <p class="text-sm leading-7 text-stone-500">
-                Порядок блоков здесь определяет порядок выполнения на главной странице ученика.
-            </p>
-
-            <PrimaryButton
-                :disabled="form.processing || !hasTaskTemplates"
-                class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600"
-            >
-                {{ props.mode === 'create' ? 'Сохранить расписание' : 'Обновить расписание' }}
+        <div class="flex justify-end">
+            <PrimaryButton :disabled="form.processing">
+                {{ props.mode === 'create' ? 'Save schedule' : 'Update schedule' }}
             </PrimaryButton>
         </div>
     </form>
