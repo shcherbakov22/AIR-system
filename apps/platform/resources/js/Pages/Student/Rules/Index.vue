@@ -9,18 +9,10 @@ defineProps<{
     };
     ruleSummary: {
         total: number;
-        global: number;
-        personal: number;
     };
     rules: Array<{
         id: number;
         title: string;
-        scope: string;
-        student?: {
-            id: number;
-            display_name: string;
-            username: string;
-        } | null;
     }>;
 }>();
 </script>
@@ -71,16 +63,6 @@ defineProps<{
                                 <h4 class="text-xl font-semibold text-stone-950">
                                     {{ rule.title }}
                                 </h4>
-                                <span
-                                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                    :class="
-                                        rule.scope === 'student'
-                                            ? 'bg-amber-100 text-amber-800'
-                                            : 'bg-stone-200 text-stone-700'
-                                    "
-                                >
-                                    {{ rule.scope === 'student' ? 'Personal' : 'Shared' }}
-                                </span>
                             </div>
                         </div>
                     </article>

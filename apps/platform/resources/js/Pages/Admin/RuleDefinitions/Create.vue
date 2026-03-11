@@ -6,32 +6,12 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { watch } from 'vue';
-
-const props = defineProps<{
-    students: Array<{
-        id: number;
-        display_name: string;
-        username: string;
-    }>;
-}>();
 
 const form = useForm({
     title: '',
     description: '',
-    scope: 'global',
-    student_id: '',
     is_active: true,
 });
-
-watch(
-    () => form.scope,
-    (scope) => {
-        if (scope !== 'student') {
-            form.student_id = '';
-        }
-    },
-);
 
 const submit = () => {
     form.post(route('admin.rule-definitions.store'));
@@ -72,7 +52,7 @@ const submit = () => {
                         Add a reusable behavior rule
                     </h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600">
-                        This creates only the rule definition. Violations are recorded separately.
+                        This creates a rule that applies across the system. Violations are recorded separately.
                     </p>
                 </div>
 
@@ -81,26 +61,6 @@ const submit = () => {
                         <InputLabel for="title" value="Rule title" />
                         <TextInput id="title" v-model="form.title" type="text" class="mt-2 block w-full rounded-xl border-stone-300" autofocus autocomplete="off" />
                         <InputError class="mt-2" :message="form.errors.title" />
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <InputLabel for="scope" value="Scope" />
-                        <select id="scope" v-model="form.scope" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700">
-                            <option value="global">Global</option>
-                            <option value="student">Student-specific</option>
-                        </select>
-                        <InputError class="mt-2" :message="form.errors.scope" />
-                    </div>
-
-                    <div v-if="form.scope === 'student'" class="md:col-span-2">
-                        <InputLabel for="student_id" value="Student" />
-                        <select id="student_id" v-model="form.student_id" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700">
-                            <option value="">Choose a student</option>
-                            <option v-for="student in props.students" :key="student.id" :value="String(student.id)">
-                                {{ student.display_name }} ({{ student.username }})
-                            </option>
-                        </select>
-                        <InputError class="mt-2" :message="form.errors.student_id" />
                     </div>
 
                     <div class="md:col-span-2">

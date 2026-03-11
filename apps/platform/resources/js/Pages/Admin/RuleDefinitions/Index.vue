@@ -8,13 +8,7 @@ const props = defineProps<{
     ruleDefinitions: Array<{
         id: number;
         title: string;
-        scope: string;
         is_active: boolean;
-        student?: {
-            id: number;
-            display_name: string;
-            username: string;
-        } | null;
     }>;
 }>();
 
@@ -73,7 +67,7 @@ const deleteRuleDefinition = (ruleDefinitionId: number, ruleDefinitionTitle: str
                     <article
                         v-for="ruleDefinition in props.ruleDefinitions"
                         :key="ruleDefinition.id"
-                        class="grid gap-5 px-6 py-6 lg:grid-cols-[1fr_0.8fr_1fr]"
+                        class="grid gap-5 px-6 py-6 lg:grid-cols-[1fr_0.7fr]"
                     >
                         <div>
                             <div class="flex items-start justify-between gap-4">
@@ -100,22 +94,6 @@ const deleteRuleDefinition = (ruleDefinitionId: number, ruleDefinitionTitle: str
                             <h3 class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ ruleDefinition.title }}
                             </h3>
-                        </div>
-
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Scope
-                            </p>
-                            <p class="mt-2 text-lg font-semibold text-stone-950">
-                                {{ ruleDefinition.scope === 'global' ? 'Global' : 'Student-specific' }}
-                            </p>
-                            <p class="mt-2 text-sm text-stone-600">
-                                {{
-                                    ruleDefinition.student
-                                        ? `${ruleDefinition.student.display_name} (${ruleDefinition.student.username})`
-                                        : 'Applies to all students'
-                                }}
-                            </p>
                         </div>
 
                         <div>

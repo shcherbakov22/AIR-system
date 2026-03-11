@@ -6,40 +6,21 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { watch } from 'vue';
 
 const props = defineProps<{
     ruleDefinition: {
         id: number;
         title: string;
         description?: string | null;
-        scope: string;
-        student_id: string;
         is_active: boolean;
     };
-    students: Array<{
-        id: number;
-        display_name: string;
-        username: string;
-    }>;
 }>();
 
 const form = useForm({
     title: props.ruleDefinition.title,
     description: props.ruleDefinition.description ?? '',
-    scope: props.ruleDefinition.scope,
-    student_id: props.ruleDefinition.student_id,
     is_active: props.ruleDefinition.is_active,
 });
-
-watch(
-    () => form.scope,
-    (scope) => {
-        if (scope !== 'student') {
-            form.student_id = '';
-        }
-    },
-);
 
 const submit = () => {
     form.put(route('admin.rule-definitions.update', props.ruleDefinition.id));
@@ -81,23 +62,19 @@ const submit = () => {
                             {{ props.ruleDefinition.title }}
                         </h3>
                         <p class="mt-4 text-sm leading-7 text-stone-600">
-                            Adjust scope and activation before violations continue to reference this rule.
+                            Adjust the rule text and activation before violations continue to reference this rule.
                         </p>
                     </div>
 
                     <div class="rounded-[1.5rem] bg-stone-100 p-5">
                         <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                            Current scope
+                            Rule type
                         </p>
                         <p class="mt-3 text-lg font-semibold text-stone-950">
-                            {{ props.ruleDefinition.scope === 'global' ? 'Global rule' : 'Personal rule' }}
+                            Global rule
                         </p>
                         <p class="mt-2 text-sm text-stone-600">
-                            {{
-                                props.ruleDefinition.scope === 'global'
-                                    ? 'This rule applies globally.'
-                                    : 'This rule applies to a specific student.'
-                            }}
+                            This rule applies across the system.
                         </p>
                     </div>
                 </div>
@@ -107,26 +84,6 @@ const submit = () => {
                         <InputLabel for="title" value="Rule title" />
                         <TextInput id="title" v-model="form.title" type="text" class="mt-2 block w-full rounded-xl border-stone-300" autofocus autocomplete="off" />
                         <InputError class="mt-2" :message="form.errors.title" />
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <InputLabel for="scope" value="Scope" />
-                        <select id="scope" v-model="form.scope" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700">
-                            <option value="global">Global</option>
-                            <option value="student">Student-specific</option>
-                        </select>
-                        <InputError class="mt-2" :message="form.errors.scope" />
-                    </div>
-
-                    <div v-if="form.scope === 'student'" class="md:col-span-2">
-                        <InputLabel for="student_id" value="Student" />
-                        <select id="student_id" v-model="form.student_id" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700">
-                            <option value="">Choose a student</option>
-                            <option v-for="student in props.students" :key="student.id" :value="String(student.id)">
-                                {{ student.display_name }} ({{ student.username }})
-                            </option>
-                        </select>
-                        <InputError class="mt-2" :message="form.errors.student_id" />
                     </div>
 
                     <div class="md:col-span-2">
