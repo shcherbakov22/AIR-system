@@ -166,7 +166,7 @@ const activeSessions = computed(() =>
                                 <p class="mt-3 text-xs uppercase tracking-[0.22em] text-stone-500">
                                     Remaining
                                 </p>
-                                <p class="mt-2 font-mono text-lg font-semibold text-stone-700">
+                                <p class="mt-2 text-lg font-semibold text-stone-700">
                                     {{ taskSession.remainingLabel }}
                                 </p>
                             </template>
