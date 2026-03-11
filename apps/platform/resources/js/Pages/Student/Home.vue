@@ -565,7 +565,6 @@ const resumeScheduleRun = () => {
                             >
                                 {{ pauseOwnTimerFormOpen ? 'Скрыть свой таймер' : 'Свой таймер' }}
                             </button>
-                        </div>
                             <form
                                 v-if="activeTaskSession"
                                 @submit.prevent="stopTaskSession"
