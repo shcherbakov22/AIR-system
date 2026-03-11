@@ -570,20 +570,15 @@ const resumeScheduleRun = () => {
                                 >
                                     {{ pauseOwnTimerFormOpen ? 'Скрыть свой таймер' : 'Свой таймер' }}
                                 </button>
-                                <form
+                                <button
                                     v-if="activeTaskSession"
-                                    @submit.prevent="stopTaskSession"
-                                    class="shrink-0"
-                                    style="display: flex;"
+                                    type="button"
+                                    :disabled="stopTaskSessionForm.processing"
+                                    class="inline-flex shrink-0 justify-center whitespace-nowrap rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    @click="stopTaskSession"
                                 >
-                                    <button
-                                        type="submit"
-                                        :disabled="stopTaskSessionForm.processing"
-                                        class="inline-flex shrink-0 justify-center whitespace-nowrap rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        Завершить
-                                    </button>
-                                </form>
+                                    Завершить
+                                </button>
                             </div>
                         </div>
                         <div
