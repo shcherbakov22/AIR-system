@@ -422,6 +422,266 @@ const resumeScheduleRun = () => {
                 {{ flashError }}
             </div>
 
+            <section
+                v-if="activeScheduleRun || activeTaskSession || canStartScheduleRun"
+                class="sticky top-3 z-20 mt-4 rounded-[1.5rem] bg-stone-950 p-4 text-white shadow-sm ring-1 ring-stone-800"
+            >
+                <div class="grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.2fr)]">
+                    <div class="rounded-[1.25rem] bg-white/5 p-4">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <p class="text-[11px] uppercase tracking-[0.22em] text-stone-400">
+                                Сейчас
+                            </p>
+                            <span
+                                class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]"
+                                :class="
+                                    activeTaskSession
+                                        ? 'bg-amber-200 text-stone-950'
+                                        : activeScheduleRun?.status === 'paused'
+                                          ? 'bg-stone-200 text-stone-900'
+                                          : activeScheduleRun
+                                            ? 'bg-emerald-200 text-emerald-950'
+                                            : 'bg-stone-700 text-white'
+                                "
+                            >
+                                {{
+                                    activeTaskSession
+                                        ? 'таймер идет'
+                                        : activeScheduleRun?.status === 'paused'
+                                          ? 'пауза'
+                                          : activeScheduleRun
+                                            ? 'расписание активно'
+                                            : 'готово к старту'
+                                }}
+                            </span>
+                        </div>
+
+                        <p class="mt-2 truncate text-lg font-semibold text-white">
+                            {{
+                                activeTaskSession?.task_title ??
+                                activeScheduleRun?.schedule_name ??
+                                'Выберите расписание'
+                            }}
+                        </p>
+
+                        <p class="mt-1 text-sm text-stone-300">
+                            {{
+                                activeTaskSession?.source_type === 'ad_hoc'
+                                    ? 'Свой таймер удерживает расписание на паузе.'
+                                    : activeTaskSession?.schedule_run_block_position
+                                      ? `Блок ${activeTaskSession.schedule_run_block_position} выполняется сейчас.`
+                                      : activeScheduleRun?.paused_block
+                                        ? `На паузе блок ${activeScheduleRun.paused_block.position}.`
+                                        : activeScheduleRun?.next_block
+                                          ? `Следующий блок ${activeScheduleRun.next_block.position}.`
+                                          : `Доступно расписаний: ${weeklyScheduleTemplates.length}.`
+                            }}
+                        </p>
+
+                        <div class="mt-3 flex flex-wrap gap-3 text-xs text-stone-400">
+                            <span v-if="activeScheduleRun">
+                                {{ activeScheduleRun.completed_blocks }} / {{ activeScheduleRun.total_blocks }} блоков
+                            </span>
+                            <span v-if="activeTaskSession?.planned_duration_minutes">
+                                {{ activeTaskSession.planned_duration_minutes }} минут по плану
+                            </span>
+                            <span v-if="activeScheduleRun?.started_at_label">
+                                Старт {{ activeScheduleRun.started_at_label }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="rounded-[1.25rem] bg-white/5 p-4">
+                        <p class="text-[11px] uppercase tracking-[0.22em] text-stone-400">
+                            Таймер
+                        </p>
+
+                        <template v-if="activeTaskSession">
+                            <p
+                                class="mt-2 font-mono text-3xl font-semibold"
+                                :class="activeTaskIsOvertime ? 'text-rose-300' : 'text-white'"
+                            >
+                                {{ activeTaskTimerDisplay }}
+                            </p>
+                            <p class="mt-1 text-xs uppercase tracking-[0.18em] text-stone-400">
+                                {{ activeTaskTimerDisplayLabel }}
+                            </p>
+
+                            <div class="mt-3 grid gap-2 text-sm text-stone-300 sm:grid-cols-3">
+                                <span>Прошло {{ activeTaskElapsedLabel }}</span>
+                                <span v-if="activeTaskPlannedLabel">План {{ activeTaskPlannedLabel }}</span>
+                                <span v-if="activeTaskEndsAtLabel">До {{ activeTaskEndsAtLabel }}</span>
+                            </div>
+                        </template>
+
+                        <template v-else-if="activeScheduleRun?.paused_block">
+                            <p class="mt-2 text-lg font-semibold text-white">
+                                Блок {{ activeScheduleRun.paused_block.position }}
+                            </p>
+                            <p class="mt-1 text-sm text-stone-300">
+                                {{ activeScheduleRun.paused_block.task_title }}
+                            </p>
+                            <p class="mt-2 text-sm text-stone-400">
+                                {{ activeScheduleRun.paused_block.duration_minutes }} минут
+                            </p>
+                        </template>
+
+                        <template v-else-if="activeScheduleRun?.next_block">
+                            <p class="mt-2 text-lg font-semibold text-white">
+                                Блок {{ activeScheduleRun.next_block.position }}
+                            </p>
+                            <p class="mt-1 text-sm text-stone-300">
+                                {{ activeScheduleRun.next_block.task_title }}
+                            </p>
+                            <p class="mt-2 text-sm text-stone-400">
+                                {{ activeScheduleRun.next_block.duration_minutes }} минут
+                            </p>
+                        </template>
+
+                        <template v-else>
+                            <p class="mt-2 text-sm text-stone-300">
+                                Выберите расписание и начните первый блок.
+                            </p>
+                        </template>
+                    </div>
+
+                    <div class="rounded-[1.25rem] bg-white/5 p-4">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button
+                                v-if="scheduleRunIsPaused"
+                                type="button"
+                                class="inline-flex rounded-full bg-amber-400 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-950 transition hover:bg-amber-300"
+                                @click="resumeScheduleRun"
+                            >
+                                {{
+                                    activeScheduleRun?.paused_block
+                                        ? 'Продолжить блок'
+                                        : 'Продолжить расписание'
+                                }}
+                            </button>
+
+                            <button
+                                v-else-if="activeScheduleRun?.next_block && !activeScheduleTaskIsRunning"
+                                type="button"
+                                class="inline-flex rounded-full bg-amber-400 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-950 transition hover:bg-amber-300"
+                                @click="startNextScheduleTask"
+                            >
+                                Следующий блок
+                            </button>
+
+                            <button
+                                v-if="canPauseForOwnTimer"
+                                type="button"
+                                class="inline-flex rounded-full border border-stone-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-100 transition hover:border-amber-300 hover:text-white"
+                                :disabled="!hasTaskTemplates"
+                                @click="togglePauseOwnTimerForm"
+                            >
+                                {{ pauseOwnTimerFormOpen ? 'Скрыть свой таймер' : 'Свой таймер' }}
+                            </button>
+                        </div>
+
+                        <form
+                            v-if="activeTaskSession"
+                            class="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]"
+                            @submit.prevent="stopTaskSession"
+                        >
+                            <input
+                                id="quick_completion_notes"
+                                v-model="stopTaskSessionForm.completion_notes"
+                                type="text"
+                                placeholder="Заметка о завершении"
+                                class="block w-full rounded-full border-stone-700 bg-stone-900 px-4 py-2 text-sm text-stone-100 shadow-sm focus:border-amber-400 focus:ring-amber-400"
+                            />
+                            <button
+                                type="submit"
+                                :disabled="stopTaskSessionForm.processing"
+                                class="inline-flex rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-950 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Остановить
+                            </button>
+                            <InputError class="md:col-span-2 text-rose-300" :message="stopTaskSessionForm.errors.completion_notes" />
+                        </form>
+
+                        <div
+                            v-if="!hasTaskTemplates && canPauseForOwnTimer"
+                            class="mt-3 rounded-[1rem] bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200"
+                        >
+                            В библиотеке пока нет заданий для своего таймера.
+                        </div>
+
+                        <form
+                            v-if="pauseOwnTimerFormOpen"
+                            class="mt-3 grid gap-2 md:grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)_auto]"
+                            @submit.prevent="pauseScheduleForOwnTimer"
+                        >
+                            <select
+                                id="quick_own_timer_task_template_id"
+                                v-model="pauseOwnTimerForm.task_template_id"
+                                class="block w-full rounded-full border-stone-700 bg-stone-900 px-4 py-2 text-sm text-stone-100 shadow-sm focus:border-amber-400 focus:ring-amber-400"
+                            >
+                                <option value="">
+                                    Выберите задание
+                                </option>
+                                <option
+                                    v-for="taskTemplate in props.taskTemplates"
+                                    :key="taskTemplate.id"
+                                    :value="String(taskTemplate.id)"
+                                >
+                                    {{ taskTemplate.title }}
+                                </option>
+                            </select>
+
+                            <div class="flex items-center rounded-full border border-stone-700 bg-stone-900 px-4 py-2 text-sm text-stone-200">
+                                {{
+                                    selectedPauseTaskTemplate
+                                        ? `${selectedPauseTaskTemplate.default_duration_minutes} мин`
+                                        : '—'
+                                }}
+                            </div>
+
+                            <input
+                                id="quick_own_timer_notes"
+                                v-model="pauseOwnTimerForm.notes"
+                                type="text"
+                                placeholder="Заметка"
+                                class="block w-full rounded-full border-stone-700 bg-stone-900 px-4 py-2 text-sm text-stone-100 shadow-sm focus:border-amber-400 focus:ring-amber-400"
+                            />
+
+                            <button
+                                type="submit"
+                                :disabled="pauseOwnTimerForm.processing || !hasTaskTemplates"
+                                class="inline-flex rounded-full bg-amber-400 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Пауза
+                            </button>
+
+                            <InputError class="md:col-span-4 text-rose-300" :message="pauseOwnTimerForm.errors.task_template_id" />
+                            <InputError class="md:col-span-4 text-rose-300" :message="pauseOwnTimerForm.errors.notes" />
+                        </form>
+
+                        <div v-if="canStartScheduleRun" class="mt-3 grid gap-2 sm:grid-cols-2">
+                            <button
+                                v-for="scheduleTemplate in weeklyScheduleTemplates"
+                                :key="scheduleTemplate.id"
+                                type="button"
+                                class="flex items-center justify-between rounded-[1rem] bg-white/10 px-3 py-2 text-left text-sm ring-1 ring-white/10 transition hover:bg-white/15"
+                                @click="startScheduleRun(scheduleTemplate.id)"
+                            >
+                                <span class="min-w-0">
+                                    <span class="block truncate font-semibold text-white">{{ scheduleTemplate.name }}</span>
+                                    <span class="block truncate text-[11px] uppercase tracking-[0.16em] text-stone-400">
+                                        {{ scheduleTemplate.weekday.label }}
+                                    </span>
+                                </span>
+                                <span class="ml-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300">
+                                    Старт
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="mt-4 rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-stone-200 md:p-6">
                 <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                     <p class="text-xs uppercase tracking-[0.3em] text-stone-500">
