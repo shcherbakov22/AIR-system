@@ -527,20 +527,20 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </p>
                     </div>
 
-                    <div v-if="student.schedule_board" class="mt-3 min-h-0 flex-1 overflow-hidden rounded-[1rem] bg-stone-50 p-1.5">
-                        <div class="grid h-full grid-cols-1 gap-0.5 overflow-y-auto pr-0.5 content-start">
+                    <div v-if="student.schedule_board" class="mt-2 min-h-0 flex-1 overflow-hidden rounded-[0.75rem] bg-stone-50 p-0.5">
+                        <div class="grid h-full grid-cols-1 gap-px overflow-y-auto pr-0 content-start">
                             <div
                                 v-for="block in student.schedule_board.blocks"
                                 :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
-                                class="rounded-[0.7rem] border px-2 py-1"
+                                class="rounded-[0.45rem] border px-1.5 py-0.5"
                                 :class="blockRowClass(block.status)"
                                 :title="blockTooltip(block)"
                             >
-                                <p class="truncate text-[11px] leading-tight font-medium text-stone-900">
-                                    {{ block.position }}. {{ block.task_title }}
-                                </p>
-                                <div class="mt-0.5 flex items-center justify-end gap-2 text-[10px] leading-none text-stone-500">
-                                    <span class="shrink-0 font-semibold text-stone-700">
+                                <div class="flex items-center justify-between gap-2 text-[10px] leading-none">
+                                    <p class="min-w-0 truncate font-medium text-stone-900">
+                                        {{ block.position }}. {{ block.task_title }}
+                                    </p>
+                                    <span class="shrink-0 text-[9px] font-semibold text-stone-700">
                                         {{ block.displayDurationLabel }}
                                     </span>
                                 </div>
