@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\RuleDefinition;
+use App\Models\ScheduleEntry;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\Student;
 use App\Models\StudentMonitorCapture;
+use App\Models\ScheduleTemplate;
 use App\Models\TaskSession;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -37,6 +39,11 @@ class DashboardController extends Controller
         }
 
         return sprintf('%02d:%02d', $minutes, $seconds);
+    }
+
+    protected function formatStatus(string $status): string
+    {
+        return ucwords(str_replace('_', ' ', $status));
     }
 
     protected function capturePayload(?StudentMonitorCapture $capture): ?array
@@ -91,16 +98,23 @@ class DashboardController extends Controller
         $actualDurationSeconds = $block->taskSessions
             ->sum(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession));
         $plannedDurationSeconds = max(0, (int) ($block->duration_minutes_snapshot ?? 0) * 60);
+        $isPending = in_array($block->status, ['pending', 'planned'], true);
+        $displayDurationLabel = $isPending
+            ? $this->formatDuration($plannedDurationSeconds)
+            : $this->formatDuration($actualDurationSeconds);
 
         return [
             'id' => $block->id,
             'position' => $block->position,
             'status' => $block->status,
+            'status_label' => $this->formatStatus($block->status),
             'task_title' => $block->task_title_snapshot,
             'planned_duration_minutes' => $block->duration_minutes_snapshot,
             'planned_duration_label' => $this->formatDuration($plannedDurationSeconds),
             'actual_duration_seconds' => $actualDurationSeconds,
             'actual_duration_label' => $this->formatDuration($actualDurationSeconds),
+            'display_duration_label' => $displayDurationLabel,
+            'display_duration_caption' => $isPending ? 'Planned' : 'Spent',
             'started_at' => $block->started_at?->toIso8601String(),
             'started_at_label' => $block->started_at?->format('d M, H:i'),
             'completed_at' => $block->completed_at?->toIso8601String(),
@@ -108,7 +122,7 @@ class DashboardController extends Controller
         ];
     }
 
-    protected function activeScheduleRunPayload(?ScheduleRun $scheduleRun): ?array
+    protected function scheduleRunPayload(?ScheduleRun $scheduleRun, string $sourceLabel): ?array
     {
         if (! $scheduleRun) {
             return null;
@@ -121,20 +135,95 @@ class DashboardController extends Controller
 
         return [
             'id' => $scheduleRun->id,
+            'source_type' => 'run',
+            'source_label' => $sourceLabel,
             'name' => $scheduleRun->schedule_name_snapshot,
             'status' => $scheduleRun->status,
+            'status_label' => $this->formatStatus($scheduleRun->status),
             'started_at' => $scheduleRun->started_at?->toIso8601String(),
             'started_at_label' => $scheduleRun->started_at?->format('d M, H:i'),
+            'completed_at' => $scheduleRun->completed_at?->toIso8601String(),
+            'completed_at_label' => $scheduleRun->completed_at?->format('d M, H:i'),
             'completed_blocks' => $scheduleRun->blocks->where('status', 'completed')->count(),
             'total_blocks' => $scheduleRun->blocks->count(),
             'blocks' => $blocks->all(),
         ];
     }
 
+    protected function activeScheduleRunPayload(?ScheduleRun $scheduleRun): ?array
+    {
+        return $this->scheduleRunPayload($scheduleRun, 'Active run');
+    }
+
+    protected function scheduleTemplateBlockPayload(ScheduleEntry $entry): array
+    {
+        $plannedDurationSeconds = max(0, (int) ($entry->duration_minutes ?? 0) * 60);
+
+        return [
+            'id' => $entry->id,
+            'position' => $entry->position,
+            'status' => 'planned',
+            'status_label' => 'Planned',
+            'task_title' => $entry->resolvedTaskTitle(),
+            'planned_duration_minutes' => $entry->duration_minutes,
+            'planned_duration_label' => $this->formatDuration($plannedDurationSeconds),
+            'actual_duration_seconds' => 0,
+            'actual_duration_label' => $this->formatDuration(0),
+            'display_duration_label' => $this->formatDuration($plannedDurationSeconds),
+            'display_duration_caption' => 'Planned',
+            'started_at' => null,
+            'started_at_label' => null,
+            'completed_at' => null,
+            'completed_at_label' => null,
+        ];
+    }
+
+    protected function scheduleTemplatePayload(?ScheduleTemplate $scheduleTemplate): ?array
+    {
+        if (! $scheduleTemplate) {
+            return null;
+        }
+
+        $blocks = $scheduleTemplate->entries
+            ->sortBy('position')
+            ->values()
+            ->map(fn (ScheduleEntry $entry) => $this->scheduleTemplateBlockPayload($entry));
+
+        return [
+            'id' => $scheduleTemplate->id,
+            'source_type' => 'template',
+            'source_label' => 'Saved schedule',
+            'name' => $scheduleTemplate->name,
+            'status' => 'planned',
+            'status_label' => 'Planned',
+            'started_at' => null,
+            'started_at_label' => null,
+            'completed_at' => null,
+            'completed_at_label' => null,
+            'completed_blocks' => 0,
+            'total_blocks' => $scheduleTemplate->entries->count(),
+            'blocks' => $blocks->all(),
+        ];
+    }
+
+    protected function scheduleBoardPayload(Student $student): ?array
+    {
+        if ($student->activeOrPausedScheduleRun) {
+            return $this->scheduleRunPayload($student->activeOrPausedScheduleRun, 'Active run');
+        }
+
+        if ($student->latestScheduleRun) {
+            return $this->scheduleRunPayload($student->latestScheduleRun, 'Latest run');
+        }
+
+        return $this->scheduleTemplatePayload($student->latestScheduleTemplate);
+    }
+
     protected function studentPayload(Student $student): array
     {
         $activeTaskSession = $student->taskSessions->first();
-        $activeScheduleRun = $student->scheduleRuns->first();
+        $activeScheduleRun = $student->activeOrPausedScheduleRun;
+        $scheduleBoard = $this->scheduleBoardPayload($student);
         $latestCaptureAt = collect([
             $student->latestScreenCapture?->captured_at?->getTimestamp(),
             $student->latestCameraCapture?->captured_at?->getTimestamp(),
@@ -154,6 +243,7 @@ class DashboardController extends Controller
                 'last_login_at' => $student->user->last_login_at?->toIso8601String(),
             ],
             'active_schedule_run' => $this->activeScheduleRunPayload($activeScheduleRun),
+            'schedule_board' => $scheduleBoard,
             'active_task_session' => $this->activeTaskSessionPayload($activeTaskSession),
             'latest_screen_capture' => $this->capturePayload($student->latestScreenCapture),
             'latest_camera_capture' => $this->capturePayload($student->latestCameraCapture),
@@ -175,7 +265,7 @@ class DashboardController extends Controller
         $monitorStudents = Student::query()
             ->with([
                 'user',
-                'scheduleRuns' => fn ($query) => $query
+                'activeOrPausedScheduleRun' => fn ($query) => $query
                     ->with([
                         'blocks' => fn ($blockQuery) => $blockQuery
                             ->with([
@@ -187,6 +277,26 @@ class DashboardController extends Controller
                     ])
                     ->whereIn('status', ['active', 'paused'])
                     ->latest('started_at')
+                    ->latest('id'),
+                'latestScheduleRun' => fn ($query) => $query
+                    ->with([
+                        'blocks' => fn ($blockQuery) => $blockQuery
+                            ->with([
+                                'taskSessions' => fn ($taskSessionQuery) => $taskSessionQuery
+                                    ->orderBy('started_at')
+                                    ->orderBy('id'),
+                            ])
+                            ->orderBy('position'),
+                    ])
+                    ->latest('started_at')
+                    ->latest('id'),
+                'latestScheduleTemplate' => fn ($query) => $query
+                    ->with([
+                        'entries' => fn ($entryQuery) => $entryQuery
+                            ->with('taskTemplate')
+                            ->orderBy('position'),
+                    ])
+                    ->latest('updated_at')
                     ->latest('id'),
                 'taskSessions' => fn ($query) => $query
                     ->with(['scheduleRun', 'scheduleRunBlock'])

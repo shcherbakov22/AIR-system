@@ -170,15 +170,86 @@ class DashboardRoutingTest extends TestCase
                 ->has('monitorStudents', 1)
                 ->where('monitorStudents.0.display_name', 'Schedule Monitor Student')
                 ->where('monitorStudents.0.active_schedule_run.name', 'Afternoon Focus')
+                ->where('monitorStudents.0.schedule_board.name', 'Afternoon Focus')
+                ->where('monitorStudents.0.schedule_board.source_label', 'Active run')
                 ->where('monitorStudents.0.active_schedule_run.completed_blocks', 1)
                 ->where('monitorStudents.0.active_schedule_run.total_blocks', 2)
                 ->where('monitorStudents.0.active_schedule_run.blocks.0.task_title', 'Reading')
                 ->where('monitorStudents.0.active_schedule_run.blocks.0.actual_duration_seconds', 1800)
                 ->where('monitorStudents.0.active_schedule_run.blocks.1.task_title', 'Coding')
                 ->where('monitorStudents.0.active_schedule_run.blocks.1.actual_duration_seconds', 1500)
+                ->where('monitorStudents.0.schedule_board.blocks.0.display_duration_caption', 'Spent')
+                ->where('monitorStudents.0.schedule_board.blocks.1.display_duration_caption', 'Spent')
             );
 
         Carbon::setTestNow();
+    }
+
+    public function test_admin_dashboard_falls_back_to_saved_schedule_templates(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_saved_schedule_board',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_saved_schedule_board',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Saved Schedule Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $scheduleTemplate = ScheduleTemplate::create([
+            'student_id' => $student->id,
+            'name' => 'Evening Flow',
+            'weekday' => ScheduleWeekday::Wednesday,
+            'notes' => null,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate->entries()->createMany([
+            [
+                'task_template_id' => null,
+                'task_title' => 'Reading',
+                'task_summary' => null,
+                'task_instructions' => null,
+                'position' => 1,
+                'start_time' => '18:00',
+                'duration_minutes' => 25,
+                'notes' => null,
+            ],
+            [
+                'task_template_id' => null,
+                'task_title' => 'Coding',
+                'task_summary' => null,
+                'task_instructions' => null,
+                'position' => 2,
+                'start_time' => '18:25',
+                'duration_minutes' => 40,
+                'notes' => null,
+            ],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Dashboard')
+                ->has('monitorStudents', 1)
+                ->where('monitorStudents.0.display_name', 'Saved Schedule Student')
+                ->where('monitorStudents.0.schedule_board.name', 'Evening Flow')
+                ->where('monitorStudents.0.schedule_board.source_type', 'template')
+                ->where('monitorStudents.0.schedule_board.source_label', 'Saved schedule')
+                ->where('monitorStudents.0.schedule_board.total_blocks', 2)
+                ->where('monitorStudents.0.schedule_board.blocks.0.task_title', 'Reading')
+                ->where('monitorStudents.0.schedule_board.blocks.0.display_duration_caption', 'Planned')
+                ->where('monitorStudents.0.schedule_board.blocks.1.task_title', 'Coding')
+            );
     }
 
     public function test_admin_dashboard_shows_latest_monitor_captures_and_open_violations(): void

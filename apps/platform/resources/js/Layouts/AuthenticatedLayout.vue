@@ -3,6 +3,14 @@ import type { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
+const props = withDefaults(defineProps<{
+    hideSidebar?: boolean;
+    fullWidth?: boolean;
+}>(), {
+    hideSidebar: false,
+    fullWidth: false,
+});
+
 const page = usePage<PageProps>();
 
 const user = computed(() => page.props.auth.user!);
@@ -85,12 +93,13 @@ const closeMobileNav = () => {
 <template>
     <div class="min-h-screen bg-stone-100 text-stone-900">
         <div
-            v-if="mobileNavOpen"
+            v-if="mobileNavOpen && !props.hideSidebar"
             class="fixed inset-0 z-40 bg-stone-950/45 lg:hidden"
             @click="closeMobileNav"
         />
 
         <aside
+            v-if="!props.hideSidebar"
             class="fixed inset-y-0 left-0 z-50 flex w-[15.5rem] max-w-[82vw] -translate-x-full flex-col border-r border-stone-200 bg-white transition-transform duration-200 lg:translate-x-0"
             :class="mobileNavOpen ? 'translate-x-0' : ''"
         >
@@ -135,8 +144,11 @@ const closeMobileNav = () => {
             </div>
         </aside>
 
-        <div class="min-w-0 lg:pl-[15.5rem]">
-            <div class="border-b border-stone-200 bg-white/90 px-3 py-3 backdrop-blur lg:hidden">
+        <div class="min-w-0" :class="props.hideSidebar ? '' : 'lg:pl-[15.5rem]'">
+            <div
+                v-if="!props.hideSidebar"
+                class="border-b border-stone-200 bg-white/90 px-3 py-3 backdrop-blur lg:hidden"
+            >
                 <div class="flex items-center justify-end gap-2">
                     <button
                         type="button"
@@ -149,7 +161,7 @@ const closeMobileNav = () => {
             </div>
 
             <header v-if="$slots.header" class="border-b border-stone-200 bg-white">
-                <div class="mx-auto max-w-7xl px-5 py-6">
+                <div :class="props.fullWidth ? 'px-5 py-5 lg:px-6' : 'mx-auto max-w-7xl px-5 py-6'">
                     <slot name="header" />
                 </div>
             </header>

@@ -39,6 +39,27 @@ class Student extends Model
         return $this->hasMany(ScheduleRun::class);
     }
 
+    public function activeOrPausedScheduleRun(): HasOne
+    {
+        return $this->hasOne(ScheduleRun::class)->ofMany(
+            ['started_at' => 'max', 'id' => 'max'],
+            fn ($query) => $query->whereIn('status', ['active', 'paused']),
+        );
+    }
+
+    public function latestScheduleRun(): HasOne
+    {
+        return $this->hasOne(ScheduleRun::class)->ofMany([
+            'started_at' => 'max',
+            'id' => 'max',
+        ]);
+    }
+
+    public function latestScheduleTemplate(): HasOne
+    {
+        return $this->hasOne(ScheduleTemplate::class)->latestOfMany();
+    }
+
     public function taskSessions(): HasMany
     {
         return $this->hasMany(TaskSession::class);
