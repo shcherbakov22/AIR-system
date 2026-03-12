@@ -527,19 +527,19 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </p>
                     </div>
 
-                    <div v-if="student.schedule_board" class="mt-3 min-h-0 flex-1 overflow-hidden rounded-[1rem] bg-stone-50 p-2">
-                        <div class="grid h-full grid-cols-1 gap-1 overflow-y-auto pr-1 content-start">
+                    <div v-if="student.schedule_board" class="mt-3 min-h-0 flex-1 overflow-hidden rounded-[1rem] bg-stone-50 p-1.5">
+                        <div class="grid h-full grid-cols-1 gap-0.5 overflow-y-auto pr-0.5 content-start">
                             <div
                                 v-for="block in student.schedule_board.blocks"
                                 :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
-                                class="rounded-[0.85rem] border px-2 py-1.5"
+                                class="rounded-[0.7rem] border px-2 py-1"
                                 :class="blockRowClass(block.status)"
                                 :title="blockTooltip(block)"
                             >
-                                <p class="truncate text-xs font-medium text-stone-900">
+                                <p class="truncate text-[11px] leading-tight font-medium text-stone-900">
                                     {{ block.position }}. {{ block.task_title }}
                                 </p>
-                                <div class="mt-1 flex items-center justify-end gap-2 text-[10px] text-stone-500">
+                                <div class="mt-0.5 flex items-center justify-end gap-2 text-[10px] leading-none text-stone-500">
                                     <span class="shrink-0 font-semibold text-stone-700">
                                         {{ block.displayDurationLabel }}
                                     </span>
