@@ -365,12 +365,12 @@ const blockTooltip = (block: DashboardBlock): string => {
 
             <div
                 v-else
-                class="grid gap-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+                class="grid items-start gap-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
             >
                 <article
                     v-for="student in monitorStudents"
                     :key="student.id"
-                    class="relative flex h-[24rem] min-h-0 flex-col rounded-[1.25rem] bg-white p-2 shadow-sm ring-1 ring-stone-200 lg:h-[calc(100vh-9rem)]"
+                    class="relative flex min-h-0 flex-col rounded-[1.25rem] bg-white p-2 shadow-sm ring-1 ring-stone-200"
                 >
                     <div class="flex items-start justify-between gap-1.5">
                         <div class="min-w-0">
@@ -501,6 +501,55 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </span>
                     </div>
 
+                    <div
+                        v-if="student.latest_screen_capture || student.latest_camera_capture"
+                        class="mt-1.5 grid grid-cols-2 gap-1.5"
+                    >
+                        <a
+                            v-if="student.latest_screen_capture"
+                            :href="student.latest_screen_capture.image_url"
+                            target="_blank"
+                            rel="noreferrer"
+                            class="group overflow-hidden rounded-[0.75rem] border border-stone-200 bg-stone-50"
+                        >
+                            <img
+                                :src="student.latest_screen_capture.image_url"
+                                alt="Latest screen capture"
+                                class="aspect-[4/3] h-auto w-full object-cover transition group-hover:scale-[1.02]"
+                            >
+                            <div class="px-1.5 py-1">
+                                <p class="text-[8px] font-semibold uppercase tracking-[0.14em] text-stone-600">
+                                    Screen
+                                </p>
+                                <p class="truncate text-[9px] text-stone-500">
+                                    {{ student.latest_screen_capture.captured_at_label ?? 'Just now' }}
+                                </p>
+                            </div>
+                        </a>
+
+                        <a
+                            v-if="student.latest_camera_capture"
+                            :href="student.latest_camera_capture.image_url"
+                            target="_blank"
+                            rel="noreferrer"
+                            class="group overflow-hidden rounded-[0.75rem] border border-stone-200 bg-stone-50"
+                        >
+                            <img
+                                :src="student.latest_camera_capture.image_url"
+                                alt="Latest camera capture"
+                                class="aspect-[4/3] h-auto w-full object-cover transition group-hover:scale-[1.02]"
+                            >
+                            <div class="px-1.5 py-1">
+                                <p class="text-[8px] font-semibold uppercase tracking-[0.14em] text-stone-600">
+                                    Camera
+                                </p>
+                                <p class="truncate text-[9px] text-stone-500">
+                                    {{ student.latest_camera_capture.captured_at_label ?? 'Just now' }}
+                                </p>
+                            </div>
+                        </a>
+                    </div>
+
                     <div class="mt-1.5 min-w-0">
                         <p class="truncate text-[13px] font-medium text-stone-900">
                             {{ student.schedule_board?.name ?? 'No schedule' }}
@@ -527,8 +576,8 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </p>
                     </div>
 
-                    <div v-if="student.schedule_board" class="mt-1.5 min-h-0 flex-1 overflow-hidden rounded-[0.65rem] bg-stone-50/60 p-px">
-                        <div class="grid h-full grid-cols-1 gap-px overflow-y-auto pr-0 content-start">
+                    <div v-if="student.schedule_board" class="mt-1.5 rounded-[0.65rem] bg-stone-50/60 p-px">
+                        <div class="grid grid-cols-1 gap-px content-start">
                             <div
                                 v-for="block in student.schedule_board.blocks"
                                 :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
@@ -550,7 +599,7 @@ const blockTooltip = (block: DashboardBlock): string => {
 
                     <div
                         v-else
-                        class="mt-3 flex min-h-0 flex-1 items-center justify-center rounded-[1rem] border border-dashed border-stone-300 bg-stone-50 px-4 text-center text-sm text-stone-500"
+                        class="mt-1.5 flex items-center justify-center rounded-[1rem] border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-center text-sm text-stone-500"
                     >
                         No schedule available.
                     </div>
