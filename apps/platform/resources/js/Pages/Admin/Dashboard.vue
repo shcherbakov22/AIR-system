@@ -374,20 +374,8 @@ const blockTooltip = (block: DashboardBlock): string => {
                 >
                     <div class="flex items-start justify-between gap-1.5">
                         <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-1.5">
-                                <p class="truncate text-sm font-semibold text-stone-950">
-                                    {{ student.display_name }}
-                                </p>
-                                <span
-                                    class="inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em]"
-                                    :class="studentStatusClass(student)"
-                                >
-                                    {{ student.active_task_session ? 'Live' : student.schedule_board ? 'Loaded' : 'None' }}
-                                </span>
-                            </div>
-
-                            <p class="truncate text-xs text-stone-500">
-                                {{ student.user.username }}
+                            <p class="truncate text-sm font-semibold text-stone-950">
+                                {{ student.display_name }}
                             </p>
                         </div>
 
@@ -488,14 +476,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </details>
                     </div>
 
-                    <div class="mt-1.5 flex flex-wrap gap-1.5">
-                        <span
-                            v-if="student.schedule_board"
-                            class="inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em]"
-                            :class="scheduleSourceClass(student.schedule_board.source_type)"
-                        >
-                            {{ student.schedule_board.source_label }}
-                        </span>
+                    <div v-if="student.open_violations.length > 0" class="mt-1.5 flex flex-wrap gap-1.5">
                         <span v-if="student.open_violations.length > 0" class="inline-flex rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-red-700">
                             {{ student.open_violations.length }} open
                         </span>
@@ -553,9 +534,6 @@ const blockTooltip = (block: DashboardBlock): string => {
                     <div class="mt-1.5 min-w-0">
                         <p class="truncate text-[13px] font-medium text-stone-900">
                             {{ student.schedule_board?.name ?? 'No schedule' }}
-                        </p>
-                        <p v-if="student.schedule_board" class="truncate text-[10px] text-stone-500">
-                            {{ student.schedule_board.completed_blocks }}/{{ student.schedule_board.total_blocks }} blocks - {{ student.schedule_board.status_label }}
                         </p>
                     </div>
 
