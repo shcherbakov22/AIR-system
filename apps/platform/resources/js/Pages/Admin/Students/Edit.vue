@@ -5,7 +5,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import type { PageProps } from '@/types';
 import { computed } from 'vue';
 
@@ -76,6 +76,14 @@ const resetPasswordToTemp = () => {
     passwordForm.password = '0';
     passwordForm.password_confirmation = '0';
     submitPassword();
+};
+
+const deleteStudent = () => {
+    if (!window.confirm(`Delete ${props.student.display_name}?`)) {
+        return;
+    }
+
+    router.delete(route('admin.students.destroy', props.student.id));
 };
 </script>
 
@@ -288,7 +296,15 @@ const resetPasswordToTemp = () => {
                         </form>
                     </div>
 
-                    <div class="md:col-span-2 flex justify-end border-t border-stone-200 pt-6">
+                    <div class="md:col-span-2 flex flex-col gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                        <button
+                            type="button"
+                            class="inline-flex justify-center rounded-full border border-rose-300 px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-700 hover:text-rose-800"
+                            @click="deleteStudent"
+                        >
+                            Delete student
+                        </button>
+
                         <PrimaryButton :disabled="form.processing" class="justify-center rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold tracking-[0.2em] text-stone-950 hover:bg-amber-400 focus:bg-amber-400 active:bg-amber-600">
                             Save changes
                         </PrimaryButton>

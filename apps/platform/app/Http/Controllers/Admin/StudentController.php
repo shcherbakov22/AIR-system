@@ -159,6 +159,21 @@ class StudentController extends Controller
             ->with('success', "Password for {$student->display_name} has been updated.");
     }
 
+    public function destroy(Student $student): RedirectResponse
+    {
+        $student->loadMissing('user');
+
+        $studentName = $student->display_name;
+
+        DB::transaction(function () use ($student) {
+            $student->user->delete();
+        });
+
+        return redirect()
+            ->route('admin.students.index')
+            ->with('success', "Student {$studentName} has been deleted.");
+    }
+
     public function index(): Response
     {
         return Inertia::render('Admin/Students/Index', [

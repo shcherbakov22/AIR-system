@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Enums\UserRole;
 use App\Models\Student;
+use App\Models\TaskSession;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -154,6 +155,48 @@ class StudentUpdateTest extends TestCase
         $this->assertTrue(Hash::check('0', $studentUser->password));
     }
 
+    public function test_admin_can_delete_a_student_account(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_student_destroyer',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'delete_me_student',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Delete Me Student',
+            'status' => 'active',
+            'notes' => 'Remove this student',
+        ]);
+
+        $student->taskSessions()->create([
+            'status' => 'active',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(2),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.students.destroy', $student))
+            ->assertRedirect(route('admin.students.index', absolute: false))
+            ->assertSessionHas('success', 'Student Delete Me Student has been deleted.');
+
+        $this->assertDatabaseMissing('users', [
+            'id' => $studentUser->id,
+        ]);
+        $this->assertDatabaseMissing('students', [
+            'id' => $student->id,
+        ]);
+        $this->assertDatabaseCount('task_sessions', 0);
+    }
+
     public function test_students_are_redirected_away_from_the_edit_student_screen(): void
     {
         $studentUser = User::factory()->create([
@@ -170,6 +213,25 @@ class StudentUpdateTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('admin.students.edit', $student))
+            ->assertRedirect(route('dashboard', absolute: false));
+    }
+
+    public function test_students_are_redirected_away_from_deleting_students(): void
+    {
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_delete_blocked',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Delete Blocked Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->delete(route('admin.students.destroy', $student))
             ->assertRedirect(route('dashboard', absolute: false));
     }
 }

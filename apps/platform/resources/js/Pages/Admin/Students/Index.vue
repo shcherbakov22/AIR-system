@@ -3,7 +3,7 @@ import type { PageProps } from '@/types';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { labelStudentStatus } from '@/lib/labels';
 import { computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{
     students: Array<{
@@ -23,6 +23,16 @@ const props = defineProps<{
 
 const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
+
+const deleteStudent = (studentId: number, displayName: string) => {
+    if (!window.confirm(`Delete ${displayName}?`)) {
+        return;
+    }
+
+    router.delete(route('admin.students.destroy', studentId), {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -81,6 +91,13 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                             >
                                 Edit student
                             </Link>
+                            <button
+                                type="button"
+                                class="mt-4 ml-2 inline-flex rounded-full border border-rose-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-700 transition hover:border-rose-700 hover:text-rose-800"
+                                @click="deleteStudent(student.id, student.display_name)"
+                            >
+                                Delete
+                            </button>
                         </div>
 
                         <div>
