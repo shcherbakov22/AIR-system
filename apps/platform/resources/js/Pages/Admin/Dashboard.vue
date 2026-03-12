@@ -365,21 +365,21 @@ const blockTooltip = (block: DashboardBlock): string => {
 
             <div
                 v-else
-                class="grid gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+                class="grid gap-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
             >
                 <article
                     v-for="student in monitorStudents"
                     :key="student.id"
-                    class="relative flex h-[24rem] min-h-0 flex-col rounded-[1.5rem] bg-white p-3 shadow-sm ring-1 ring-stone-200 lg:h-[calc(100vh-9.5rem)]"
+                    class="relative flex h-[24rem] min-h-0 flex-col rounded-[1.25rem] bg-white p-2 shadow-sm ring-1 ring-stone-200 lg:h-[calc(100vh-9rem)]"
                 >
-                    <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-start justify-between gap-1.5">
                         <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <p class="truncate text-base font-semibold text-stone-950">
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <p class="truncate text-sm font-semibold text-stone-950">
                                     {{ student.display_name }}
                                 </p>
                                 <span
-                                    class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
+                                    class="inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em]"
                                     :class="studentStatusClass(student)"
                                 >
                                     {{ student.active_task_session ? 'Live' : student.schedule_board ? 'Loaded' : 'None' }}
@@ -392,7 +392,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </div>
 
                         <details class="group relative shrink-0">
-                            <summary class="cursor-pointer list-none rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950">
+                            <summary class="cursor-pointer list-none rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950">
                                 Details
                             </summary>
 
@@ -488,33 +488,33 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </details>
                     </div>
 
-                    <div class="mt-2 flex flex-wrap gap-2">
+                    <div class="mt-1.5 flex flex-wrap gap-1.5">
                         <span
                             v-if="student.schedule_board"
-                            class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
+                            class="inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em]"
                             :class="scheduleSourceClass(student.schedule_board.source_type)"
                         >
                             {{ student.schedule_board.source_label }}
                         </span>
-                        <span v-if="student.open_violations.length > 0" class="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-red-700">
+                        <span v-if="student.open_violations.length > 0" class="inline-flex rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-red-700">
                             {{ student.open_violations.length }} open
                         </span>
                     </div>
 
-                    <div class="mt-2 min-w-0">
-                        <p class="truncate text-sm font-medium text-stone-900">
+                    <div class="mt-1.5 min-w-0">
+                        <p class="truncate text-[13px] font-medium text-stone-900">
                             {{ student.schedule_board?.name ?? 'No schedule' }}
                         </p>
-                        <p v-if="student.schedule_board" class="truncate text-xs text-stone-500">
+                        <p v-if="student.schedule_board" class="truncate text-[10px] text-stone-500">
                             {{ student.schedule_board.completed_blocks }}/{{ student.schedule_board.total_blocks }} blocks - {{ student.schedule_board.status_label }}
                         </p>
                     </div>
 
-                    <div class="mt-2 rounded-[1rem] bg-stone-100 px-3 py-2">
-                        <p class="truncate text-sm font-medium text-stone-900">
+                    <div class="mt-1.5 rounded-[0.85rem] bg-stone-100 px-2 py-1.5">
+                        <p class="truncate text-[13px] font-medium text-stone-900">
                             {{ student.active_task_session?.task_title ?? 'No active task' }}
                         </p>
-                        <p class="truncate text-xs text-stone-500">
+                        <p class="truncate text-[10px] leading-tight text-stone-500">
                             <template v-if="student.active_task_session">
                                 {{ student.active_task_session.elapsedLabel }}
                                 <span v-if="student.active_task_session.remainingLabel">
@@ -527,20 +527,20 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </p>
                     </div>
 
-                    <div v-if="student.schedule_board" class="mt-2 min-h-0 flex-1 overflow-hidden rounded-[0.75rem] bg-stone-50 p-0.5">
+                    <div v-if="student.schedule_board" class="mt-1.5 min-h-0 flex-1 overflow-hidden rounded-[0.65rem] bg-stone-50/60 p-px">
                         <div class="grid h-full grid-cols-1 gap-px overflow-y-auto pr-0 content-start">
                             <div
                                 v-for="block in student.schedule_board.blocks"
                                 :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
-                                class="rounded-[0.45rem] border px-1.5 py-0.5"
+                                class="rounded-[0.35rem] border px-1 py-[3px]"
                                 :class="blockRowClass(block.status)"
                                 :title="blockTooltip(block)"
                             >
-                                <div class="flex items-center justify-between gap-2 text-[10px] leading-none">
+                                <div class="flex items-center justify-between gap-1.5 text-[9px] leading-none">
                                     <p class="min-w-0 truncate font-medium text-stone-900">
                                         {{ block.position }}. {{ block.task_title }}
                                     </p>
-                                    <span class="shrink-0 text-[9px] font-semibold text-stone-700">
+                                    <span class="shrink-0 text-[8px] font-semibold text-stone-700">
                                         {{ block.displayDurationLabel }}
                                     </span>
                                 </div>
