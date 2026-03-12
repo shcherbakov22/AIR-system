@@ -297,7 +297,7 @@ const blockTooltip = (block: DashboardBlock): string => {
         parts.push(`Started ${block.started_at_label}`);
     }
 
-    return parts.join(' • ');
+    return parts.join(' - ');
 };
 </script>
 
@@ -370,7 +370,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                 <article
                     v-for="student in monitorStudents"
                     :key="student.id"
-                    class="relative flex h-[23rem] min-h-0 flex-col rounded-[1.5rem] bg-white p-3 shadow-sm ring-1 ring-stone-200"
+                    class="relative flex h-[24rem] min-h-0 flex-col rounded-[1.5rem] bg-white p-3 shadow-sm ring-1 ring-stone-200 lg:h-[calc(100vh-9.5rem)]"
                 >
                     <div class="flex items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -506,7 +506,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                             {{ student.schedule_board?.name ?? 'No schedule' }}
                         </p>
                         <p v-if="student.schedule_board" class="truncate text-xs text-stone-500">
-                            {{ student.schedule_board.completed_blocks }}/{{ student.schedule_board.total_blocks }} blocks · {{ student.schedule_board.status_label }}
+                            {{ student.schedule_board.completed_blocks }}/{{ student.schedule_board.total_blocks }} blocks - {{ student.schedule_board.status_label }}
                         </p>
                     </div>
 
@@ -518,7 +518,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <template v-if="student.active_task_session">
                                 {{ student.active_task_session.elapsedLabel }}
                                 <span v-if="student.active_task_session.remainingLabel">
-                                    · {{ student.active_task_session.remainingLabel }} left
+                                    - {{ student.active_task_session.remainingLabel }} left
                                 </span>
                             </template>
                             <template v-else>
@@ -528,7 +528,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                     </div>
 
                     <div v-if="student.schedule_board" class="mt-3 min-h-0 flex-1 overflow-hidden rounded-[1rem] bg-stone-50 p-2">
-                        <div class="grid h-full grid-cols-2 gap-1 overflow-y-auto pr-1 content-start">
+                        <div class="grid h-full grid-cols-1 gap-1 overflow-y-auto pr-1 content-start">
                             <div
                                 v-for="block in student.schedule_board.blocks"
                                 :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
