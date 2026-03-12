@@ -5,12 +5,15 @@ namespace Tests\Feature;
 use App\Enums\UserRole;
 use App\Enums\ScheduleWeekday;
 use App\Models\RuleDefinition;
+use App\Models\ScheduleRun;
+use App\Models\ScheduleRunBlock;
 use App\Models\ScheduleTemplate;
 use App\Models\Student;
 use App\Models\StudentMonitorCapture;
 use App\Models\TaskSession;
 use App\Models\Violation;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -80,6 +83,102 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.active_task_session.task_title', 'Reading')
                 ->where('monitorStudents.0.active_task_session.planned_duration_minutes', 40)
             );
+    }
+
+    public function test_admin_dashboard_shows_active_schedule_blocks_and_time_spent(): void
+    {
+        Carbon::setTestNow('2026-03-12 15:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedule_monitor',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedule_monitor',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Schedule Monitor Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $scheduleRun = ScheduleRun::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'schedule_name_snapshot' => 'Afternoon Focus',
+            'schedule_weekday_snapshot' => 'Thursday',
+            'started_at' => Carbon::parse('2026-03-12 13:00:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $completedBlock = ScheduleRunBlock::create([
+            'schedule_run_id' => $scheduleRun->id,
+            'position' => 1,
+            'status' => 'completed',
+            'start_time_snapshot' => '13:00',
+            'duration_minutes_snapshot' => 30,
+            'task_title_snapshot' => 'Reading',
+            'started_at' => Carbon::parse('2026-03-12 13:00:00'),
+            'completed_at' => Carbon::parse('2026-03-12 13:30:00'),
+        ]);
+
+        $activeBlock = ScheduleRunBlock::create([
+            'schedule_run_id' => $scheduleRun->id,
+            'position' => 2,
+            'status' => 'in_progress',
+            'start_time_snapshot' => '13:30',
+            'duration_minutes_snapshot' => 40,
+            'task_title_snapshot' => 'Coding',
+            'started_at' => Carbon::parse('2026-03-12 14:35:00'),
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'schedule_run_id' => $scheduleRun->id,
+            'schedule_run_block_id' => $completedBlock->id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 30,
+            'started_at' => Carbon::parse('2026-03-12 13:00:00'),
+            'ended_at' => Carbon::parse('2026-03-12 13:30:00'),
+            'duration_seconds' => 1800,
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'schedule_run_id' => $scheduleRun->id,
+            'schedule_run_block_id' => $activeBlock->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 40,
+            'started_at' => Carbon::parse('2026-03-12 14:35:00'),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Dashboard')
+                ->has('monitorStudents', 1)
+                ->where('monitorStudents.0.display_name', 'Schedule Monitor Student')
+                ->where('monitorStudents.0.active_schedule_run.name', 'Afternoon Focus')
+                ->where('monitorStudents.0.active_schedule_run.completed_blocks', 1)
+                ->where('monitorStudents.0.active_schedule_run.total_blocks', 2)
+                ->where('monitorStudents.0.active_schedule_run.blocks.0.task_title', 'Reading')
+                ->where('monitorStudents.0.active_schedule_run.blocks.0.actual_duration_seconds', 1800)
+                ->where('monitorStudents.0.active_schedule_run.blocks.1.task_title', 'Coding')
+                ->where('monitorStudents.0.active_schedule_run.blocks.1.actual_duration_seconds', 1500)
+            );
+
+        Carbon::setTestNow();
     }
 
     public function test_admin_dashboard_shows_latest_monitor_captures_and_open_violations(): void

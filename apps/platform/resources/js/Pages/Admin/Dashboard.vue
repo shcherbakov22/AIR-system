@@ -18,6 +18,29 @@ const props = defineProps<{
             username: string;
             last_login_at?: string | null;
         };
+        active_schedule_run?: {
+            id: number;
+            name: string;
+            status: string;
+            started_at?: string | null;
+            started_at_label?: string | null;
+            completed_blocks: number;
+            total_blocks: number;
+            blocks: Array<{
+                id: number;
+                position: number;
+                status: string;
+                task_title: string;
+                planned_duration_minutes: number;
+                planned_duration_label: string;
+                actual_duration_seconds: number;
+                actual_duration_label: string;
+                started_at?: string | null;
+                started_at_label?: string | null;
+                completed_at?: string | null;
+                completed_at_label?: string | null;
+            }>;
+        } | null;
         active_task_session?: {
             id: number;
             task_title: string;
@@ -198,6 +221,22 @@ const deleteViolation = (violationId: number) => {
         preserveState: true,
     });
 };
+
+const scheduleBlockStatusClass = (status: string): string => {
+    if (status === 'completed') {
+        return 'bg-emerald-100 text-emerald-800';
+    }
+
+    if (status === 'in_progress') {
+        return 'bg-amber-100 text-amber-800';
+    }
+
+    if (status === 'paused') {
+        return 'bg-sky-100 text-sky-800';
+    }
+
+    return 'bg-stone-200 text-stone-700';
+};
 </script>
 
 <template>
@@ -297,6 +336,89 @@ const deleteViolation = (violationId: number) => {
                             </p>
                             <p class="mt-2 text-base font-medium text-stone-700">
                                 No active task session
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 rounded-[1.25rem] border border-stone-200 p-4">
+                        <div v-if="student.active_schedule_run">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
+                                        Active schedule
+                                    </p>
+                                    <p class="mt-2 text-lg font-semibold text-stone-950">
+                                        {{ student.active_schedule_run.name }}
+                                    </p>
+                                    <div class="mt-2 flex flex-wrap gap-3 text-sm text-stone-600">
+                                        <span class="capitalize">
+                                            {{ student.active_schedule_run.status }}
+                                        </span>
+                                        <span v-if="student.active_schedule_run.started_at_label">
+                                            Started {{ student.active_schedule_run.started_at_label }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="text-right">
+                                    <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
+                                        Blocks
+                                    </p>
+                                    <p class="mt-2 text-2xl font-semibold text-stone-950">
+                                        {{ student.active_schedule_run.completed_blocks }} / {{ student.active_schedule_run.total_blocks }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 max-h-56 overflow-y-auto rounded-[1rem] bg-stone-100">
+                                <div
+                                    v-for="block in student.active_schedule_run.blocks"
+                                    :key="block.id"
+                                    class="flex items-center justify-between gap-3 border-b border-stone-200 px-3 py-2 last:border-b-0"
+                                >
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm font-semibold text-stone-700">
+                                                {{ block.position }}.
+                                            </span>
+                                            <p class="truncate text-sm font-medium text-stone-950">
+                                                {{ block.task_title }}
+                                            </p>
+                                        </div>
+                                        <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-stone-500">
+                                            <span
+                                                class="inline-flex rounded-full px-2 py-0.5 font-semibold uppercase tracking-[0.12em]"
+                                                :class="scheduleBlockStatusClass(block.status)"
+                                            >
+                                                {{ block.status }}
+                                            </span>
+                                            <span v-if="block.completed_at_label">
+                                                Finished {{ block.completed_at_label }}
+                                            </span>
+                                            <span v-else-if="block.started_at_label">
+                                                Started {{ block.started_at_label }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="shrink-0 text-right">
+                                        <p class="text-sm font-semibold text-stone-950">
+                                            {{ block.status === 'pending' ? block.planned_duration_label : block.actual_duration_label }}
+                                        </p>
+                                        <p class="text-xs text-stone-500">
+                                            {{ block.status === 'pending' ? 'Planned' : 'Spent' }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-else>
+                            <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
+                                Active schedule
+                            </p>
+                            <p class="mt-2 text-base font-medium text-stone-700">
+                                No schedule run in progress
                             </p>
                         </div>
                     </div>

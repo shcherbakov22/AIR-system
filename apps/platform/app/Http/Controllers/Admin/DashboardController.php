@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\RuleDefinition;
+use App\Models\ScheduleRun;
+use App\Models\ScheduleRunBlock;
 use App\Models\Student;
 use App\Models\StudentMonitorCapture;
 use App\Models\TaskSession;
@@ -12,6 +14,31 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    protected function actualDurationSeconds(TaskSession $taskSession): int
+    {
+        $baseDuration = (int) ($taskSession->duration_seconds ?? 0);
+
+        if ($taskSession->status !== 'active' || ! $taskSession->started_at) {
+            return max(0, $baseDuration);
+        }
+
+        return max(0, $baseDuration + $taskSession->started_at->diffInSeconds(now()));
+    }
+
+    protected function formatDuration(int $totalSeconds): string
+    {
+        $safeSeconds = max(0, $totalSeconds);
+        $hours = intdiv($safeSeconds, 3600);
+        $minutes = intdiv($safeSeconds % 3600, 60);
+        $seconds = $safeSeconds % 60;
+
+        if ($hours > 0) {
+            return sprintf('%d:%02d:%02d', $hours, $minutes, $seconds);
+        }
+
+        return sprintf('%02d:%02d', $minutes, $seconds);
+    }
+
     protected function capturePayload(?StudentMonitorCapture $capture): ?array
     {
         if (! $capture) {
@@ -59,9 +86,55 @@ class DashboardController extends Controller
         ];
     }
 
+    protected function scheduleRunBlockPayload(ScheduleRunBlock $block): array
+    {
+        $actualDurationSeconds = $block->taskSessions
+            ->sum(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession));
+        $plannedDurationSeconds = max(0, (int) ($block->duration_minutes_snapshot ?? 0) * 60);
+
+        return [
+            'id' => $block->id,
+            'position' => $block->position,
+            'status' => $block->status,
+            'task_title' => $block->task_title_snapshot,
+            'planned_duration_minutes' => $block->duration_minutes_snapshot,
+            'planned_duration_label' => $this->formatDuration($plannedDurationSeconds),
+            'actual_duration_seconds' => $actualDurationSeconds,
+            'actual_duration_label' => $this->formatDuration($actualDurationSeconds),
+            'started_at' => $block->started_at?->toIso8601String(),
+            'started_at_label' => $block->started_at?->format('d M, H:i'),
+            'completed_at' => $block->completed_at?->toIso8601String(),
+            'completed_at_label' => $block->completed_at?->format('d M, H:i'),
+        ];
+    }
+
+    protected function activeScheduleRunPayload(?ScheduleRun $scheduleRun): ?array
+    {
+        if (! $scheduleRun) {
+            return null;
+        }
+
+        $blocks = $scheduleRun->blocks
+            ->sortBy('position')
+            ->values()
+            ->map(fn (ScheduleRunBlock $block) => $this->scheduleRunBlockPayload($block));
+
+        return [
+            'id' => $scheduleRun->id,
+            'name' => $scheduleRun->schedule_name_snapshot,
+            'status' => $scheduleRun->status,
+            'started_at' => $scheduleRun->started_at?->toIso8601String(),
+            'started_at_label' => $scheduleRun->started_at?->format('d M, H:i'),
+            'completed_blocks' => $scheduleRun->blocks->where('status', 'completed')->count(),
+            'total_blocks' => $scheduleRun->blocks->count(),
+            'blocks' => $blocks->all(),
+        ];
+    }
+
     protected function studentPayload(Student $student): array
     {
         $activeTaskSession = $student->taskSessions->first();
+        $activeScheduleRun = $student->scheduleRuns->first();
         $latestCaptureAt = collect([
             $student->latestScreenCapture?->captured_at?->getTimestamp(),
             $student->latestCameraCapture?->captured_at?->getTimestamp(),
@@ -80,6 +153,7 @@ class DashboardController extends Controller
                 'username' => $student->user->username,
                 'last_login_at' => $student->user->last_login_at?->toIso8601String(),
             ],
+            'active_schedule_run' => $this->activeScheduleRunPayload($activeScheduleRun),
             'active_task_session' => $this->activeTaskSessionPayload($activeTaskSession),
             'latest_screen_capture' => $this->capturePayload($student->latestScreenCapture),
             'latest_camera_capture' => $this->capturePayload($student->latestCameraCapture),
@@ -101,6 +175,19 @@ class DashboardController extends Controller
         $monitorStudents = Student::query()
             ->with([
                 'user',
+                'scheduleRuns' => fn ($query) => $query
+                    ->with([
+                        'blocks' => fn ($blockQuery) => $blockQuery
+                            ->with([
+                                'taskSessions' => fn ($taskSessionQuery) => $taskSessionQuery
+                                    ->orderBy('started_at')
+                                    ->orderBy('id'),
+                            ])
+                            ->orderBy('position'),
+                    ])
+                    ->whereIn('status', ['active', 'paused'])
+                    ->latest('started_at')
+                    ->latest('id'),
                 'taskSessions' => fn ($query) => $query
                     ->with(['scheduleRun', 'scheduleRunBlock'])
                     ->where('status', 'active')
