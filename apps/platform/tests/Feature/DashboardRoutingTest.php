@@ -7,7 +7,9 @@ use App\Enums\ScheduleWeekday;
 use App\Models\RuleDefinition;
 use App\Models\ScheduleTemplate;
 use App\Models\Student;
+use App\Models\StudentMonitorCapture;
 use App\Models\TaskSession;
+use App\Models\Violation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -34,7 +36,8 @@ class DashboardRoutingTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Dashboard')
                 ->has('serverNow')
-                ->has('activeTaskSessions', 0)
+                ->has('monitorStudents', 0)
+                ->has('ruleDefinitions')
             );
     }
 
@@ -72,10 +75,105 @@ class DashboardRoutingTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Dashboard')
-                ->has('activeTaskSessions', 1)
-                ->where('activeTaskSessions.0.student.display_name', 'Activity Student')
-                ->where('activeTaskSessions.0.task_title', 'Reading')
-                ->where('activeTaskSessions.0.planned_duration_minutes', 40)
+                ->has('monitorStudents', 1)
+                ->where('monitorStudents.0.display_name', 'Activity Student')
+                ->where('monitorStudents.0.active_task_session.task_title', 'Reading')
+                ->where('monitorStudents.0.active_task_session.planned_duration_minutes', 40)
+            );
+    }
+
+    public function test_admin_dashboard_shows_latest_monitor_captures_and_open_violations(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_monitor',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_monitor',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Monitor Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 55,
+            'started_at' => now()->subMinutes(5),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        StudentMonitorCapture::create([
+            'student_id' => $student->id,
+            'task_session_id' => $taskSession->id,
+            'capture_kind' => 'screen',
+            'disk' => 'local',
+            'path' => 'student-monitor-captures/student_monitor/screen/example.jpg',
+            'mime_type' => 'image/jpeg',
+            'size_bytes' => 1024,
+            'captured_at' => now()->subMinute(),
+            'uploaded_at' => now()->subMinute(),
+            'task_title_snapshot' => 'Coding',
+            'source_label' => 'Browser Extension',
+            'source_version' => '1.0.0',
+            'meta' => [],
+        ]);
+
+        StudentMonitorCapture::create([
+            'student_id' => $student->id,
+            'task_session_id' => $taskSession->id,
+            'capture_kind' => 'camera',
+            'disk' => 'local',
+            'path' => 'student-monitor-captures/student_monitor/camera/example.jpg',
+            'mime_type' => 'image/jpeg',
+            'size_bytes' => 1024,
+            'captured_at' => now()->subSeconds(30),
+            'uploaded_at' => now()->subSeconds(30),
+            'task_title_snapshot' => 'Coding',
+            'source_label' => 'Hardware Bridge',
+            'source_version' => '1.0.0',
+            'meta' => [],
+        ]);
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Observe the time',
+            'description' => null,
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => $ruleDefinition->title,
+            'penalty_units' => 0,
+            'occurred_at' => now()->subMinute(),
+            'notes' => null,
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Dashboard')
+                ->has('monitorStudents', 1)
+                ->where('monitorStudents.0.display_name', 'Monitor Student')
+                ->where('monitorStudents.0.latest_screen_capture.task_title', 'Coding')
+                ->where('monitorStudents.0.latest_camera_capture.source_label', 'Hardware Bridge')
+                ->where('monitorStudents.0.open_violations.0.rule_title', 'Observe the time')
             );
     }
 

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
+use App\Http\Controllers\Admin\StudentMonitorCaptureController as AdminStudentMonitorCaptureController;
 use App\Http\Controllers\Admin\TaskAssignmentController as AdminTaskAssignmentController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
@@ -66,6 +67,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/students/{student}', [AdminStudentController::class, 'update'])->name('students.update');
         Route::patch('/students/{student}/password', [AdminStudentController::class, 'updatePassword'])->name('students.password.update');
         Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
+        Route::get('/student-monitor-captures/{studentMonitorCapture}', [AdminStudentMonitorCaptureController::class, 'show'])->name('student-monitor-captures.show');
     });
 
     Route::prefix('student')->name('student.')->middleware('student')->group(function () {

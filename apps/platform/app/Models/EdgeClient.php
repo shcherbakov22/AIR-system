@@ -37,4 +37,9 @@ class EdgeClient extends Model
     {
         return $this->hasMany(EdgeClientHeartbeat::class);
     }
+
+    public function monitorCaptures(): HasMany
+    {
+        return $this->hasMany(StudentMonitorCapture::class);
+    }
 }

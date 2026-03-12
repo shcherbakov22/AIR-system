@@ -137,8 +137,11 @@ class ViolationController extends Controller
             ]);
         });
 
-        return redirect()
-            ->route('admin.violations.index')
+        $redirectRoute = $request->boolean('return_to_dashboard')
+            ? route('admin.dashboard')
+            : route('admin.violations.index');
+
+        return redirect($redirectRoute)
             ->with('success', "Violation {$violation->rule_title_snapshot} created.");
     }
 
@@ -241,8 +244,11 @@ class ViolationController extends Controller
             $lockedViolation->delete();
         });
 
-        return redirect()
-            ->route('admin.violations.index')
+        $redirectRoute = request()->boolean('return_to_dashboard')
+            ? route('admin.dashboard')
+            : route('admin.violations.index');
+
+        return redirect($redirectRoute)
             ->with('success', 'Violation '.$violationTitle.' deleted.');
     }
 }

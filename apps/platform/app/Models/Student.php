@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Violation;
 
 class Student extends Model
 {
@@ -53,6 +52,29 @@ class Student extends Model
     public function violations(): HasMany
     {
         return $this->hasMany(Violation::class);
+    }
+
+    public function monitorCaptures(): HasMany
+    {
+        return $this->hasMany(StudentMonitorCapture::class);
+    }
+
+    public function latestScreenCapture(): HasOne
+    {
+        return $this->hasOne(StudentMonitorCapture::class)
+            ->ofMany(
+                ['captured_at' => 'max', 'id' => 'max'],
+                fn ($query) => $query->where('capture_kind', 'screen'),
+            );
+    }
+
+    public function latestCameraCapture(): HasOne
+    {
+        return $this->hasOne(StudentMonitorCapture::class)
+            ->ofMany(
+                ['captured_at' => 'max', 'id' => 'max'],
+                fn ($query) => $query->where('capture_kind', 'camera'),
+            );
     }
 
     public function hasOpenViolations(): bool
