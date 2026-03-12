@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
 use App\Http\Controllers\Admin\StudentMonitorCaptureController as AdminStudentMonitorCaptureController;
+use App\Http\Controllers\Admin\StudentProgressController as AdminStudentProgressController;
 use App\Http\Controllers\Admin\TaskAssignmentController as AdminTaskAssignmentController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
@@ -63,6 +64,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/task-templates/{taskTemplate}', [AdminTaskTemplateController::class, 'update'])->name('task-templates.update');
         Route::get('/students/create', [AdminStudentController::class, 'create'])->name('students.create');
         Route::post('/students', [AdminStudentController::class, 'store'])->name('students.store');
+        Route::get('/students/{student}/progress', [AdminStudentProgressController::class, 'show'])->name('students.progress');
         Route::get('/students/{student}/edit', [AdminStudentController::class, 'edit'])->name('students.edit');
         Route::put('/students/{student}', [AdminStudentController::class, 'update'])->name('students.update');
         Route::delete('/students/{student}', [AdminStudentController::class, 'destroy'])->name('students.destroy');

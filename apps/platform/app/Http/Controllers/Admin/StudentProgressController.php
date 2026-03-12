@@ -1,0 +1,168 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\ScheduleRun;
+use App\Models\ScheduleRunBlock;
+use App\Models\Student;
+use App\Models\TaskSession;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class StudentProgressController extends Controller
+{
+    protected function actualDurationSeconds(TaskSession $taskSession): int
+    {
+        $baseDuration = (int) ($taskSession->duration_seconds ?? 0);
+
+        if ($taskSession->status !== 'active' || ! $taskSession->started_at) {
+            return max(0, $baseDuration);
+        }
+
+        return max(0, $baseDuration + $taskSession->started_at->diffInSeconds(now()));
+    }
+
+    protected function formatDuration(int $totalSeconds): string
+    {
+        $safeSeconds = max(0, $totalSeconds);
+        $hours = intdiv($safeSeconds, 3600);
+        $minutes = intdiv($safeSeconds % 3600, 60);
+        $seconds = $safeSeconds % 60;
+
+        if ($hours > 0) {
+            return sprintf('%d:%02d:%02d', $hours, $minutes, $seconds);
+        }
+
+        return sprintf('%02d:%02d', $minutes, $seconds);
+    }
+
+    protected function sessionLogPayload(TaskSession $taskSession): array
+    {
+        $actualDurationSeconds = $this->actualDurationSeconds($taskSession);
+
+        return [
+            'id' => $taskSession->id,
+            'status' => $taskSession->status,
+            'started_at' => $taskSession->started_at?->toIso8601String(),
+            'started_at_label' => $taskSession->started_at?->format('d M, H:i'),
+            'ended_at' => $taskSession->ended_at?->toIso8601String(),
+            'ended_at_label' => $taskSession->ended_at?->format('d M, H:i'),
+            'duration_seconds' => $actualDurationSeconds,
+            'duration_label' => $this->formatDuration($actualDurationSeconds),
+        ];
+    }
+
+    protected function blockPayload(ScheduleRunBlock $block): array
+    {
+        $sessionLogs = $block->taskSessions
+            ->sortBy('started_at')
+            ->values()
+            ->map(fn (TaskSession $taskSession) => $this->sessionLogPayload($taskSession));
+
+        $actualDurationSeconds = $sessionLogs->sum('duration_seconds');
+        $plannedDurationSeconds = max(0, (int) ($block->duration_minutes_snapshot ?? 0) * 60);
+        $deltaSeconds = $actualDurationSeconds - $plannedDurationSeconds;
+
+        $firstStartedAt = $block->taskSessions
+            ->filter(fn (TaskSession $taskSession) => $taskSession->started_at !== null)
+            ->sortBy('started_at')
+            ->first()?->started_at ?? $block->started_at;
+
+        $lastEndedAt = $block->taskSessions
+            ->filter(fn (TaskSession $taskSession) => $taskSession->ended_at !== null)
+            ->sortByDesc('ended_at')
+            ->first()?->ended_at ?? $block->completed_at;
+
+        return [
+            'id' => $block->id,
+            'position' => $block->position,
+            'status' => $block->status,
+            'task_title' => $block->task_title_snapshot,
+            'planned_duration_minutes' => $block->duration_minutes_snapshot,
+            'planned_duration_label' => $this->formatDuration($plannedDurationSeconds),
+            'actual_duration_seconds' => $actualDurationSeconds,
+            'actual_duration_label' => $this->formatDuration($actualDurationSeconds),
+            'delta_seconds' => $deltaSeconds,
+            'delta_label' => ($deltaSeconds > 0 ? '+' : '').$this->formatDuration(abs($deltaSeconds)),
+            'actual_started_at' => $firstStartedAt?->toIso8601String(),
+            'actual_started_at_label' => $firstStartedAt?->format('d M, H:i'),
+            'actual_ended_at' => $lastEndedAt?->toIso8601String(),
+            'actual_ended_at_label' => $lastEndedAt?->format('d M, H:i'),
+            'session_logs' => $sessionLogs->all(),
+        ];
+    }
+
+    protected function runPayload(ScheduleRun $scheduleRun): array
+    {
+        $blocks = $scheduleRun->blocks
+            ->sortBy('position')
+            ->values()
+            ->map(fn (ScheduleRunBlock $block) => $this->blockPayload($block));
+
+        $totalActualDurationSeconds = $blocks->sum('actual_duration_seconds');
+        $totalPlannedDurationMinutes = $scheduleRun->blocks->sum('duration_minutes_snapshot');
+
+        return [
+            'id' => $scheduleRun->id,
+            'status' => $scheduleRun->status,
+            'schedule_name' => $scheduleRun->schedule_name_snapshot,
+            'weekday_label' => $scheduleRun->schedule_weekday_snapshot,
+            'started_at' => $scheduleRun->started_at?->toIso8601String(),
+            'started_at_label' => $scheduleRun->started_at?->format('d M, H:i'),
+            'completed_at' => $scheduleRun->completed_at?->toIso8601String(),
+            'completed_at_label' => $scheduleRun->completed_at?->format('d M, H:i'),
+            'total_blocks' => $scheduleRun->blocks->count(),
+            'completed_blocks' => $scheduleRun->blocks->where('status', 'completed')->count(),
+            'total_planned_minutes' => $totalPlannedDurationMinutes,
+            'total_planned_duration_label' => $this->formatDuration($totalPlannedDurationMinutes * 60),
+            'total_actual_duration_seconds' => $totalActualDurationSeconds,
+            'total_actual_duration_label' => $this->formatDuration($totalActualDurationSeconds),
+            'blocks' => $blocks->all(),
+        ];
+    }
+
+    public function show(Student $student): Response
+    {
+        $student->loadMissing([
+            'user',
+            'scheduleRuns' => fn ($query) => $query
+                ->with([
+                    'blocks' => fn ($blockQuery) => $blockQuery
+                        ->with([
+                            'taskSessions' => fn ($taskSessionQuery) => $taskSessionQuery
+                                ->orderBy('started_at')
+                                ->orderBy('id'),
+                        ])
+                        ->orderBy('position'),
+                ])
+                ->latest('started_at')
+                ->latest('id'),
+        ]);
+
+        $runs = $student->scheduleRuns
+            ->map(fn (ScheduleRun $scheduleRun) => $this->runPayload($scheduleRun))
+            ->values();
+
+        return Inertia::render('Admin/Students/Progress', [
+            'serverNow' => now()->toIso8601String(),
+            'student' => [
+                'id' => $student->id,
+                'display_name' => $student->display_name,
+                'username' => $student->user->username,
+                'status' => $student->status,
+            ],
+            'summary' => [
+                'schedule_runs' => $runs->count(),
+                'completed_blocks' => $runs->sum('completed_blocks'),
+                'total_blocks' => $runs->sum('total_blocks'),
+                'time_in_schedule_seconds' => $runs->sum('total_actual_duration_seconds'),
+                'time_in_schedule_label' => $this->formatDuration($runs->sum('total_actual_duration_seconds')),
+                'active_schedule_name' => $runs->firstWhere('status', 'active')['schedule_name']
+                    ?? $runs->firstWhere('status', 'paused')['schedule_name']
+                    ?? null,
+            ],
+            'runs' => $runs->all(),
+        ]);
+    }
+}

@@ -91,6 +91,12 @@ const deleteStudent = (studentId: number, displayName: string) => {
                             >
                                 Edit student
                             </Link>
+                            <Link
+                                :href="route('admin.students.progress', student.id)"
+                                class="mt-4 ml-2 inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                            >
+                                Progress
+                            </Link>
                             <button
                                 type="button"
                                 class="mt-4 ml-2 inline-flex rounded-full border border-rose-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-700 transition hover:border-rose-700 hover:text-rose-800"
