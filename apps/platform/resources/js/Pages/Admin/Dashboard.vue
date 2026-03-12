@@ -539,10 +539,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 <p class="truncate text-xs font-medium text-stone-900">
                                     {{ block.position }}. {{ block.task_title }}
                                 </p>
-                                <div class="mt-1 flex items-center justify-between gap-2 text-[10px] text-stone-500">
-                                    <span class="truncate">
-                                        {{ block.status_label }}
-                                    </span>
+                                <div class="mt-1 flex items-center justify-end gap-2 text-[10px] text-stone-500">
                                     <span class="shrink-0 font-semibold text-stone-700">
                                         {{ block.displayDurationLabel }}
                                     </span>
