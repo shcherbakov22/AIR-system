@@ -3,123 +3,88 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
+type DashboardBlock = {
+    id: number;
+    position: number;
+    status: string;
+    status_label: string;
+    task_title: string;
+    planned_duration_minutes: number;
+    planned_duration_label: string;
+    actual_duration_seconds: number;
+    actual_duration_label: string;
+    display_duration_label: string;
+    display_duration_caption: string;
+    started_at?: string | null;
+    started_at_label?: string | null;
+    completed_at?: string | null;
+    completed_at_label?: string | null;
+};
+
+type DashboardStudent = {
+    id: number;
+    display_name: string;
+    status: string;
+    user: {
+        id: number;
+        username: string;
+        last_login_at?: string | null;
+    };
+    schedule_board?: {
+        id: number;
+        source_type: string;
+        source_label: string;
+        name: string;
+        status: string;
+        status_label: string;
+        started_at?: string | null;
+        started_at_label?: string | null;
+        completed_at?: string | null;
+        completed_at_label?: string | null;
+        completed_blocks: number;
+        total_blocks: number;
+        blocks: DashboardBlock[];
+    } | null;
+    active_task_session?: {
+        id: number;
+        task_title: string;
+        started_at?: string | null;
+        started_at_label?: string | null;
+        duration_seconds?: number | null;
+        planned_duration_minutes?: number | null;
+        source_type: string;
+        schedule_run?: {
+            id: number;
+            name: string;
+        } | null;
+        schedule_run_block?: {
+            position: number;
+        } | null;
+    } | null;
+    latest_screen_capture?: {
+        id: number;
+        captured_at_label?: string | null;
+        image_url: string;
+    } | null;
+    latest_camera_capture?: {
+        id: number;
+        captured_at_label?: string | null;
+        image_url: string;
+    } | null;
+    open_violations: Array<{
+        id: number;
+        rule_title: string;
+        occurred_at_label?: string | null;
+    }>;
+};
+
 const props = defineProps<{
     serverNow: string;
     ruleDefinitions: Array<{
         id: number;
         title: string;
     }>;
-    monitorStudents: Array<{
-        id: number;
-        display_name: string;
-        status: string;
-        user: {
-            id: number;
-            username: string;
-            last_login_at?: string | null;
-        };
-        active_schedule_run?: {
-            id: number;
-            source_type: string;
-            source_label: string;
-            name: string;
-            status: string;
-            status_label: string;
-            started_at?: string | null;
-            started_at_label?: string | null;
-            completed_at?: string | null;
-            completed_at_label?: string | null;
-            completed_blocks: number;
-            total_blocks: number;
-            blocks: Array<{
-                id: number;
-                position: number;
-                status: string;
-                status_label: string;
-                task_title: string;
-                planned_duration_minutes: number;
-                planned_duration_label: string;
-                actual_duration_seconds: number;
-                actual_duration_label: string;
-                display_duration_label: string;
-                display_duration_caption: string;
-                started_at?: string | null;
-                started_at_label?: string | null;
-                completed_at?: string | null;
-                completed_at_label?: string | null;
-            }>;
-        } | null;
-        schedule_board?: {
-            id: number;
-            source_type: string;
-            source_label: string;
-            name: string;
-            status: string;
-            status_label: string;
-            started_at?: string | null;
-            started_at_label?: string | null;
-            completed_at?: string | null;
-            completed_at_label?: string | null;
-            completed_blocks: number;
-            total_blocks: number;
-            blocks: Array<{
-                id: number;
-                position: number;
-                status: string;
-                status_label: string;
-                task_title: string;
-                planned_duration_minutes: number;
-                planned_duration_label: string;
-                actual_duration_seconds: number;
-                actual_duration_label: string;
-                display_duration_label: string;
-                display_duration_caption: string;
-                started_at?: string | null;
-                started_at_label?: string | null;
-                completed_at?: string | null;
-                completed_at_label?: string | null;
-            }>;
-        } | null;
-        active_task_session?: {
-            id: number;
-            task_title: string;
-            started_at?: string | null;
-            started_at_label?: string | null;
-            duration_seconds?: number | null;
-            planned_duration_minutes?: number | null;
-            source_type: string;
-            schedule_run?: {
-                id: number;
-                name: string;
-            } | null;
-            schedule_run_block?: {
-                position: number;
-            } | null;
-        } | null;
-        latest_screen_capture?: {
-            id: number;
-            capture_kind: string;
-            captured_at?: string | null;
-            captured_at_label?: string | null;
-            task_title?: string | null;
-            source_label?: string | null;
-            image_url: string;
-        } | null;
-        latest_camera_capture?: {
-            id: number;
-            capture_kind: string;
-            captured_at?: string | null;
-            captured_at_label?: string | null;
-            task_title?: string | null;
-            source_label?: string | null;
-            image_url: string;
-        } | null;
-        open_violations: Array<{
-            id: number;
-            rule_title: string;
-            occurred_at_label?: string | null;
-        }>;
-    }>;
+    monitorStudents: DashboardStudent[];
 }>();
 
 const selectedRules = reactive<Record<number, string>>({});
@@ -219,7 +184,6 @@ const monitorStudents = computed(() => {
 
                     return {
                         ...block,
-                        liveActualDurationLabel: formatDuration(liveActualSeconds),
                         displayDurationLabel: usesPlannedTime
                             ? block.planned_duration_label
                             : formatDuration(liveActualSeconds),
@@ -284,7 +248,7 @@ const deleteViolation = (violationId: number) => {
     });
 };
 
-const studentStatusClass = (student: (typeof props.monitorStudents)[number]): string => {
+const studentStatusClass = (student: DashboardStudent): string => {
     if (student.active_task_session) {
         return 'bg-emerald-100 text-emerald-800';
     }
@@ -304,7 +268,7 @@ const scheduleSourceClass = (sourceType: string): string => {
     return 'bg-stone-200 text-stone-700';
 };
 
-const scheduleBlockStatusClass = (status: string): string => {
+const blockRowClass = (status: string): string => {
     if (status === 'completed') {
         return 'border-emerald-200 bg-emerald-50';
     }
@@ -317,23 +281,23 @@ const scheduleBlockStatusClass = (status: string): string => {
         return 'border-sky-300 bg-sky-50';
     }
 
-    return 'border-stone-200 bg-stone-50';
+    return 'border-stone-200 bg-white';
 };
 
-const blockBadgeClass = (status: string): string => {
-    if (status === 'completed') {
-        return 'bg-emerald-100 text-emerald-800';
+const blockTooltip = (block: DashboardBlock): string => {
+    const parts = [
+        `Block ${block.position}: ${block.task_title}`,
+        block.status_label,
+        `${block.display_duration_caption}: ${block.display_duration_label}`,
+    ];
+
+    if (block.completed_at_label) {
+        parts.push(`Finished ${block.completed_at_label}`);
+    } else if (block.started_at_label) {
+        parts.push(`Started ${block.started_at_label}`);
     }
 
-    if (status === 'in_progress') {
-        return 'bg-amber-100 text-amber-800';
-    }
-
-    if (status === 'paused') {
-        return 'bg-sky-100 text-sky-800';
-    }
-
-    return 'bg-stone-200 text-stone-700';
+    return parts.join(' • ');
 };
 </script>
 
@@ -342,19 +306,19 @@ const blockBadgeClass = (status: string): string => {
 
     <AuthenticatedLayout :hide-sidebar="true" :full-width="true">
         <template #header>
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
                         Mentor dashboard
                     </p>
-                    <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Full schedule board
+                    <h2 class="font-serif text-3xl leading-none text-stone-950">
+                        Schedule columns
                     </h2>
                 </div>
 
                 <div class="flex flex-col items-start gap-2 lg:items-end">
                     <p class="text-sm text-stone-500">
-                        Every student, their live task, and the full schedule board in one view. Refreshes every 30 seconds.
+                        Column view for all students. Each card keeps the schedule readable without the page turning into a wall of rows.
                     </p>
 
                     <div class="flex flex-wrap items-center gap-2">
@@ -389,7 +353,7 @@ const blockBadgeClass = (status: string): string => {
             </div>
         </template>
 
-        <div class="px-4 py-4 sm:px-5 lg:px-6">
+        <div class="px-4 py-3 sm:px-5 lg:px-6">
             <div
                 v-if="monitorStudents.length === 0"
                 class="rounded-[2rem] bg-white px-6 py-8 shadow-sm ring-1 ring-stone-200"
@@ -399,132 +363,72 @@ const blockBadgeClass = (status: string): string => {
                 </p>
             </div>
 
-            <div v-else class="space-y-3">
+            <div
+                v-else
+                class="grid gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+            >
                 <article
                     v-for="student in monitorStudents"
                     :key="student.id"
-                    class="overflow-hidden rounded-[1.75rem] bg-white shadow-sm ring-1 ring-stone-200"
+                    class="relative flex h-[23rem] min-h-0 flex-col rounded-[1.5rem] bg-white p-3 shadow-sm ring-1 ring-stone-200"
                 >
-                    <div class="grid gap-0 xl:grid-cols-[19rem_minmax(0,1fr)]">
-                        <div class="border-b border-stone-200 bg-stone-50/90 p-4 xl:border-b-0 xl:border-r">
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <p class="text-2xl font-semibold text-stone-950">
-                                        {{ student.display_name }}
-                                    </p>
-                                    <p class="text-sm text-stone-500">
-                                        {{ student.user.username }}
-                                    </p>
-                                </div>
-
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="truncate text-base font-semibold text-stone-950">
+                                    {{ student.display_name }}
+                                </p>
                                 <span
-                                    class="inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
+                                    class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
                                     :class="studentStatusClass(student)"
                                 >
-                                    {{ student.active_task_session ? 'Task active' : student.schedule_board ? 'Schedule loaded' : 'No schedule' }}
+                                    {{ student.active_task_session ? 'Live' : student.schedule_board ? 'Loaded' : 'None' }}
                                 </span>
                             </div>
 
-                            <div class="mt-3 rounded-[1.1rem] bg-white px-3 py-3 ring-1 ring-stone-200">
-                                <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
-                                    Current task
-                                </p>
+                            <p class="truncate text-xs text-stone-500">
+                                {{ student.user.username }}
+                            </p>
+                        </div>
 
-                                <div v-if="student.active_task_session" class="mt-2">
-                                    <p class="text-lg font-semibold text-stone-950">
-                                        {{ student.active_task_session.task_title }}
-                                    </p>
-                                    <div class="mt-2 flex flex-wrap gap-2 text-sm text-stone-600">
-                                        <span v-if="student.active_task_session.schedule_run?.name">
-                                            {{ student.active_task_session.schedule_run.name }}
-                                        </span>
-                                        <span v-if="student.active_task_session.schedule_run_block?.position">
-                                            Block {{ student.active_task_session.schedule_run_block.position }}
-                                        </span>
-                                        <span v-if="student.active_task_session.started_at_label">
-                                            Started {{ student.active_task_session.started_at_label }}
-                                        </span>
-                                    </div>
-                                    <div class="mt-3 grid grid-cols-2 gap-2">
-                                        <div class="rounded-xl bg-stone-100 px-3 py-2">
-                                            <p class="text-[11px] uppercase tracking-[0.18em] text-stone-500">
-                                                Elapsed
-                                            </p>
-                                            <p class="mt-1 text-lg font-semibold text-stone-950">
-                                                {{ student.active_task_session.elapsedLabel }}
-                                            </p>
-                                        </div>
-                                        <div class="rounded-xl bg-stone-100 px-3 py-2">
-                                            <p class="text-[11px] uppercase tracking-[0.18em] text-stone-500">
-                                                Remaining
-                                            </p>
-                                            <p class="mt-1 text-lg font-semibold text-stone-950">
-                                                {{ student.active_task_session.remainingLabel ?? 'Open' }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
+                        <details class="group relative shrink-0">
+                            <summary class="cursor-pointer list-none rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950">
+                                Details
+                            </summary>
 
-                                <p v-else class="mt-2 text-base font-medium text-stone-700">
-                                    No active task session
-                                </p>
-                            </div>
-
-                            <div class="mt-3 grid gap-2">
-                                <div class="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+                            <div class="absolute right-0 top-full z-20 mt-2 w-[19rem] rounded-[1.25rem] bg-white p-3 shadow-xl ring-1 ring-stone-200">
+                                <div class="flex flex-wrap gap-2">
+                                    <Link
+                                        :href="route('admin.students.progress', student.id)"
+                                        class="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                    >
+                                        Progress
+                                    </Link>
                                     <a
                                         v-if="student.latest_screen_capture"
                                         :href="student.latest_screen_capture.image_url"
                                         target="_blank"
                                         rel="noreferrer"
-                                        class="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                        class="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
                                     >
-                                        Screen · {{ student.latest_screen_capture.captured_at_label }}
+                                        Screen
                                     </a>
-                                    <div
-                                        v-else
-                                        class="rounded-full border border-dashed border-stone-300 px-3 py-2 text-sm text-stone-500"
-                                    >
-                                        No screen
-                                    </div>
-
                                     <a
                                         v-if="student.latest_camera_capture"
                                         :href="student.latest_camera_capture.image_url"
                                         target="_blank"
                                         rel="noreferrer"
-                                        class="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                        class="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
                                     >
-                                        Camera · {{ student.latest_camera_capture.captured_at_label }}
+                                        Camera
                                     </a>
-                                    <div
-                                        v-else
-                                        class="rounded-full border border-dashed border-stone-300 px-3 py-2 text-sm text-stone-500"
-                                    >
-                                        No camera
-                                    </div>
-
-                                    <Link
-                                        :href="route('admin.students.progress', student.id)"
-                                        class="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
-                                    >
-                                        Progress
-                                    </Link>
                                 </div>
 
-                                <div class="rounded-[1.1rem] bg-white px-3 py-3 ring-1 ring-stone-200">
-                                    <div class="flex items-center justify-between gap-3">
-                                        <div>
-                                            <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
-                                                Open violations
-                                            </p>
-                                            <p class="mt-1 text-sm text-stone-600">
-                                                {{ student.open_violations.length === 0 ? 'Clear' : `${student.open_violations.length} open` }}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div class="mt-3 flex flex-wrap items-center gap-2">
+                                <div class="mt-3">
+                                    <p class="text-xs uppercase tracking-[0.18em] text-stone-500">
+                                        Violations
+                                    </p>
+                                    <div class="mt-2 flex gap-2">
                                         <select
                                             v-model="selectedRules[student.id]"
                                             class="min-w-0 flex-1 rounded-full border-stone-300 px-4 py-2 text-sm shadow-sm focus:border-amber-700 focus:ring-amber-700"
@@ -551,7 +455,7 @@ const blockBadgeClass = (status: string): string => {
                                         </button>
                                     </div>
 
-                                    <div v-if="student.open_violations.length > 0" class="mt-3 space-y-2">
+                                    <div v-if="student.open_violations.length > 0" class="mt-2 space-y-2">
                                         <div
                                             v-for="violation in student.open_violations"
                                             :key="violation.id"
@@ -575,112 +479,83 @@ const blockBadgeClass = (status: string): string => {
                                             </button>
                                         </div>
                                     </div>
+
+                                    <p v-else class="mt-2 text-sm text-stone-600">
+                                        No open violations.
+                                    </p>
                                 </div>
                             </div>
-                        </div>
+                        </details>
+                    </div>
 
-                        <div class="p-4">
-                            <div v-if="student.schedule_board">
-                                <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                    <div>
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <span
-                                                class="inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                                :class="scheduleSourceClass(student.schedule_board.source_type)"
-                                            >
-                                                {{ student.schedule_board.source_label }}
-                                            </span>
-                                            <span class="inline-flex rounded-full bg-stone-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700">
-                                                {{ student.schedule_board.status_label }}
-                                            </span>
-                                        </div>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        <span
+                            v-if="student.schedule_board"
+                            class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em]"
+                            :class="scheduleSourceClass(student.schedule_board.source_type)"
+                        >
+                            {{ student.schedule_board.source_label }}
+                        </span>
+                        <span v-if="student.open_violations.length > 0" class="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-red-700">
+                            {{ student.open_violations.length }} open
+                        </span>
+                    </div>
 
-                                        <h3 class="mt-2 text-2xl font-semibold text-stone-950">
-                                            {{ student.schedule_board.name }}
-                                        </h3>
+                    <div class="mt-2 min-w-0">
+                        <p class="truncate text-sm font-medium text-stone-900">
+                            {{ student.schedule_board?.name ?? 'No schedule' }}
+                        </p>
+                        <p v-if="student.schedule_board" class="truncate text-xs text-stone-500">
+                            {{ student.schedule_board.completed_blocks }}/{{ student.schedule_board.total_blocks }} blocks · {{ student.schedule_board.status_label }}
+                        </p>
+                    </div>
 
-                                        <div class="mt-2 flex flex-wrap gap-3 text-sm text-stone-600">
-                                            <span>
-                                                {{ student.schedule_board.completed_blocks }} / {{ student.schedule_board.total_blocks }} blocks
-                                            </span>
-                                            <span v-if="student.schedule_board.started_at_label">
-                                                Started {{ student.schedule_board.started_at_label }}
-                                            </span>
-                                            <span v-if="student.schedule_board.completed_at_label">
-                                                Finished {{ student.schedule_board.completed_at_label }}
-                                            </span>
-                                        </div>
-                                    </div>
+                    <div class="mt-2 rounded-[1rem] bg-stone-100 px-3 py-2">
+                        <p class="truncate text-sm font-medium text-stone-900">
+                            {{ student.active_task_session?.task_title ?? 'No active task' }}
+                        </p>
+                        <p class="truncate text-xs text-stone-500">
+                            <template v-if="student.active_task_session">
+                                {{ student.active_task_session.elapsedLabel }}
+                                <span v-if="student.active_task_session.remainingLabel">
+                                    · {{ student.active_task_session.remainingLabel }} left
+                                </span>
+                            </template>
+                            <template v-else>
+                                Idle
+                            </template>
+                        </p>
+                    </div>
 
-                                    <div class="rounded-[1.1rem] bg-stone-100 px-4 py-3 text-sm text-stone-600">
-                                        <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
-                                            Board view
-                                        </p>
-                                        <p class="mt-1">
-                                            Full schedule stays visible here even when the student is idle.
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div class="mt-4 grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(8.75rem,1fr))]">
-                                    <div
-                                        v-for="block in student.schedule_board.blocks"
-                                        :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
-                                        class="rounded-[1rem] border px-3 py-3"
-                                        :class="scheduleBlockStatusClass(block.status)"
-                                    >
-                                        <div class="flex items-start justify-between gap-2">
-                                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-                                                Block {{ block.position }}
-                                            </p>
-                                            <span
-                                                class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
-                                                :class="blockBadgeClass(block.status)"
-                                            >
-                                                {{ block.status_label }}
-                                            </span>
-                                        </div>
-
-                                        <p class="mt-2 line-clamp-2 text-sm font-semibold text-stone-950">
-                                            {{ block.task_title }}
-                                        </p>
-
-                                        <div class="mt-3">
-                                            <p class="text-lg font-semibold text-stone-950">
-                                                {{ block.displayDurationLabel }}
-                                            </p>
-                                            <p class="text-[11px] uppercase tracking-[0.16em] text-stone-500">
-                                                {{ block.displayDurationCaption }}
-                                            </p>
-                                        </div>
-
-                                        <p v-if="block.completed_at_label" class="mt-2 text-[11px] text-stone-500">
-                                            Finished {{ block.completed_at_label }}
-                                        </p>
-                                        <p v-else-if="block.started_at_label" class="mt-2 text-[11px] text-stone-500">
-                                            Started {{ block.started_at_label }}
-                                        </p>
-                                        <p v-else class="mt-2 text-[11px] text-stone-500">
-                                            Ready to start
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
+                    <div v-if="student.schedule_board" class="mt-3 min-h-0 flex-1 overflow-hidden rounded-[1rem] bg-stone-50 p-2">
+                        <div class="grid h-full grid-cols-2 gap-1 overflow-y-auto pr-1 content-start">
                             <div
-                                v-else
-                                class="flex min-h-40 items-center justify-center rounded-[1.5rem] border border-dashed border-stone-300 bg-stone-50 px-6 py-8 text-center"
+                                v-for="block in student.schedule_board.blocks"
+                                :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
+                                class="rounded-[0.85rem] border px-2 py-1.5"
+                                :class="blockRowClass(block.status)"
+                                :title="blockTooltip(block)"
                             >
-                                <div>
-                                    <p class="text-lg font-semibold text-stone-950">
-                                        No schedule available
-                                    </p>
-                                    <p class="mt-2 text-sm text-stone-600">
-                                        This student does not have a saved schedule or a recent schedule run yet.
-                                    </p>
+                                <p class="truncate text-xs font-medium text-stone-900">
+                                    {{ block.position }}. {{ block.task_title }}
+                                </p>
+                                <div class="mt-1 flex items-center justify-between gap-2 text-[10px] text-stone-500">
+                                    <span class="truncate">
+                                        {{ block.status_label }}
+                                    </span>
+                                    <span class="shrink-0 font-semibold text-stone-700">
+                                        {{ block.displayDurationLabel }}
+                                    </span>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <div
+                        v-else
+                        class="mt-3 flex min-h-0 flex-1 items-center justify-center rounded-[1rem] border border-dashed border-stone-300 bg-stone-50 px-4 text-center text-sm text-stone-500"
+                    >
+                        No schedule available.
                     </div>
                 </article>
             </div>
