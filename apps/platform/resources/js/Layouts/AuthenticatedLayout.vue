@@ -153,8 +153,22 @@ const closeMobileNav = () => {
         </aside>
 
         <div class="min-w-0" :class="props.hideSidebar || props.sidebarDrawer ? '' : 'lg:pl-[15.5rem]'">
+            <button
+                v-if="!props.hideSidebar && props.sidebarDrawer"
+                type="button"
+                class="fixed left-3 top-3 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-300 bg-white/95 text-stone-700 shadow-sm backdrop-blur transition hover:border-stone-900 hover:text-stone-900"
+                @click="mobileNavOpen = true"
+            >
+                <span class="sr-only">Open menu</span>
+                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M4 6H16" stroke-linecap="round" />
+                    <path d="M4 10H16" stroke-linecap="round" />
+                    <path d="M4 14H16" stroke-linecap="round" />
+                </svg>
+            </button>
+
             <div
-                v-if="!props.hideSidebar"
+                v-if="!props.hideSidebar && !props.sidebarDrawer"
                 class="border-b border-stone-200 bg-white/90 px-3 py-3 backdrop-blur"
             >
                 <div class="flex items-center justify-between gap-2">
@@ -171,19 +185,6 @@ const closeMobileNav = () => {
                         </svg>
                     </button>
 
-                    <button
-                        v-if="props.sidebarDrawer"
-                        type="button"
-                        class="hidden h-10 w-10 items-center justify-center rounded-full border border-stone-300 text-stone-700 transition hover:border-stone-900 hover:text-stone-900 lg:inline-flex"
-                        @click="mobileNavOpen = true"
-                    >
-                        <span class="sr-only">Open menu</span>
-                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M4 6H16" stroke-linecap="round" />
-                            <path d="M4 10H16" stroke-linecap="round" />
-                            <path d="M4 14H16" stroke-linecap="round" />
-                        </svg>
-                    </button>
                 </div>
             </div>
 
