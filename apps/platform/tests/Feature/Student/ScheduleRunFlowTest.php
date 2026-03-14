@@ -554,7 +554,7 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.store', $scheduleTemplate))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('error', fn (?string $message) => is_string($message) && str_contains($message, 'unread mentor message'));
+            ->assertSessionHas('error', fn (?string $message) => is_string($message) && str_contains($message, 'unread mentor chat'));
 
         $this->assertDatabaseCount('schedule_runs', 0);
 

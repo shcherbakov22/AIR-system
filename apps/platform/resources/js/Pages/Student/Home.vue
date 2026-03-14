@@ -147,6 +147,8 @@ const pauseOwnTimerFormOpen = ref(false);
 const hasTaskTemplates = computed(() => props.taskTemplates.length > 0);
 const hasBlockingViolations = computed(() => props.openViolations.length > 0);
 const hasBlockingCommunication = computed(() => props.communicationGate.has_unread);
+const hasUnreadMentorChat = computed(() => props.communicationGate.unread_mentor_chat !== null);
+const hasUnreadAnnouncement = computed(() => props.communicationGate.unread_announcement !== null);
 
 const stopTaskSessionForm = useForm({});
 const pauseOwnTimerForm = useForm({
@@ -373,7 +375,14 @@ const showBlockingCommunicationDialog = () => {
     }
 
     lines.push('');
-    lines.push('Open Chat and Announcements from the sidebar, then come back.');
+
+    if (hasUnreadMentorChat.value && hasUnreadAnnouncement.value) {
+        lines.push('Open Chat and Announcements from the sidebar, then come back.');
+    } else if (hasUnreadMentorChat.value) {
+        lines.push('Open Chat from the sidebar, then come back.');
+    } else {
+        lines.push('Open Announcements from the sidebar, then come back.');
+    }
 
     window.alert(lines.join('\n'));
 
@@ -743,7 +752,13 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                 >
                     <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                         <p class="font-medium">
-                            New mentor communication is waiting. Open Chat and Announcements before continuing the schedule.
+                            {{
+                                hasUnreadMentorChat && hasUnreadAnnouncement
+                                    ? 'New mentor chat and announcements are waiting. Open both before continuing the schedule.'
+                                    : hasUnreadMentorChat
+                                      ? 'A new mentor chat message is waiting. Open Chat before continuing the schedule.'
+                                      : 'A new announcement is waiting. Open Announcements before continuing the schedule.'
+                            }}
                         </p>
                         <div class="min-w-0 space-y-1 text-sm">
                             <p v-if="communicationGate.unread_mentor_chat" class="truncate">

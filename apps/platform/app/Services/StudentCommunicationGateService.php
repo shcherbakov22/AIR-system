@@ -71,21 +71,30 @@ class StudentCommunicationGateService
             return null;
         }
 
-        $parts = [];
+        if ($payload['unread_mentor_chat'] && $payload['unread_announcement']) {
+            $chat = $payload['unread_mentor_chat'];
+            $announcement = $payload['unread_announcement'];
+
+            return 'Read the unread mentor chat'
+                . ($chat['created_at_label'] ? " ({$chat['created_at_label']})" : '')
+                . ' and the unread announcement'
+                . ($announcement['created_at_label'] ? " ({$announcement['created_at_label']})" : '')
+                . ' before continuing the schedule.';
+        }
 
         if ($payload['unread_mentor_chat']) {
             $chat = $payload['unread_mentor_chat'];
-            $parts[] = 'an unread mentor message'
-                . ($chat['created_at_label'] ? " ({$chat['created_at_label']})" : '');
+
+            return 'Read the unread mentor chat'
+                . ($chat['created_at_label'] ? " ({$chat['created_at_label']})" : '')
+                . ' before continuing the schedule.';
         }
 
-        if ($payload['unread_announcement']) {
-            $announcement = $payload['unread_announcement'];
-            $parts[] = 'an unread announcement'
-                . ($announcement['created_at_label'] ? " ({$announcement['created_at_label']})" : '');
-        }
+        $announcement = $payload['unread_announcement'];
 
-        return 'Read '.implode(' and ', $parts).' before continuing the schedule.';
+        return 'Read the unread announcement'
+            . ($announcement && $announcement['created_at_label'] ? " ({$announcement['created_at_label']})" : '')
+            . ' before continuing the schedule.';
     }
 
     public function markMentorChatSeen(Student $student): void
