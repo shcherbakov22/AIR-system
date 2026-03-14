@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SpeechAnnouncement;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
-
 class SpeechAnnouncementController extends Controller
 {
     public function history(): JsonResponse
@@ -32,23 +30,10 @@ class SpeechAnnouncementController extends Controller
 
     public function next(): JsonResponse
     {
-        $announcement = DB::transaction(function () {
-            $announcement = SpeechAnnouncement::query()
-                ->whereNull('spoken_at')
-                ->oldest('id')
-                ->lockForUpdate()
-                ->first();
-
-            if (! $announcement) {
-                return null;
-            }
-
-            $announcement->update([
-                'spoken_at' => now(),
-            ]);
-
-            return $announcement->fresh();
-        });
+        $announcement = SpeechAnnouncement::query()
+            ->whereNull('spoken_at')
+            ->oldest('id')
+            ->first();
 
         if (! $announcement) {
             return response()->json([
@@ -61,6 +46,8 @@ class SpeechAnnouncementController extends Controller
                 'id' => $announcement->id,
                 'kind' => $announcement->kind,
                 'message' => $announcement->message,
+                'processing_started_at' => $announcement->processing_started_at?->toIso8601String(),
+                'processing_host' => $announcement->processing_host,
             ],
         ]);
     }

@@ -7,13 +7,14 @@ use App\Models\SpeechAnnouncement;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Process;
 use Tests\TestCase;
 
 class SpeechAnnouncementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_fetch_next_unspoken_announcement(): void
+    public function test_admin_can_preview_next_unspoken_announcement_without_marking_it_spoken(): void
     {
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
@@ -54,7 +55,7 @@ class SpeechAnnouncementTest extends TestCase
                 ],
             ]);
 
-        $this->assertDatabaseMissing('speech_announcements', [
+        $this->assertDatabaseHas('speech_announcements', [
             'id' => $first->id,
             'spoken_at' => null,
         ]);
@@ -121,5 +122,24 @@ class SpeechAnnouncementTest extends TestCase
             ->assertJsonPath('announcements.0.message', 'Dima finished Coding in 24 minutes.')
             ->assertJsonPath('announcements.0.student_name', 'Dima')
             ->assertJsonPath('announcements.1.id', $older->id);
+    }
+
+    public function test_speech_worker_command_marks_announcement_spoken_after_successful_playback(): void
+    {
+        Process::fake();
+
+        $announcement = SpeechAnnouncement::create([
+            'kind' => 'violation',
+            'message' => 'Ego got a Observe the time violation.',
+        ]);
+
+        $this->artisan('speech:play-announcements --once')
+            ->assertExitCode(0);
+
+        $announcement->refresh();
+
+        $this->assertNotNull($announcement->spoken_at);
+        $this->assertNull($announcement->processing_started_at);
+        $this->assertNull($announcement->processing_host);
     }
 }

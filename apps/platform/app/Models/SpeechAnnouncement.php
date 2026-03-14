@@ -17,6 +17,8 @@ class SpeechAnnouncement extends Model
         'kind',
         'message',
         'meta',
+        'processing_started_at',
+        'processing_host',
         'spoken_at',
     ];
 
@@ -24,6 +26,7 @@ class SpeechAnnouncement extends Model
     {
         return [
             'meta' => 'array',
+            'processing_started_at' => 'datetime',
             'spoken_at' => 'datetime',
         ];
     }
