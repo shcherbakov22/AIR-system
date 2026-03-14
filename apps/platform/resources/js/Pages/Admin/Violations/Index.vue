@@ -6,7 +6,17 @@ import { computed } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{
-    violations: Array<{
+    students: Array<{
+        id: number;
+        display_name: string;
+        username: string;
+    }>;
+    ruleDefinitions: Array<{
+        id: number;
+        title: string;
+    }>;
+    openViolationCounts: Record<string, number>;
+    openViolations: Array<{
         id: number;
         status: string;
         rule_title: string;
@@ -17,10 +27,6 @@ const props = defineProps<{
             display_name: string;
             username: string;
         };
-        rule_definition?: {
-            id: number;
-            scope: string;
-        } | null;
         latest_resolution?: {
             id: number;
             action: string;
@@ -32,6 +38,20 @@ const props = defineProps<{
 
 const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
+
+const violationCountFor = (studentId: number, ruleDefinitionId: number) =>
+    props.openViolationCounts[`${studentId}:${ruleDefinitionId}`] ?? 0;
+
+const addViolation = (studentId: number, ruleDefinitionId: number) => {
+    router.post(route('admin.violations.store'), {
+        student_id: studentId,
+        rule_definition_id: ruleDefinitionId,
+        occurred_at: new Date().toISOString(),
+        notes: null,
+    }, {
+        preserveScroll: true,
+    });
+};
 
 const deleteViolation = (violationId: number, ruleTitle: string) => {
     if (!window.confirm(`Delete violation "${ruleTitle}"? Linked review records will also be deleted.`)) {
@@ -48,129 +68,150 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
     <Head title="Violations" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2">
-                <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Mentor dashboard
-                </p>
-                <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    Violations
-                </h2>
-            </div>
-        </template>
-
-        <div class="mx-auto max-w-7xl px-6 py-10">
+        <div class="mx-auto max-w-[100rem] px-4 py-4 sm:px-6 sm:py-6">
             <div
                 v-if="successMessage"
-                class="mb-5 rounded-[1.5rem] bg-emerald-50 px-6 py-4 text-sm text-emerald-800 ring-1 ring-emerald-200"
+                class="mb-4 rounded-[1.25rem] bg-emerald-50 px-5 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200"
             >
                 {{ successMessage }}
             </div>
 
-            <div class="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">
-                <div class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-between">
-                    <p class="text-sm text-stone-600">
-                        Record student violations and resolve them through “resolved” or “waived” actions.
+            <div class="overflow-hidden rounded-[1.75rem] bg-white shadow-sm ring-1 ring-stone-200">
+                <div class="border-b border-stone-200 px-4 py-4 sm:px-5">
+                    <h1 class="text-lg font-semibold text-stone-950">
+                        Violations matrix
+                    </h1>
+                    <p class="mt-1 text-sm text-stone-600">
+                        Click any student and rule intersection to add that violation immediately.
                     </p>
-
-                    <Link
-                        :href="route('admin.violations.create')"
-                        class="inline-flex rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-stone-800"
-                    >
-                        Add violation
-                    </Link>
                 </div>
 
-                <div v-if="props.violations.length > 0" class="divide-y divide-stone-200">
-                    <article
-                        v-for="violation in props.violations"
-                        :key="violation.id"
-                        class="grid gap-5 px-6 py-6 lg:grid-cols-[0.9fr_1fr_1fr]"
-                    >
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Student
-                            </p>
-                            <h3 class="mt-2 text-2xl font-semibold text-stone-950">
-                                {{ violation.student.display_name }}
-                            </h3>
-                            <p class="mt-2 text-sm text-stone-600">
-                                {{ violation.student.username }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Violation
-                            </p>
-                            <h3 class="mt-2 text-xl font-semibold text-stone-950">
-                                {{ violation.rule_title }}
-                            </h3>
-                            <p class="mt-2 text-sm text-stone-600">
-                                {{ violation.occurred_at_label || 'Violation time was not recorded.' }}
-                            </p>
-                            <p class="mt-2 text-sm text-stone-600">
-                                {{
-                                    violation.rule_definition?.scope === 'student'
-                                        ? 'Student-specific rule'
-                                        : violation.rule_definition?.scope === 'global'
-                                          ? 'Global rule'
-                                          : 'Rule is no longer linked'
-                                }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <div class="flex flex-wrap items-center gap-3">
-                                <span
-                                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                    :class="
-                                        violation.status === 'open'
-                                            ? 'bg-amber-100 text-amber-800'
-                                            : violation.status === 'resolved'
-                                              ? 'bg-emerald-100 text-emerald-800'
-                                              : 'bg-stone-200 text-stone-700'
-                                    "
+                <div class="overflow-x-auto">
+                    <table class="min-w-full border-separate border-spacing-0 text-sm">
+                        <thead>
+                            <tr class="bg-stone-950 text-white">
+                                <th class="sticky left-0 z-20 border-b border-stone-700 bg-stone-950 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.25em]">
+                                    Student
+                                </th>
+                                <th
+                                    v-for="ruleDefinition in props.ruleDefinitions"
+                                    :key="ruleDefinition.id"
+                                    class="min-w-28 border-b border-l border-stone-700 px-3 py-3 text-center align-bottom text-xs font-semibold uppercase tracking-[0.18em]"
                                 >
-                                    {{ violation.status === 'open' ? 'Open' : violation.status === 'resolved' ? 'Resolved' : 'Waived' }}
-                                </span>
+                                    <span class="line-clamp-3 block whitespace-normal">
+                                        {{ ruleDefinition.title }}
+                                    </span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="student in props.students"
+                                :key="student.id"
+                                class="odd:bg-stone-50/70"
+                            >
+                                <th class="sticky left-0 z-10 border-b border-stone-200 bg-inherit px-4 py-3 text-left">
+                                    <div class="text-sm font-semibold text-stone-950">
+                                        {{ student.username }}
+                                    </div>
+                                    <div class="text-xs text-stone-500">
+                                        {{ student.display_name }}
+                                    </div>
+                                </th>
+                                <td
+                                    v-for="ruleDefinition in props.ruleDefinitions"
+                                    :key="`${student.id}-${ruleDefinition.id}`"
+                                    class="border-b border-l border-stone-200 p-0"
+                                >
+                                    <button
+                                        type="button"
+                                        class="group flex h-14 w-full items-center justify-center gap-2 px-2 transition hover:bg-amber-50"
+                                        @click="addViolation(student.id, ruleDefinition.id)"
+                                    >
+                                        <span class="text-lg leading-none text-stone-300 transition group-hover:text-amber-700">
+                                            +
+                                        </span>
+                                        <span
+                                            v-if="violationCountFor(student.id, ruleDefinition.id) > 0"
+                                            class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
+                                        >
+                                            {{ violationCountFor(student.id, ruleDefinition.id) }}
+                                        </span>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mt-5 overflow-hidden rounded-[1.75rem] bg-white shadow-sm ring-1 ring-stone-200">
+                <div class="border-b border-stone-200 px-4 py-4 sm:px-5">
+                    <h2 class="text-lg font-semibold text-stone-950">
+                        Open violations
+                    </h2>
+                    <p class="mt-1 text-sm text-stone-600">
+                        Review or delete the latest open cases here.
+                    </p>
+                </div>
+
+                <div v-if="props.openViolations.length > 0" class="divide-y divide-stone-200">
+                    <article
+                        v-for="violation in props.openViolations"
+                        :key="violation.id"
+                        class="flex flex-col gap-4 px-4 py-4 sm:px-5 lg:flex-row lg:items-start lg:justify-between"
+                    >
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <h3 class="text-sm font-semibold text-stone-950">
+                                    {{ violation.student.username }}
+                                </h3>
+                                <span class="text-sm text-stone-400">·</span>
+                                <p class="text-sm text-stone-700">
+                                    {{ violation.rule_title }}
+                                </p>
+                                <span class="text-sm text-stone-400">·</span>
+                                <p class="text-sm text-stone-500">
+                                    {{ violation.occurred_at_label || 'Time not recorded' }}
+                                </p>
                             </div>
-                            <p class="mt-4 text-sm leading-6 text-stone-600">
-                                {{ violation.notes || 'No violation notes were provided.' }}
+                            <p
+                                v-if="violation.notes"
+                                class="mt-2 text-sm leading-6 text-stone-600"
+                            >
+                                {{ violation.notes }}
                             </p>
                             <p
                                 v-if="violation.latest_resolution"
-                                class="mt-3 text-sm leading-6 text-stone-600"
+                                class="mt-2 text-sm text-stone-500"
                             >
                                 {{
                                     `${labelViolationResolutionAction(violation.latest_resolution.action)} ${violation.latest_resolution.recorded_at_label || ''}`.trim()
                                 }}
                             </p>
-                            <div class="mt-4 flex flex-wrap gap-3">
-                                <Link
-                                    :href="route('admin.violations.show', violation.id)"
-                                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                                >
-                                    Review
-                                </Link>
-                                <button
-                                    type="button"
-                                    class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
-                                    @click="deleteViolation(violation.id, violation.rule_title)"
-                                >
-                                    Delete
-                                </button>
-                            </div>
+                        </div>
+
+                        <div class="flex shrink-0 flex-wrap gap-3">
+                            <Link
+                                :href="route('admin.violations.show', violation.id)"
+                                class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                            >
+                                Review
+                            </Link>
+                            <button
+                                type="button"
+                                class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
+                                @click="deleteViolation(violation.id, violation.rule_title)"
+                            >
+                                Delete
+                            </button>
                         </div>
                     </article>
                 </div>
 
-                <div v-else class="px-6 py-12 text-center">
+                <div v-else class="px-4 py-10 text-center sm:px-5">
                     <p class="text-sm uppercase tracking-[0.3em] text-stone-500">
-                        No violations yet
-                    </p>
-                    <p class="mt-4 text-sm leading-7 text-stone-600">
-                        Create the first violation after rules are configured so mentors can track open cases and resolutions.
+                        No open violations
                     </p>
                 </div>
             </div>

@@ -44,7 +44,10 @@ class ViolationManagementTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Violations/Index')
-                ->has('violations', 0)
+                ->has('students', 0)
+                ->has('ruleDefinitions', 0)
+                ->where('openViolationCounts', [])
+                ->has('openViolations', 0)
             );
     }
 
@@ -202,10 +205,13 @@ class ViolationManagementTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Violations/Index')
-                ->has('violations', 1)
-                ->where('violations.0.student.display_name', 'Student Violations')
-                ->where('violations.0.rule_title', 'Stay on assigned work')
-                ->where('violations.0.status', 'open')
+                ->has('students', 1)
+                ->has('ruleDefinitions', 1)
+                ->where('openViolationCounts.'.$student->id.':'.$ruleDefinition->id, 1)
+                ->has('openViolations', 1)
+                ->where('openViolations.0.student.display_name', 'Student Violations')
+                ->where('openViolations.0.rule_title', 'Stay on assigned work')
+                ->where('openViolations.0.status', 'open')
             );
     }
 

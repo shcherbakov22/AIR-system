@@ -104,11 +104,39 @@ class ViolationController extends Controller
 
     public function index(): Response
     {
+        $students = Student::query()
+            ->with('user')
+            ->orderBy('display_name')
+            ->get();
+
+        $ruleDefinitions = RuleDefinition::query()
+            ->where('is_active', true)
+            ->orderBy('title')
+            ->get();
+
+        $openViolations = Violation::query()
+            ->with(['student.user', 'ruleDefinition', 'resolutions.createdBy'])
+            ->where('status', 'open')
+            ->latest('occurred_at')
+            ->get();
+
+        $openViolationCounts = $openViolations
+            ->groupBy(fn (Violation $violation) => $violation->student_id.':'.$violation->rule_definition_id)
+            ->map(fn ($group) => $group->count());
+
         return Inertia::render('Admin/Violations/Index', [
-            'violations' => Violation::query()
-                ->with(['student.user', 'ruleDefinition', 'resolutions.createdBy'])
-                ->latest('occurred_at')
-                ->get()
+            'students' => $students->map(fn (Student $student) => [
+                'id' => $student->id,
+                'display_name' => $student->display_name,
+                'username' => $student->user->username,
+            ])->all(),
+            'ruleDefinitions' => $ruleDefinitions->map(fn (RuleDefinition $ruleDefinition) => [
+                'id' => $ruleDefinition->id,
+                'title' => $ruleDefinition->title,
+            ])->all(),
+            'openViolationCounts' => $openViolationCounts,
+            'openViolations' => $openViolations
+                ->take(24)
                 ->map(fn (Violation $violation) => $this->toPayload($violation)),
         ]);
     }
