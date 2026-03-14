@@ -102,6 +102,8 @@ const props = defineProps<{
 type DashboardCapture = NonNullable<DashboardStudent['latest_screen_capture']>;
 
 const selectedCapture = ref<(DashboardCapture & { studentName: string }) | null>(null);
+const speechEnabled = ref(false);
+const isSpeaking = ref(false);
 
 const selectedRules = reactive<Record<number, string>>({});
 
@@ -148,6 +150,7 @@ watch(
 
 let clockInterval: number | null = null;
 let reloadInterval: number | null = null;
+let speechInterval: number | null = null;
 let isReloading = false;
 const scheduleBoardRefs = new Map<number, HTMLElement>();
 
@@ -169,6 +172,7 @@ const reloadMonitorBoard = () => {
 const handleVisibilityChange = () => {
     if (!document.hidden) {
         reloadMonitorBoard();
+        pollSpeechAnnouncements();
     }
 };
 
@@ -200,6 +204,98 @@ const scrollScheduleBoardsToActiveBlock = () => {
     });
 };
 
+const getSpeechVoice = (): SpeechSynthesisVoice | null => {
+    const voices = window.speechSynthesis.getVoices();
+
+    return voices.find((voice) => voice.lang?.toLowerCase().startsWith('en')) ?? voices[0] ?? null;
+};
+
+const speakText = (text: string): Promise<void> => new Promise((resolve) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = getSpeechVoice();
+
+    utterance.lang = 'en-US';
+
+    if (voice) {
+        utterance.voice = voice;
+    }
+
+    utterance.onend = () => {
+        isSpeaking.value = false;
+        resolve();
+    };
+
+    utterance.onerror = () => {
+        isSpeaking.value = false;
+        resolve();
+    };
+
+    isSpeaking.value = true;
+    window.speechSynthesis.speak(utterance);
+});
+
+const pollSpeechAnnouncements = async () => {
+    if (!speechEnabled.value || isSpeaking.value || document.hidden) {
+        return;
+    }
+
+    try {
+        const response = await window.fetch(route('admin.speech-announcements.next'), {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const payload = await response.json() as {
+            announcement: null | {
+                id: number;
+                kind: string;
+                message: string;
+            };
+        };
+
+        if (!payload.announcement?.message) {
+            return;
+        }
+
+        await speakText(payload.announcement.message);
+    } catch {
+        isSpeaking.value = false;
+    }
+};
+
+const applySpeechState = (enabled: boolean) => {
+    speechEnabled.value = enabled;
+    window.localStorage.setItem('mentor-monitor-speech-enabled', enabled ? '1' : '0');
+
+    if (!enabled) {
+        if (speechInterval !== null) {
+            window.clearInterval(speechInterval);
+            speechInterval = null;
+        }
+
+        window.speechSynthesis.cancel();
+        isSpeaking.value = false;
+        return;
+    }
+
+    pollSpeechAnnouncements();
+
+    if (speechInterval === null) {
+        speechInterval = window.setInterval(pollSpeechAnnouncements, 4000);
+    }
+};
+
+const toggleSpeech = () => {
+    applySpeechState(!speechEnabled.value);
+};
+
 onMounted(() => {
     syncLiveNow();
     clockInterval = window.setInterval(syncLiveNow, 1000);
@@ -207,6 +303,9 @@ onMounted(() => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', reloadMonitorBoard);
     nextTick(scrollScheduleBoardsToActiveBlock);
+
+    const savedSpeechState = window.localStorage.getItem('mentor-monitor-speech-enabled');
+    applySpeechState(savedSpeechState === '1');
 });
 
 onBeforeUnmount(() => {
@@ -218,8 +317,13 @@ onBeforeUnmount(() => {
         window.clearInterval(reloadInterval);
     }
 
+    if (speechInterval !== null) {
+        window.clearInterval(speechInterval);
+    }
+
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('focus', reloadMonitorBoard);
+    window.speechSynthesis.cancel();
 });
 
 watch(
@@ -392,6 +496,20 @@ const blockTooltip = (block: DashboardBlock): string => {
     <Head title="Mentor monitor" />
 
     <AuthenticatedLayout :sidebar-drawer="true" :full-width="true">
+        <button
+            type="button"
+            class="fixed right-2 top-1.5 z-30 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold text-stone-700 transition hover:text-stone-950"
+            :class="speechEnabled ? 'bg-amber-100 text-amber-900' : 'bg-white/80 text-stone-700'"
+            @click="toggleSpeech"
+        >
+            <span class="sr-only">Toggle voice announcements</span>
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M4 8H7L11 5V15L7 12H4V8Z" stroke-linejoin="round" />
+                <path v-if="speechEnabled" d="M14 7C15.3333 8.16667 16 9.16667 16 10C16 10.8333 15.3333 11.8333 14 13" stroke-linecap="round" />
+            </svg>
+            <span>{{ speechEnabled ? (isSpeaking ? 'Speaking' : 'Voice on') : 'Voice off' }}</span>
+        </button>
+
         <div class="h-[calc(100vh-1.75rem)] overflow-hidden px-2 pt-8 pb-2 sm:px-3 sm:pt-8 sm:pb-3 lg:px-4 lg:pt-8 lg:pb-4">
             <div
                 v-if="monitorStudents.length === 0"

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
+use App\Http\Controllers\Admin\SpeechAnnouncementController as AdminSpeechAnnouncementController;
 use App\Http\Controllers\Admin\StudentMonitorCaptureController as AdminStudentMonitorCaptureController;
 use App\Http\Controllers\Admin\StudentProgressController as AdminStudentProgressController;
 use App\Http\Controllers\Admin\TaskAssignmentController as AdminTaskAssignmentController;
@@ -91,6 +92,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('/students/{student}/password', [AdminStudentController::class, 'updatePassword'])->name('students.password.update');
         Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
         Route::get('/student-monitor-captures/{studentMonitorCapture}', [AdminStudentMonitorCaptureController::class, 'show'])->name('student-monitor-captures.show');
+        Route::get('/speech-announcements/next', [AdminSpeechAnnouncementController::class, 'next'])->name('speech-announcements.next');
     });
 
     Route::prefix('student')->name('student.')->middleware('student')->group(function () {

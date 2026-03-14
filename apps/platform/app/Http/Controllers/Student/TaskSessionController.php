@@ -11,6 +11,7 @@ use App\Models\Student;
 use App\Models\TaskAssignment;
 use App\Models\TaskSession;
 use App\Services\AutomaticObserveTheTimeViolationService;
+use App\Services\SpeechAnnouncementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -84,6 +85,7 @@ class TaskSessionController extends Controller
         StopTaskSessionRequest $request,
         TaskSession $taskSession,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
+        SpeechAnnouncementService $speechAnnouncementService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -91,7 +93,7 @@ class TaskSessionController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $taskSession, $automaticViolationService) {
+        $result = DB::transaction(function () use ($request, $studentId, $taskSession, $automaticViolationService, $speechAnnouncementService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
             $automaticViolationService->evaluate($student);
 
@@ -122,6 +124,8 @@ class TaskSessionController extends Controller
                 'completion_notes' => null,
                 'stopped_by_user_id' => $request->user()->id,
             ]);
+
+            $speechAnnouncementService->queueTaskSessionFinished($lockedTaskSession, $durationSeconds);
 
             if ($lockedTaskSession->taskAssignment && $lockedTaskSession->taskAssignment->status === 'assigned') {
                 $lockedTaskSession->taskAssignment->update([

@@ -9,6 +9,7 @@ use App\Models\RuleDefinition;
 use App\Models\Student;
 use App\Models\Violation;
 use App\Models\ViolationResolution;
+use App\Services\SpeechAnnouncementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -120,7 +121,7 @@ class ViolationController extends Controller
         ]);
     }
 
-    public function store(StoreViolationRequest $request): RedirectResponse
+    public function store(StoreViolationRequest $request, SpeechAnnouncementService $speechAnnouncementService): RedirectResponse
     {
         $ruleDefinition = RuleDefinition::query()->findOrFail((int) $request->input('rule_definition_id'));
 
@@ -136,6 +137,8 @@ class ViolationController extends Controller
                 'reported_by_user_id' => $request->user()->id,
             ]);
         });
+
+        $speechAnnouncementService->queueViolation($violation);
 
         $redirectRoute = $request->boolean('return_to_dashboard')
             ? route('admin.dashboard')
