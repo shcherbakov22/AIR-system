@@ -603,12 +603,12 @@ const blockTooltip = (block: DashboardBlock): string => {
 
             <div
                 v-else
-                class="grid items-start gap-1.5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8"
+                class="grid auto-rows-fr gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(9.75rem,1fr))]"
             >
                 <article
                     v-for="student in monitorStudents"
                     :key="student.id"
-                    class="relative flex min-h-[22rem] max-h-[calc(100vh-3.5rem)] min-w-0 flex-col overflow-hidden rounded-[1rem] bg-white p-1.5 shadow-sm ring-1 ring-stone-200"
+                    class="relative flex h-[calc(100vh-3.5rem)] max-h-[calc(100vh-3.5rem)] min-h-[22rem] w-full min-w-0 flex-col overflow-hidden rounded-[1rem] bg-white p-1.5 shadow-sm ring-1 ring-stone-200"
                 >
                     <div class="flex items-start justify-between gap-1.5">
                         <div class="min-w-0">
@@ -739,26 +739,28 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </p>
                     </div>
 
-                    <div v-if="student.schedule_board" class="mt-1 min-h-0 flex-1 overflow-hidden rounded-[0.55rem] bg-stone-50/60 p-px">
+                    <div v-if="student.schedule_board" class="mt-1 min-h-0 flex flex-1 flex-col overflow-hidden rounded-[0.55rem] bg-stone-50/60 p-px">
                         <div
                             :ref="(element) => setScheduleBoardRef(student.id, element)"
-                            class="grid h-full grid-cols-1 content-start gap-px overflow-y-auto pr-px"
+                            class="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-px"
                         >
-                            <div
-                                v-for="block in student.schedule_board.blocks"
-                                :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
-                                class="rounded-[0.35rem] border px-1 py-[3px]"
-                                :class="blockRowClass(block.status)"
-                                :title="blockTooltip(block)"
-                                :data-active-block="block.status === 'in_progress' || block.status === 'paused' ? 'true' : 'false'"
-                            >
-                                <div class="flex items-center justify-between gap-1.5 text-[9px] leading-none">
-                                    <p class="min-w-0 truncate font-medium text-stone-900">
-                                        {{ block.position }}. {{ block.task_title }}
-                                    </p>
-                                    <span class="shrink-0 text-[8px] font-semibold text-stone-700">
-                                        {{ block.displayDurationLabel }}
-                                    </span>
+                            <div class="grid min-h-full grid-cols-1 content-start gap-px">
+                                <div
+                                    v-for="block in student.schedule_board.blocks"
+                                    :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
+                                    class="rounded-[0.35rem] border px-1 py-[3px]"
+                                    :class="blockRowClass(block.status)"
+                                    :title="blockTooltip(block)"
+                                    :data-active-block="block.status === 'in_progress' || block.status === 'paused' ? 'true' : 'false'"
+                                >
+                                    <div class="flex items-center justify-between gap-1.5 text-[9px] leading-none">
+                                        <p class="min-w-0 truncate font-medium text-stone-900">
+                                            {{ block.position }}. {{ block.task_title }}
+                                        </p>
+                                        <span class="shrink-0 text-[8px] font-semibold text-stone-700">
+                                            {{ block.displayDurationLabel }}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
