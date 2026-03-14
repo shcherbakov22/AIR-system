@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\RuleDefinition;
 use App\Models\ScheduleEntry;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
@@ -342,20 +341,9 @@ class DashboardController extends Controller
             })
             ->all();
 
-        $ruleDefinitions = RuleDefinition::query()
-            ->where('is_active', true)
-            ->orderBy('title')
-            ->get()
-            ->map(fn (RuleDefinition $ruleDefinition) => [
-                'id' => $ruleDefinition->id,
-                'title' => $ruleDefinition->title,
-            ])
-            ->all();
-
         return Inertia::render('Admin/Dashboard', [
             'serverNow' => now()->toIso8601String(),
             'monitorStudents' => $monitorStudents,
-            'ruleDefinitions' => $ruleDefinitions,
             'serverSpeech' => [
                 'enabled' => $this->speechPlaybackService->isEnabled(),
                 'pending_count' => SpeechAnnouncement::query()->whereNull('spoken_at')->count(),

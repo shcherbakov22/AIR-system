@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 type DashboardBlock = {
     id: number;
@@ -96,10 +96,6 @@ const props = defineProps<{
         enabled: boolean;
         pending_count: number;
     };
-    ruleDefinitions: Array<{
-        id: number;
-        title: string;
-    }>;
     monitorStudents: DashboardStudent[];
 }>();
 
@@ -122,8 +118,6 @@ const speechLogs = ref<Array<{
     spoken_at_label?: string | null;
     student_name?: string | null;
 }>>([]);
-
-const selectedRules = reactive<Record<number, string>>({});
 
 const parseTimestamp = (value?: string | null): number | null => {
     if (!value) {
@@ -393,33 +387,6 @@ const monitorStudents = computed(() => {
         };
     });
 });
-
-const createViolation = (studentId: number) => {
-    const selectedRuleId = Number(selectedRules[studentId] ?? '');
-
-    if (!selectedRuleId) {
-        return;
-    }
-
-    const now = new Date();
-    now.setSeconds(0, 0);
-
-    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
-
-    router.post(route('admin.violations.store'), {
-        student_id: studentId,
-        rule_definition_id: selectedRuleId,
-        occurred_at: local.toISOString().slice(0, 16),
-        notes: '',
-        return_to_dashboard: true,
-    }, {
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => {
-            selectedRules[studentId] = '';
-        },
-    });
-};
 
 const deleteViolation = (violationId: number) => {
     if (!window.confirm('Delete this violation?')) {
@@ -725,33 +692,6 @@ const blockTooltip = (block: DashboardBlock): string => {
                         <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
                             Violations
                         </p>
-
-                        <div class="mt-1.5 flex gap-1.5">
-                            <select
-                                v-model="selectedRules[student.id]"
-                                class="min-w-0 flex-1 rounded-full border-stone-300 px-3 py-1.5 text-xs shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                            >
-                                <option value="">
-                                    Add rule...
-                                </option>
-                                <option
-                                    v-for="ruleDefinition in props.ruleDefinitions"
-                                    :key="ruleDefinition.id"
-                                    :value="String(ruleDefinition.id)"
-                                >
-                                    {{ ruleDefinition.title }}
-                                </option>
-                            </select>
-
-                            <button
-                                type="button"
-                                class="inline-flex rounded-full bg-amber-500 px-3 py-1.5 text-xs font-semibold text-stone-950 transition hover:bg-amber-400"
-                                :disabled="!selectedRules[student.id]"
-                                @click="createViolation(student.id)"
-                            >
-                                Add
-                            </button>
-                        </div>
 
                         <div v-if="student.open_violations.length > 0" class="mt-1.5 space-y-1">
                             <div

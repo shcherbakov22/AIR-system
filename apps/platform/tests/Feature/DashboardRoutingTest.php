@@ -41,7 +41,6 @@ class DashboardRoutingTest extends TestCase
                 ->has('serverNow')
                 ->where('serverSpeech.enabled', true)
                 ->has('monitorStudents', 0)
-                ->has('ruleDefinitions')
             );
     }
 
