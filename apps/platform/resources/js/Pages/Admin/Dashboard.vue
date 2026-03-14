@@ -293,26 +293,6 @@ const openCapturePlaceholder = (
     };
 };
 
-const studentStatusClass = (student: DashboardStudent): string => {
-    if (student.active_task_session) {
-        return 'bg-emerald-100 text-emerald-800';
-    }
-
-    if (student.schedule_board) {
-        return 'bg-sky-100 text-sky-800';
-    }
-
-    return 'bg-stone-200 text-stone-700';
-};
-
-const scheduleSourceClass = (sourceType: string): string => {
-    if (sourceType === 'run') {
-        return 'bg-amber-100 text-amber-800';
-    }
-
-    return 'bg-stone-200 text-stone-700';
-};
-
 const blockRowClass = (status: string): string => {
     if (status === 'completed') {
         return 'border-emerald-200 bg-emerald-50';
@@ -424,101 +404,12 @@ const blockTooltip = (block: DashboardBlock): string => {
                             </p>
                         </div>
 
-                        <details class="group relative shrink-0">
-                            <summary class="cursor-pointer list-none rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950">
-                                Details
-                            </summary>
-
-                            <div class="absolute right-0 top-full z-20 mt-2 w-[19rem] rounded-[1.25rem] bg-white p-3 shadow-xl ring-1 ring-stone-200">
-                                <div class="flex flex-wrap gap-2">
-                                    <Link
-                                        :href="route('admin.students.progress', student.id)"
-                                        class="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
-                                    >
-                                        Progress
-                                    </Link>
-                                    <a
-                                        v-if="student.latest_screen_capture"
-                                        :href="student.latest_screen_capture.image_url"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        class="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
-                                    >
-                                        Screen
-                                    </a>
-                                    <a
-                                        v-if="student.latest_camera_capture"
-                                        :href="student.latest_camera_capture.image_url"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        class="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
-                                    >
-                                        Camera
-                                    </a>
-                                </div>
-
-                                <div class="mt-3">
-                                    <p class="text-xs uppercase tracking-[0.18em] text-stone-500">
-                                        Violations
-                                    </p>
-                                    <div class="mt-2 flex gap-2">
-                                        <select
-                                            v-model="selectedRules[student.id]"
-                                            class="min-w-0 flex-1 rounded-full border-stone-300 px-4 py-2 text-sm shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                                        >
-                                            <option value="">
-                                                Add rule...
-                                            </option>
-                                            <option
-                                                v-for="ruleDefinition in props.ruleDefinitions"
-                                                :key="ruleDefinition.id"
-                                                :value="String(ruleDefinition.id)"
-                                            >
-                                                {{ ruleDefinition.title }}
-                                            </option>
-                                        </select>
-
-                                        <button
-                                            type="button"
-                                            class="inline-flex rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-400"
-                                            :disabled="!selectedRules[student.id]"
-                                            @click="createViolation(student.id)"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-
-                                    <div v-if="student.open_violations.length > 0" class="mt-2 space-y-2">
-                                        <div
-                                            v-for="violation in student.open_violations"
-                                            :key="violation.id"
-                                            class="flex items-center justify-between gap-3 rounded-[1rem] bg-stone-100 px-3 py-2"
-                                        >
-                                            <div class="min-w-0">
-                                                <p class="truncate text-sm font-medium text-stone-900">
-                                                    {{ violation.rule_title }}
-                                                </p>
-                                                <p class="text-xs text-stone-500">
-                                                    {{ violation.occurred_at_label }}
-                                                </p>
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                class="inline-flex rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                                                @click="deleteViolation(violation.id)"
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <p v-else class="mt-2 text-sm text-stone-600">
-                                        No open violations.
-                                    </p>
-                                </div>
-                            </div>
-                        </details>
+                        <Link
+                            :href="route('admin.students.progress', student.id)"
+                            class="shrink-0 rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                        >
+                            Progress
+                        </Link>
                     </div>
 
                     <div v-if="student.open_violations.length > 0" class="mt-1.5 flex flex-wrap gap-1.5">
@@ -595,6 +486,68 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 No capture
                             </p>
                         </button>
+                    </div>
+
+                    <div class="mt-1.5 rounded-[0.85rem] bg-stone-50 px-2 py-1.5">
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                            Violations
+                        </p>
+
+                        <div class="mt-1.5 flex gap-1.5">
+                            <select
+                                v-model="selectedRules[student.id]"
+                                class="min-w-0 flex-1 rounded-full border-stone-300 px-3 py-1.5 text-xs shadow-sm focus:border-amber-700 focus:ring-amber-700"
+                            >
+                                <option value="">
+                                    Add rule...
+                                </option>
+                                <option
+                                    v-for="ruleDefinition in props.ruleDefinitions"
+                                    :key="ruleDefinition.id"
+                                    :value="String(ruleDefinition.id)"
+                                >
+                                    {{ ruleDefinition.title }}
+                                </option>
+                            </select>
+
+                            <button
+                                type="button"
+                                class="inline-flex rounded-full bg-amber-500 px-3 py-1.5 text-xs font-semibold text-stone-950 transition hover:bg-amber-400"
+                                :disabled="!selectedRules[student.id]"
+                                @click="createViolation(student.id)"
+                            >
+                                Add
+                            </button>
+                        </div>
+
+                        <div v-if="student.open_violations.length > 0" class="mt-1.5 space-y-1">
+                            <div
+                                v-for="violation in student.open_violations"
+                                :key="violation.id"
+                                class="flex items-center justify-between gap-2 rounded-[0.75rem] bg-white px-2 py-1.5 ring-1 ring-stone-200"
+                            >
+                                <div class="min-w-0">
+                                    <p class="truncate text-[11px] font-medium text-stone-900">
+                                        {{ violation.rule_title }}
+                                    </p>
+                                    <p class="text-[10px] text-stone-500">
+                                        {{ violation.occurred_at_label }}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="inline-flex rounded-full border border-stone-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    @click="deleteViolation(violation.id)"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+
+                        <p v-else class="mt-1.5 text-[11px] text-stone-600">
+                            No open violations.
+                        </p>
                     </div>
 
                     <div class="mt-1.5 min-w-0">
