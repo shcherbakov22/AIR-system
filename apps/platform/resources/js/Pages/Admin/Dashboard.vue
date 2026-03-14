@@ -275,6 +275,24 @@ const closeCapture = () => {
     selectedCapture.value = null;
 };
 
+const openCapturePlaceholder = (
+    studentName: string,
+    captureKind: 'screen' | 'camera',
+) => {
+    selectedCapture.value = {
+        id: 0,
+        capture_kind: captureKind,
+        captured_at: null,
+        captured_at_label: null,
+        uploaded_at: null,
+        uploaded_at_label: null,
+        task_title: null,
+        source_label: null,
+        image_url: '',
+        studentName,
+    };
+};
+
 const studentStatusClass = (student: DashboardStudent): string => {
     if (student.active_task_session) {
         return 'bg-emerald-100 text-emerald-800';
@@ -530,9 +548,11 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 </p>
                             </div>
                         </button>
-                        <div
+                        <button
                             v-else
+                            type="button"
                             class="flex aspect-[4/3] flex-col items-center justify-center rounded-[0.75rem] border border-dashed border-stone-300 bg-stone-50 px-2 text-center"
+                            @click="openCapturePlaceholder(student.display_name, 'screen')"
                         >
                             <p class="text-[8px] font-semibold uppercase tracking-[0.14em] text-stone-500">
                                 Screen
@@ -540,7 +560,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <p class="mt-1 text-[9px] text-stone-400">
                                 No capture
                             </p>
-                        </div>
+                        </button>
 
                         <button
                             v-if="student.latest_camera_capture"
@@ -562,9 +582,11 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 </p>
                             </div>
                         </button>
-                        <div
+                        <button
                             v-else
+                            type="button"
                             class="flex aspect-[4/3] flex-col items-center justify-center rounded-[0.75rem] border border-dashed border-stone-300 bg-stone-50 px-2 text-center"
+                            @click="openCapturePlaceholder(student.display_name, 'camera')"
                         >
                             <p class="text-[8px] font-semibold uppercase tracking-[0.14em] text-stone-500">
                                 Camera
@@ -572,7 +594,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <p class="mt-1 text-[9px] text-stone-400">
                                 No capture
                             </p>
-                        </div>
+                        </button>
                     </div>
 
                     <div class="mt-1.5 min-w-0">
@@ -654,12 +676,27 @@ const blockTooltip = (block: DashboardBlock): string => {
                     </div>
 
                     <div class="grid gap-0 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                        <div class="bg-stone-950">
+                        <div class="flex min-h-[24rem] items-center justify-center bg-stone-950">
                             <img
+                                v-if="selectedCapture.image_url"
                                 :src="selectedCapture.image_url"
                                 :alt="selectedCapture.capture_kind === 'camera' ? 'Camera capture' : 'Screen capture'"
                                 class="max-h-[80vh] w-full object-contain"
                             >
+                            <div
+                                v-else
+                                class="flex h-full w-full flex-col items-center justify-center gap-2 px-6 text-center text-stone-300"
+                            >
+                                <p class="text-sm font-semibold uppercase tracking-[0.16em]">
+                                    {{ selectedCapture.capture_kind === 'camera' ? 'Camera' : 'Screen' }}
+                                </p>
+                                <p class="text-base font-medium text-white">
+                                    No image uploaded
+                                </p>
+                                <p class="text-sm text-stone-400">
+                                    This is the placeholder fullscreen state.
+                                </p>
+                            </div>
                         </div>
 
                         <div class="space-y-3 px-4 py-4 text-sm text-stone-700">
