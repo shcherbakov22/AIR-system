@@ -176,7 +176,7 @@ const closeMobileNav = () => {
             <button
                 v-if="!props.hideSidebar"
                 type="button"
-                class="fixed left-3 top-3 z-30 inline-flex items-center justify-center rounded-full bg-white/90 p-2 text-stone-700 shadow-sm ring-1 ring-stone-200 transition hover:text-stone-900"
+                class="fixed left-3 top-3 z-30 inline-flex items-center justify-center p-0 text-stone-700 transition hover:text-stone-900"
                 :class="props.sidebarDrawer ? '' : 'lg:hidden'"
                 @click="mobileNavOpen = true"
             >
