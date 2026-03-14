@@ -591,7 +591,7 @@ const blockTooltip = (block: DashboardBlock): string => {
             </button>
         </div>
 
-        <div class="h-[calc(100vh-1.75rem)] overflow-hidden px-2 pt-8 pb-2 sm:px-3 sm:pt-8 sm:pb-3 lg:px-4 lg:pt-8 lg:pb-4">
+        <div class="h-[calc(100vh-1.75rem)] overflow-x-auto overflow-y-hidden px-2 pt-8 pb-2 sm:px-3 sm:pt-8 sm:pb-3 lg:px-4 lg:pt-8 lg:pb-4">
             <div
                 v-if="monitorStudents.length === 0"
                 class="rounded-[2rem] bg-white px-6 py-8 shadow-sm ring-1 ring-stone-200"
@@ -603,7 +603,7 @@ const blockTooltip = (block: DashboardBlock): string => {
 
             <div
                 v-else
-                class="grid auto-rows-fr gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(8.75rem,1fr))]"
+                class="grid h-full auto-cols-[minmax(8.75rem,1fr)] grid-flow-col gap-1.5"
             >
                 <article
                     v-for="student in monitorStudents"
