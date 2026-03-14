@@ -154,9 +154,6 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
                     <h2 class="text-lg font-semibold text-stone-950">
                         Open violations
                     </h2>
-                    <p class="mt-1 text-sm text-stone-600">
-                        Review or delete the latest open cases here.
-                    </p>
                 </div>
 
                 <div v-if="props.openViolations.length > 0" class="divide-y divide-stone-200">
