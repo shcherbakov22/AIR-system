@@ -7,6 +7,7 @@ use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\Student;
 use App\Models\TaskSession;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -122,7 +123,7 @@ class StudentProgressController extends Controller
         ];
     }
 
-    public function show(Student $student): Response
+    public function show(Request $request, Student $student): Response
     {
         $student->loadMissing([
             'user',
@@ -140,8 +141,60 @@ class StudentProgressController extends Controller
                 ->latest('id'),
         ]);
 
-        $runs = $student->scheduleRuns
+        $allRuns = $student->scheduleRuns
             ->map(fn (ScheduleRun $scheduleRun) => $this->runPayload($scheduleRun))
+            ->values();
+
+        $availableDays = $allRuns
+            ->map(function (array $run): ?string {
+                if (! $run['started_at']) {
+                    return null;
+                }
+
+                return substr($run['started_at'], 0, 10);
+            })
+            ->filter()
+            ->unique()
+            ->sortDesc()
+            ->values();
+
+        $selectedDay = $request->string('day')->toString();
+
+        if ($selectedDay === '' || ! $availableDays->contains($selectedDay)) {
+            $selectedDay = $availableDays->first() ?? now()->toDateString();
+        }
+
+        $mode = $request->string('mode')->toString() === 'summary' ? 'summary' : 'runs';
+
+        $runs = $allRuns
+            ->filter(function (array $run) use ($selectedDay): bool {
+                if (! $run['started_at']) {
+                    return false;
+                }
+
+                return str_starts_with($run['started_at'], $selectedDay);
+            })
+            ->values();
+
+        $taskSummary = $runs
+            ->flatMap(fn (array $run) => $run['blocks'])
+            ->groupBy('task_title')
+            ->map(function ($blocks, string $taskTitle): array {
+                $totalActualSeconds = $blocks->sum('actual_duration_seconds');
+                $totalPlannedMinutes = $blocks->sum('planned_duration_minutes');
+                $completedBlocks = $blocks->where('status', 'completed')->count();
+
+                return [
+                    'task_title' => $taskTitle,
+                    'blocks' => $blocks->count(),
+                    'completed_blocks' => $completedBlocks,
+                    'total_planned_minutes' => $totalPlannedMinutes,
+                    'total_planned_duration_label' => $this->formatDuration($totalPlannedMinutes * 60),
+                    'total_actual_duration_seconds' => $totalActualSeconds,
+                    'total_actual_duration_label' => $this->formatDuration($totalActualSeconds),
+                ];
+            })
+            ->sortByDesc('total_actual_duration_seconds')
             ->values();
 
         return Inertia::render('Admin/Students/Progress', [
@@ -152,6 +205,16 @@ class StudentProgressController extends Controller
                 'username' => $student->user->username,
                 'status' => $student->status,
             ],
+            'filters' => [
+                'mode' => $mode,
+                'day' => $selectedDay,
+            ],
+            'available_days' => $availableDays
+                ->map(fn (string $day) => [
+                    'value' => $day,
+                    'label' => date('d M Y', strtotime($day)),
+                ])
+                ->all(),
             'summary' => [
                 'schedule_runs' => $runs->count(),
                 'completed_blocks' => $runs->sum('completed_blocks'),
@@ -163,6 +226,7 @@ class StudentProgressController extends Controller
                     ?? null,
             ],
             'runs' => $runs->all(),
+            'task_summary' => $taskSummary->all(),
         ]);
     }
 }

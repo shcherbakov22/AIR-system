@@ -10,6 +10,14 @@ defineProps<{
         username: string;
         status: string;
     };
+    filters: {
+        mode: 'runs' | 'summary';
+        day: string;
+    };
+    available_days: Array<{
+        value: string;
+        label: string;
+    }>;
     summary: {
         schedule_runs: number;
         completed_blocks: number;
@@ -18,6 +26,15 @@ defineProps<{
         time_in_schedule_label: string;
         active_schedule_name?: string | null;
     };
+    task_summary: Array<{
+        task_title: string;
+        blocks: number;
+        completed_blocks: number;
+        total_planned_minutes: number;
+        total_planned_duration_label: string;
+        total_actual_duration_seconds: number;
+        total_actual_duration_label: string;
+    }>;
     runs: Array<{
         id: number;
         status: string;
@@ -64,6 +81,37 @@ defineProps<{
     <AuthenticatedLayout>
 
         <div class="mx-auto max-w-7xl px-6 py-8">
+            <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <Link
+                        :href="route('admin.students.progress', { student: student.id, day: filters.day, mode: 'runs' })"
+                        class="inline-flex rounded-full px-4 py-2 text-sm font-semibold transition"
+                        :class="filters.mode === 'runs' ? 'bg-stone-950 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50'"
+                    >
+                        Runs
+                    </Link>
+                    <Link
+                        :href="route('admin.students.progress', { student: student.id, day: filters.day, mode: 'summary' })"
+                        class="inline-flex rounded-full px-4 py-2 text-sm font-semibold transition"
+                        :class="filters.mode === 'summary' ? 'bg-stone-950 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50'"
+                    >
+                        Task totals
+                    </Link>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <Link
+                        v-for="day in available_days"
+                        :key="day.value"
+                        :href="route('admin.students.progress', { student: student.id, day: day.value, mode: filters.mode })"
+                        class="inline-flex rounded-full px-3 py-2 text-sm transition"
+                        :class="filters.day === day.value ? 'bg-amber-200 text-stone-950' : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50'"
+                    >
+                        {{ day.label }}
+                    </Link>
+                </div>
+            </div>
+
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div class="rounded-[1.75rem] bg-white p-5 shadow-sm ring-1 ring-stone-200">
                     <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
@@ -114,13 +162,41 @@ defineProps<{
                 </div>
             </div>
 
-            <div v-if="runs.length === 0" class="mt-6 rounded-[2rem] bg-white px-6 py-8 shadow-sm ring-1 ring-stone-200">
+            <div v-if="runs.length === 0 && filters.mode === 'runs'" class="mt-6 rounded-[2rem] bg-white px-6 py-8 shadow-sm ring-1 ring-stone-200">
                 <p class="text-lg font-semibold text-stone-950">
-                    No schedule runs yet.
+                    No schedule runs for this day.
                 </p>
                 <p class="mt-2 text-sm text-stone-600">
-                    Start a schedule as this student and the timing history will appear here.
+                    Pick another day or start a schedule as this student and the timing history will appear here.
                 </p>
+            </div>
+
+            <div v-else-if="filters.mode === 'summary'" class="mt-6 overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-sm">
+                <div class="grid grid-cols-[minmax(0,1.5fr)_8rem_8rem_8rem_8rem] gap-3 bg-stone-100 px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                    <span>Task</span>
+                    <span>Blocks</span>
+                    <span>Done</span>
+                    <span>Planned</span>
+                    <span>Actual</span>
+                </div>
+
+                <div v-if="task_summary.length === 0" class="px-5 py-6 text-sm text-stone-500">
+                    No tracked task time for this day.
+                </div>
+
+                <div v-else class="divide-y divide-stone-200">
+                    <div
+                        v-for="task in task_summary"
+                        :key="task.task_title"
+                        class="grid grid-cols-[minmax(0,1.5fr)_8rem_8rem_8rem_8rem] gap-3 px-5 py-4 text-sm text-stone-700"
+                    >
+                        <span class="font-medium text-stone-950">{{ task.task_title }}</span>
+                        <span>{{ task.blocks }}</span>
+                        <span>{{ task.completed_blocks }}</span>
+                        <span>{{ task.total_planned_duration_label }}</span>
+                        <span class="font-medium text-stone-950">{{ task.total_actual_duration_label }}</span>
+                    </div>
+                </div>
             </div>
 
             <div v-else class="mt-6 space-y-5">
