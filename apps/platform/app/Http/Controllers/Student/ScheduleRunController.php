@@ -15,6 +15,7 @@ use App\Models\TaskSession;
 use App\Models\TaskTemplate;
 use App\Models\Violation;
 use App\Services\AutomaticObserveTheTimeViolationService;
+use App\Services\StudentCommunicationGateService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -37,6 +38,7 @@ class ScheduleRunController extends Controller
         StartScheduleRunRequest $request,
         ScheduleTemplate $scheduleTemplate,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
+        StudentCommunicationGateService $communicationGateService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -44,11 +46,18 @@ class ScheduleRunController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleTemplate, $automaticViolationService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleTemplate, $automaticViolationService, $communicationGateService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
             $automaticViolationService->evaluate($student);
 
             if ($blockingMessage = $this->blockingViolationMessage($student)) {
+                return [
+                    'success' => false,
+                    'message' => $blockingMessage,
+                ];
+            }
+
+            if ($blockingMessage = $communicationGateService->blockingMessage($student)) {
                 return [
                     'success' => false,
                     'message' => $blockingMessage,
@@ -134,6 +143,7 @@ class ScheduleRunController extends Controller
         PauseScheduleRunRequest $request,
         ScheduleRun $scheduleRun,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
+        StudentCommunicationGateService $communicationGateService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
         $student = $request->user()?->student?->loadMissing('setting');
@@ -148,11 +158,18 @@ class ScheduleRunController extends Controller
                 ->with('error', 'Custom timers are disabled for this student.');
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $communicationGateService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
             $automaticViolationService->evaluate($student);
 
             if ($blockingMessage = $this->blockingViolationMessage($student)) {
+                return [
+                    'success' => false,
+                    'message' => $blockingMessage,
+                ];
+            }
+
+            if ($blockingMessage = $communicationGateService->blockingMessage($student)) {
                 return [
                     'success' => false,
                     'message' => $blockingMessage,
@@ -247,6 +264,7 @@ class ScheduleRunController extends Controller
         ResumeScheduleRunRequest $request,
         ScheduleRun $scheduleRun,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
+        StudentCommunicationGateService $communicationGateService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -254,11 +272,18 @@ class ScheduleRunController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $communicationGateService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
             $automaticViolationService->evaluate($student);
 
             if ($blockingMessage = $this->blockingViolationMessage($student)) {
+                return [
+                    'success' => false,
+                    'message' => $blockingMessage,
+                ];
+            }
+
+            if ($blockingMessage = $communicationGateService->blockingMessage($student)) {
                 return [
                     'success' => false,
                     'message' => $blockingMessage,
@@ -375,6 +400,7 @@ class ScheduleRunController extends Controller
     public function complete(
         ResumeScheduleRunRequest $request,
         ScheduleRun $scheduleRun,
+        StudentCommunicationGateService $communicationGateService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -382,7 +408,23 @@ class ScheduleRunController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $communicationGateService) {
+            $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+
+            if ($blockingMessage = $this->blockingViolationMessage($student)) {
+                return [
+                    'success' => false,
+                    'message' => $blockingMessage,
+                ];
+            }
+
+            if ($blockingMessage = $communicationGateService->blockingMessage($student)) {
+                return [
+                    'success' => false,
+                    'message' => $blockingMessage,
+                ];
+            }
+
             $ownedScheduleRun = ScheduleRun::query()
                 ->whereKey($scheduleRun->id)
                 ->where('student_id', $studentId)

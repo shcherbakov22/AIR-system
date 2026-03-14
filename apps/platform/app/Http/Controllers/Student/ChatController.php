@@ -6,17 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreChatMessageRequest;
 use App\Models\ChatMessage;
 use App\Models\Student;
+use App\Services\StudentCommunicationGateService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ChatController extends Controller
 {
-    public function show(): Response
+    public function show(StudentCommunicationGateService $communicationGateService): Response
     {
         $student = request()->user()?->student;
 
         abort_unless($student, 403);
+
+        $communicationGateService->markMentorChatSeen($student);
+        $student->refresh();
 
         return Inertia::render('Student/Chat/Show', [
             'studentThread' => $this->threadPayload($student),

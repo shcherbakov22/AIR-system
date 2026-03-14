@@ -9,6 +9,7 @@ use App\Models\ScheduleRun;
 use App\Models\ScheduleTemplate;
 use App\Models\TaskTemplate;
 use App\Services\AutomaticObserveTheTimeViolationService;
+use App\Services\StudentCommunicationGateService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -53,7 +54,11 @@ class HomeController extends Controller
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request, AutomaticObserveTheTimeViolationService $automaticViolationService): Response
+    public function __invoke(
+        Request $request,
+        AutomaticObserveTheTimeViolationService $automaticViolationService,
+        StudentCommunicationGateService $communicationGateService,
+    ): Response
     {
         $student = $request->user()->student;
 
@@ -118,6 +123,13 @@ class HomeController extends Controller
             'violationSummary' => [
                 'open_violations' => $openViolations->count(),
             ],
+            'communicationGate' => $student
+                ? $communicationGateService->payload($student)
+                : [
+                    'has_unread' => false,
+                    'unread_mentor_chat' => null,
+                    'unread_announcement' => null,
+                ],
             'openViolations' => $openViolations
                 ->map(fn (Violation $violation) => [
                     'id' => $violation->id,

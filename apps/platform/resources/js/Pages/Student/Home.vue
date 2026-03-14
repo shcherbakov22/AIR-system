@@ -16,6 +16,23 @@ const props = defineProps<{
         can_manage_own_schedule: boolean;
         can_use_ad_hoc_timer: boolean;
     };
+    communicationGate: {
+        has_unread: boolean;
+        unread_mentor_chat: {
+            id: number;
+            body?: string | null;
+            created_at_label?: string | null;
+            sender_name?: string | null;
+            has_attachment: boolean;
+        } | null;
+        unread_announcement: {
+            id: number;
+            body?: string | null;
+            created_at_label?: string | null;
+            sender_name?: string | null;
+            has_attachment: boolean;
+        } | null;
+    };
     violationSummary: {
         open_violations: number;
     };
@@ -129,6 +146,7 @@ const canPauseForOwnTimer = computed(
 const pauseOwnTimerFormOpen = ref(false);
 const hasTaskTemplates = computed(() => props.taskTemplates.length > 0);
 const hasBlockingViolations = computed(() => props.openViolations.length > 0);
+const hasBlockingCommunication = computed(() => props.communicationGate.has_unread);
 
 const stopTaskSessionForm = useForm({});
 const pauseOwnTimerForm = useForm({
@@ -335,8 +353,39 @@ const showBlockingViolationDialog = () => {
     return true;
 };
 
+const showBlockingCommunicationDialog = () => {
+    if (!hasBlockingCommunication.value) {
+        return false;
+    }
+
+    const lines = ['Read all new mentor communication before continuing the schedule.'];
+
+    if (props.communicationGate.unread_mentor_chat) {
+        lines.push(
+            `- Unread mentor message${props.communicationGate.unread_mentor_chat.created_at_label ? ` (${props.communicationGate.unread_mentor_chat.created_at_label})` : ''}`,
+        );
+    }
+
+    if (props.communicationGate.unread_announcement) {
+        lines.push(
+            `- Unread announcement${props.communicationGate.unread_announcement.created_at_label ? ` (${props.communicationGate.unread_announcement.created_at_label})` : ''}`,
+        );
+    }
+
+    lines.push('');
+    lines.push('Open Chat and Announcements from the sidebar, then come back.');
+
+    window.alert(lines.join('\n'));
+
+    return true;
+};
+
 const startScheduleRun = (scheduleTemplateId: number) => {
     if (showBlockingViolationDialog()) {
+        return;
+    }
+
+    if (showBlockingCommunicationDialog()) {
         return;
     }
 
@@ -360,6 +409,10 @@ const startScheduleBlock = (scheduleRunBlockId: number) => {
         return;
     }
 
+    if (showBlockingCommunicationDialog()) {
+        return;
+    }
+
     router.post(
         route('student.schedule-run-blocks.start', {
             scheduleRun: props.activeScheduleRun.id,
@@ -372,6 +425,10 @@ const startScheduleBlock = (scheduleRunBlockId: number) => {
 
 const togglePauseOwnTimerForm = () => {
     if (!pauseOwnTimerFormOpen.value && showBlockingViolationDialog()) {
+        return;
+    }
+
+    if (!pauseOwnTimerFormOpen.value && showBlockingCommunicationDialog()) {
         return;
     }
 
@@ -389,6 +446,10 @@ const pauseScheduleForOwnTimer = () => {
     }
 
     if (showBlockingViolationDialog()) {
+        return;
+    }
+
+    if (showBlockingCommunicationDialog()) {
         return;
     }
 
@@ -410,11 +471,23 @@ const resumeScheduleRun = () => {
         return;
     }
 
+    if (showBlockingCommunicationDialog()) {
+        return;
+    }
+
     router.post(route('student.schedule-runs.resume', props.activeScheduleRun.id), {}, { preserveScroll: true });
 };
 
 const completeScheduleRun = () => {
     if (!props.activeScheduleRun) {
+        return;
+    }
+
+    if (showBlockingViolationDialog()) {
+        return;
+    }
+
+    if (showBlockingCommunicationDialog()) {
         return;
     }
 
@@ -660,6 +733,25 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                     Start
                                 </span>
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    v-if="hasBlockingCommunication"
+                    class="mt-3 rounded-[1.25rem] bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200"
+                >
+                    <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <p class="font-medium">
+                            New mentor communication is waiting. Open Chat and Announcements before continuing the schedule.
+                        </p>
+                        <div class="min-w-0 space-y-1 text-sm">
+                            <p v-if="communicationGate.unread_mentor_chat" class="truncate">
+                                Unread mentor message<span v-if="communicationGate.unread_mentor_chat.created_at_label">, {{ communicationGate.unread_mentor_chat.created_at_label }}</span>
+                            </p>
+                            <p v-if="communicationGate.unread_announcement" class="truncate">
+                                Unread announcement<span v-if="communicationGate.unread_announcement.created_at_label">, {{ communicationGate.unread_announcement.created_at_label }}</span>
+                            </p>
                         </div>
                     </div>
                 </div>

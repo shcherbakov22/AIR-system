@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\TaskSession;
 use App\Models\Violation;
 use App\Services\AutomaticObserveTheTimeViolationService;
+use App\Services\StudentCommunicationGateService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -20,6 +21,7 @@ class ScheduleRunTaskSessionController extends Controller
         ScheduleRun $scheduleRun,
         ScheduleRunBlock $scheduleRunBlock,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
+        StudentCommunicationGateService $communicationGateService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -27,11 +29,18 @@ class ScheduleRunTaskSessionController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunBlock, $automaticViolationService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunBlock, $automaticViolationService, $communicationGateService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
             $automaticViolationService->evaluate($student);
 
             if ($blockingMessage = $this->blockingViolationMessage($student)) {
+                return [
+                    'success' => false,
+                    'message' => $blockingMessage,
+                ];
+            }
+
+            if ($blockingMessage = $communicationGateService->blockingMessage($student)) {
                 return [
                     'success' => false,
                     'message' => $blockingMessage,

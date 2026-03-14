@@ -4,6 +4,7 @@ namespace Tests\Feature\Student;
 
 use App\Enums\ScheduleWeekday;
 use App\Enums\UserRole;
+use App\Models\ChatMessage;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleTemplate;
 use App\Models\Student;
@@ -525,6 +526,102 @@ class ScheduleRunFlowTest extends TestCase
             ->assertSessionHas('error', fn (?string $message) => is_string($message) && str_contains($message, 'Follow the schedule') && str_contains($message, '08:55'));
 
         $this->assertDatabaseCount('schedule_runs', 0);
+    }
+
+    public function test_student_can_not_start_a_schedule_run_while_unread_mentor_chat_exists_until_chat_is_opened(): void
+    {
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_run_student',
+        ]);
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_messages',
+        ]);
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+
+        ChatMessage::create([
+            'student_id' => $student->id,
+            'sender_user_id' => $mentor->id,
+            'channel' => 'chat',
+            'body' => 'Read this before starting.',
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('error', fn (?string $message) => is_string($message) && str_contains($message, 'unread mentor message'));
+
+        $this->assertDatabaseCount('schedule_runs', 0);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.chat.show'))
+            ->assertOk();
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tuesday Run'));
+    }
+
+    public function test_student_can_not_start_a_schedule_block_while_unread_announcements_exist_until_announcements_are_opened(): void
+    {
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_run_student',
+        ]);
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_announcements',
+        ]);
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate));
+
+        ChatMessage::create([
+            'student_id' => null,
+            'sender_user_id' => $mentor->id,
+            'channel' => 'announcement',
+            'body' => 'Read the announcement before continuing.',
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+
+        $scheduleRun = ScheduleRun::query()
+            ->with('blocks')
+            ->where('student_id', $student->id)
+            ->sole();
+
+        $firstBlock = $scheduleRun->blocks->firstWhere('position', 1);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [
+                'scheduleRun' => $scheduleRun,
+                'scheduleRunBlock' => $firstBlock,
+            ]))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('error', fn (?string $message) => is_string($message) && str_contains($message, 'unread announcement'));
+
+        $this->assertDatabaseCount('task_sessions', 0);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.announcements.show'))
+            ->assertOk();
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [
+                'scheduleRun' => $scheduleRun->fresh(),
+                'scheduleRunBlock' => $firstBlock->fresh(),
+            ]))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Essay Draft'));
     }
 
     public function test_student_can_not_pause_for_an_own_timer_while_an_open_violation_exists(): void

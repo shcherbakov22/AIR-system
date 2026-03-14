@@ -160,4 +160,42 @@ class AnnouncementFlowTest extends TestCase
             ])
             ->assertRedirect(route('dashboard', absolute: false));
     }
+
+    public function test_opening_announcements_marks_global_announcements_as_seen(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        ChatMessage::create([
+            'student_id' => null,
+            'sender_user_id' => $mentor->id,
+            'channel' => 'announcement',
+            'body' => 'Everyone should read this.',
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+
+        $this->assertNull($student->last_seen_announcements_at);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.announcements.show'))
+            ->assertOk();
+
+        $student->refresh();
+
+        $this->assertNotNull($student->last_seen_announcements_at);
+    }
 }

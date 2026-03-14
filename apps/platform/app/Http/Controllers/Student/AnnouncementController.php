@@ -4,16 +4,20 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\ChatMessage;
+use App\Services\StudentCommunicationGateService;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AnnouncementController extends Controller
 {
-    public function show(): Response
+    public function show(StudentCommunicationGateService $communicationGateService): Response
     {
         $student = request()->user()?->student;
 
         abort_unless($student, 403);
+
+        $communicationGateService->markAnnouncementsSeen($student);
+        $student->refresh();
 
         return Inertia::render('Student/Announcements/Show', [
             'announcementThread' => $this->threadPayload(),

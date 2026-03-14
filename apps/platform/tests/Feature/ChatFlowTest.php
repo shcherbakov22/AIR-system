@@ -191,4 +191,42 @@ class ChatFlowTest extends TestCase
             ->get(route('chat-messages.attachment.show', $message))
             ->assertNotFound();
     }
+
+    public function test_opening_student_chat_marks_mentor_messages_as_seen(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        ChatMessage::create([
+            'student_id' => $student->id,
+            'sender_user_id' => $mentor->id,
+            'channel' => 'chat',
+            'body' => 'Read me first.',
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+
+        $this->assertNull($student->last_seen_mentor_chat_at);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.chat.show'))
+            ->assertOk();
+
+        $student->refresh();
+
+        $this->assertNotNull($student->last_seen_mentor_chat_at);
+    }
 }

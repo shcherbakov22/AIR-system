@@ -19,6 +19,14 @@ class Student extends Model
         'notes',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'last_seen_mentor_chat_at' => 'datetime',
+            'last_seen_announcements_at' => 'datetime',
+        ];
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -32,11 +40,6 @@ class Student extends Model
     public function chatMessages(): HasMany
     {
         return $this->hasMany(ChatMessage::class);
-    }
-
-    public function announcementMessages(): HasMany
-    {
-        return $this->hasMany(ChatMessage::class)->where('channel', 'announcement');
     }
 
     public function scheduleTemplates(): HasMany
@@ -112,13 +115,6 @@ class Student extends Model
     {
         return $this->hasOne(ChatMessage::class)
             ->where('channel', 'chat')
-            ->latestOfMany();
-    }
-
-    public function latestAnnouncementMessage(): HasOne
-    {
-        return $this->hasOne(ChatMessage::class)
-            ->where('channel', 'announcement')
             ->latestOfMany();
     }
 
