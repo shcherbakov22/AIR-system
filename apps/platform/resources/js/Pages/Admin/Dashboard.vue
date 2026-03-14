@@ -603,12 +603,12 @@ const blockTooltip = (block: DashboardBlock): string => {
 
             <div
                 v-else
-                class="grid items-start gap-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+                class="grid items-start gap-1.5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8"
             >
                 <article
                     v-for="student in monitorStudents"
                     :key="student.id"
-                    class="relative flex min-h-[22rem] max-h-[calc(100vh-3.5rem)] min-w-0 max-w-[15rem] flex-col overflow-hidden rounded-[1.25rem] bg-white p-2 shadow-sm ring-1 ring-stone-200"
+                    class="relative flex min-h-[22rem] max-h-[calc(100vh-3.5rem)] min-w-0 flex-col overflow-hidden rounded-[1rem] bg-white p-1.5 shadow-sm ring-1 ring-stone-200"
                 >
                     <div class="flex items-start justify-between gap-1.5">
                         <div class="min-w-0">
@@ -625,7 +625,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </Link>
                     </div>
 
-                    <div class="mt-1.5 flex flex-col gap-1.5">
+                    <div class="mt-1 flex flex-col gap-1">
                         <button
                             v-if="student.latest_screen_capture"
                             type="button"
@@ -689,7 +689,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </button>
                     </div>
 
-                    <div v-if="student.open_violations.length > 0" class="mt-1.5 rounded-[0.85rem] bg-stone-50 px-2 py-1.5">
+                    <div v-if="student.open_violations.length > 0" class="mt-1 rounded-[0.75rem] bg-stone-50 px-1.5 py-1">
                         <div class="space-y-1">
                             <div
                                 v-for="violation in student.open_violations"
@@ -716,13 +716,13 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </div>
                     </div>
 
-                    <div class="mt-1.5 min-w-0">
+                    <div class="mt-1 min-w-0">
                         <p class="truncate text-[13px] font-medium text-stone-900">
                             {{ student.schedule_board?.name ?? 'No schedule' }}
                         </p>
                     </div>
 
-                    <div class="mt-1.5 rounded-[0.85rem] bg-stone-100 px-2 py-1.5">
+                    <div class="mt-1 rounded-[0.75rem] bg-stone-100 px-1.5 py-1">
                         <p class="truncate text-[13px] font-medium text-stone-900">
                             {{ student.active_task_session?.task_title ?? 'No active task' }}
                         </p>
@@ -739,7 +739,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </p>
                     </div>
 
-                    <div v-if="student.schedule_board" class="mt-1.5 min-h-0 flex-1 overflow-hidden rounded-[0.65rem] bg-stone-50/60 p-px">
+                    <div v-if="student.schedule_board" class="mt-1 min-h-0 flex-1 overflow-hidden rounded-[0.55rem] bg-stone-50/60 p-px">
                         <div
                             :ref="(element) => setScheduleBoardRef(student.id, element)"
                             class="grid h-full grid-cols-1 content-start gap-px overflow-y-auto pr-px"
@@ -766,7 +766,7 @@ const blockTooltip = (block: DashboardBlock): string => {
 
                     <div
                         v-else
-                        class="mt-1.5 flex min-h-0 flex-1 items-center justify-center rounded-[1rem] border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-center text-sm text-stone-500"
+                        class="mt-1 flex min-h-0 flex-1 items-center justify-center rounded-[0.85rem] border border-dashed border-stone-300 bg-stone-50 px-3 py-5 text-center text-sm text-stone-500"
                     >
                         No schedule available.
                     </div>
