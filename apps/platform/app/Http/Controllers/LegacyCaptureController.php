@@ -39,7 +39,7 @@ class LegacyCaptureController extends Controller
 
     protected function storeCapture(Request $request, string $captureKind)
     {
-        $student = $this->authenticateStudent($request);
+        $student = $this->resolveStudentForUpload($request);
         $upload = $this->resolveUpload($request);
         $taskSession = $this->latestTaskSession($student);
         $capturedAt = now();
@@ -109,6 +109,33 @@ class LegacyCaptureController extends Controller
         return Student::query()
             ->with('user')
             ->where('user_id', $user->id)
+            ->firstOrFail();
+    }
+
+    protected function resolveStudentForUpload(Request $request): Student
+    {
+        $username = trim((string) ($request->input('username', $request->input('name'))));
+
+        if ($username === '') {
+            throw ValidationException::withMessages([
+                'username' => 'Legacy uploader credentials are required.',
+            ]);
+        }
+
+        $password = (string) ($request->input('pass', $request->input('password')));
+
+        if ($password !== '') {
+            return $this->authenticateStudent($request);
+        }
+
+        return Student::query()
+            ->with('user')
+            ->whereHas('user', function ($query) use ($username) {
+                $query
+                    ->where('username', $username)
+                    ->where('role', UserRole::Student->value)
+                    ->where('is_active', true);
+            })
             ->firstOrFail();
     }
 

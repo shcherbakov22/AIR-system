@@ -98,4 +98,47 @@ class LegacyCaptureCompatibilityTest extends TestCase
             'source_label' => 'Legacy uploader',
         ]);
     }
+
+    public function test_legacy_camera_upload_accepts_username_without_password(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+            'password' => Hash::make('0'),
+        ]);
+
+        $student = Student::create([
+            'user_id' => $user->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Cooking',
+            'planned_duration_minutes' => 70,
+            'started_at' => now()->subMinute(),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $user->id,
+        ]);
+
+        $response = $this->post('/ss/uplcam.php', [
+            'username' => 'ego',
+            'filename' => $this->fakeJpeg('camera.jpg'),
+        ]);
+
+        $response->assertOk();
+        $this->assertSame('OK', $response->getContent());
+
+        $this->assertDatabaseHas('student_monitor_captures', [
+            'student_id' => $student->id,
+            'capture_kind' => 'camera',
+            'task_title_snapshot' => 'Cooking',
+            'source_label' => 'Legacy uploader',
+        ]);
+    }
 }
