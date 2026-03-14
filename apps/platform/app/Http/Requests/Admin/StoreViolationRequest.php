@@ -40,6 +40,7 @@ class StoreViolationRequest extends FormRequest
             ],
             'occurred_at' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'toggle' => ['sometimes', 'boolean'],
         ];
     }
 

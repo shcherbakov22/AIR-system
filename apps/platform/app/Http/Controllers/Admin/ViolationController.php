@@ -152,6 +152,38 @@ class ViolationController extends Controller
     public function store(StoreViolationRequest $request, SpeechAnnouncementService $speechAnnouncementService): RedirectResponse
     {
         $ruleDefinition = RuleDefinition::query()->findOrFail((int) $request->input('rule_definition_id'));
+        $studentId = (int) $request->input('student_id');
+        $toggle = $request->boolean('toggle');
+
+        $existingViolation = Violation::query()
+            ->where('student_id', $studentId)
+            ->where('rule_definition_id', $ruleDefinition->id)
+            ->where('status', 'open')
+            ->latest('occurred_at')
+            ->first();
+
+        if ($existingViolation) {
+            if ($toggle) {
+                $existingViolationTitle = $existingViolation->rule_title_snapshot;
+
+                DB::transaction(function () use ($existingViolation) {
+                    $lockedViolation = Violation::query()
+                        ->whereKey($existingViolation->id)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    $lockedViolation->resolutions()->delete();
+                    $lockedViolation->delete();
+                });
+
+                return redirect(route('admin.violations.index'))
+                    ->with('success', "Violation {$existingViolationTitle} removed.");
+            }
+
+            return redirect()
+                ->back()
+                ->with('error', "Violation {$ruleDefinition->title} is already open for this student.");
+        }
 
         $violation = DB::transaction(function () use ($request, $ruleDefinition) {
             return Violation::create([

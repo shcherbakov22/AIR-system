@@ -48,6 +48,7 @@ const addViolation = (studentId: number, ruleDefinitionId: number) => {
         rule_definition_id: ruleDefinitionId,
         occurred_at: new Date().toISOString(),
         notes: null,
+        toggle: true,
     }, {
         preserveScroll: true,
     });
@@ -123,19 +124,25 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
                                     :key="`${student.id}-${ruleDefinition.id}`"
                                     class="border-b border-l border-stone-200 p-0"
                                 >
+                                    <template v-if="violationCountFor(student.id, ruleDefinition.id) > 0">
+                                        <button
+                                            type="button"
+                                            class="group flex h-14 w-full items-center justify-center bg-amber-100 px-2 transition hover:bg-amber-200"
+                                            @click="addViolation(student.id, ruleDefinition.id)"
+                                        >
+                                            <span class="text-lg leading-none text-amber-800 transition group-hover:text-amber-950">
+                                                ×
+                                            </span>
+                                        </button>
+                                    </template>
                                     <button
+                                        v-else
                                         type="button"
                                         class="group flex h-14 w-full items-center justify-center gap-2 px-2 transition hover:bg-amber-50"
                                         @click="addViolation(student.id, ruleDefinition.id)"
                                     >
                                         <span class="text-lg leading-none text-stone-300 transition group-hover:text-amber-700">
                                             +
-                                        </span>
-                                        <span
-                                            v-if="violationCountFor(student.id, ruleDefinition.id) > 0"
-                                            class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
-                                        >
-                                            {{ violationCountFor(student.id, ruleDefinition.id) }}
                                         </span>
                                     </button>
                                 </td>

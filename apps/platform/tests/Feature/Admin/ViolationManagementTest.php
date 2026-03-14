@@ -215,6 +215,96 @@ class ViolationManagementTest extends TestCase
             );
     }
 
+    public function test_admin_can_not_create_a_second_open_violation_for_the_same_student_and_rule(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_violations_duplicate',
+        ]);
+
+        $student = $this->createStudent('student_violations_duplicate', 'Student Violations Duplicate');
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Stay on assigned work',
+            'description' => 'Student must stay on assigned work.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Stay on assigned work',
+            'penalty_units' => 0,
+            'occurred_at' => '2026-03-08 09:00:00',
+            'notes' => 'Already open.',
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $this->from(route('admin.violations.create'))
+            ->actingAs($admin)
+            ->post(route('admin.violations.store'), [
+                'student_id' => $student->id,
+                'rule_definition_id' => $ruleDefinition->id,
+                'occurred_at' => '2026-03-08T10:15',
+                'notes' => 'Should not duplicate.',
+            ])
+            ->assertRedirect(route('admin.violations.create', absolute: false))
+            ->assertSessionHas('error', 'Violation Stay on assigned work is already open for this student.');
+
+        $this->assertDatabaseCount('violations', 1);
+    }
+
+    public function test_matrix_toggle_removes_an_existing_open_violation_for_the_same_student_and_rule(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_violations_toggle',
+        ]);
+
+        $student = $this->createStudent('student_violations_toggle', 'Student Violations Toggle');
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Stay on assigned work',
+            'description' => 'Student must stay on assigned work.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Stay on assigned work',
+            'penalty_units' => 0,
+            'occurred_at' => '2026-03-08 09:00:00',
+            'notes' => 'Already open.',
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.violations.store'), [
+                'student_id' => $student->id,
+                'rule_definition_id' => $ruleDefinition->id,
+                'occurred_at' => '2026-03-08T10:15',
+                'notes' => null,
+                'toggle' => true,
+            ])
+            ->assertRedirect(route('admin.violations.index', absolute: false))
+            ->assertSessionHas('success', 'Violation Stay on assigned work removed.');
+
+        $this->assertDatabaseMissing('violations', [
+            'id' => $violation->id,
+        ]);
+    }
+
     public function test_admin_can_view_the_violation_review_screen(): void
     {
         $admin = User::factory()->create([
