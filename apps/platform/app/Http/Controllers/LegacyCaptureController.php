@@ -24,10 +24,10 @@ class LegacyCaptureController extends Controller
             'ip' => $request->ip(),
             'method' => $request->method(),
             'query' => $request->query(),
+            'all' => $request->except(['filename', 'capture', 'image']),
+            'query_string' => $request->server('QUERY_STRING'),
             'content_type' => $request->header('Content-Type'),
         ]);
-
-        $this->authenticateStudent($request);
 
         // The legacy uploader used this endpoint to fetch a "delays" pair,
         // not the current task's remaining time. Keep the old format so the
