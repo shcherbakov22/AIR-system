@@ -73,4 +73,53 @@ class SpeechAnnouncementTest extends TestCase
                 'announcement' => null,
             ]);
     }
+
+    public function test_admin_can_fetch_spoken_announcement_history(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'dima',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Dima',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $older = SpeechAnnouncement::create([
+            'student_id' => $student->id,
+            'kind' => 'violation',
+            'message' => 'Dima got a Observe the time violation.',
+            'spoken_at' => now()->subMinutes(5),
+        ]);
+
+        $newer = SpeechAnnouncement::create([
+            'student_id' => $student->id,
+            'kind' => 'task_finished',
+            'message' => 'Dima finished Coding in 24 minutes.',
+            'spoken_at' => now()->subMinute(),
+        ]);
+
+        SpeechAnnouncement::create([
+            'student_id' => $student->id,
+            'kind' => 'task_finished',
+            'message' => 'Pending item should not appear.',
+            'spoken_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.speech-announcements.history'))
+            ->assertOk()
+            ->assertJsonCount(2, 'announcements')
+            ->assertJsonPath('announcements.0.id', $newer->id)
+            ->assertJsonPath('announcements.0.message', 'Dima finished Coding in 24 minutes.')
+            ->assertJsonPath('announcements.0.student_name', 'Dima')
+            ->assertJsonPath('announcements.1.id', $older->id);
+    }
 }

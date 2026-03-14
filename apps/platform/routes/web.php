@@ -87,6 +87,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
         Route::get('/student-monitor-captures/{studentMonitorCapture}/day-history', [AdminStudentMonitorCaptureController::class, 'dayHistory'])->name('student-monitor-captures.day-history');
         Route::get('/student-monitor-captures/{studentMonitorCapture}', [AdminStudentMonitorCaptureController::class, 'show'])->name('student-monitor-captures.show');
+        Route::get('/speech-announcements/history', [AdminSpeechAnnouncementController::class, 'history'])->name('speech-announcements.history');
         Route::get('/speech-announcements/next', [AdminSpeechAnnouncementController::class, 'next'])->name('speech-announcements.next');
     });
 

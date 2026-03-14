@@ -107,6 +107,16 @@ const selectedCaptureHistoryIndex = ref(0);
 const captureHistoryLoading = ref(false);
 const speechEnabled = ref(false);
 const isSpeaking = ref(false);
+const speechLogsOpen = ref(false);
+const speechLogsLoading = ref(false);
+const speechLogs = ref<Array<{
+    id: number;
+    kind: string;
+    message: string;
+    spoken_at?: string | null;
+    spoken_at_label?: string | null;
+    student_name?: string | null;
+}>>([]);
 
 const selectedRules = reactive<Record<number, string>>({});
 
@@ -305,6 +315,48 @@ const applySpeechState = (enabled: boolean) => {
 
 const toggleSpeech = () => {
     applySpeechState(!speechEnabled.value);
+};
+
+const loadSpeechLogs = async () => {
+    speechLogsLoading.value = true;
+
+    try {
+        const response = await window.fetch(route('admin.speech-announcements.history'), {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const payload = await response.json() as {
+            announcements: Array<{
+                id: number;
+                kind: string;
+                message: string;
+                spoken_at?: string | null;
+                spoken_at_label?: string | null;
+                student_name?: string | null;
+            }>;
+        };
+
+        speechLogs.value = payload.announcements ?? [];
+    } finally {
+        speechLogsLoading.value = false;
+    }
+};
+
+const openSpeechLogs = async () => {
+    speechLogsOpen.value = true;
+    await loadSpeechLogs();
+};
+
+const closeSpeechLogs = () => {
+    speechLogsOpen.value = false;
 };
 
 onMounted(() => {
@@ -594,19 +646,30 @@ const blockTooltip = (block: DashboardBlock): string => {
     <Head title="Mentor monitor" />
 
     <AuthenticatedLayout :sidebar-drawer="true" :full-width="true">
-        <button
-            type="button"
-            class="fixed right-2 top-1.5 z-30 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold text-stone-700 transition hover:text-stone-950"
-            :class="speechEnabled ? 'bg-amber-100 text-amber-900' : 'bg-white/80 text-stone-700'"
-            @click="toggleSpeech"
-        >
-            <span class="sr-only">Toggle voice announcements</span>
-            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M4 8H7L11 5V15L7 12H4V8Z" stroke-linejoin="round" />
-                <path v-if="speechEnabled" d="M14 7C15.3333 8.16667 16 9.16667 16 10C16 10.8333 15.3333 11.8333 14 13" stroke-linecap="round" />
-            </svg>
-            <span>{{ speechEnabled ? (isSpeaking ? 'Speaking' : 'Voice on') : 'Voice off' }}</span>
-        </button>
+        <div class="fixed right-2 top-1.5 z-30 flex items-center gap-2">
+            <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-stone-700 transition hover:text-stone-950"
+                :class="speechLogsOpen ? 'bg-stone-900 text-white' : 'bg-white/80 text-stone-700'"
+                @click="openSpeechLogs"
+            >
+                <span>Logs</span>
+            </button>
+
+            <button
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold text-stone-700 transition hover:text-stone-950"
+                :class="speechEnabled ? 'bg-amber-100 text-amber-900' : 'bg-white/80 text-stone-700'"
+                @click="toggleSpeech"
+            >
+                <span class="sr-only">Toggle voice announcements</span>
+                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M4 8H7L11 5V15L7 12H4V8Z" stroke-linejoin="round" />
+                    <path v-if="speechEnabled" d="M14 7C15.3333 8.16667 16 9.16667 16 10C16 10.8333 15.3333 11.8333 14 13" stroke-linecap="round" />
+                </svg>
+                <span>{{ speechEnabled ? (isSpeaking ? 'Speaking' : 'Voice on') : 'Voice off' }}</span>
+            </button>
+        </div>
 
         <div class="h-[calc(100vh-1.75rem)] overflow-hidden px-2 pt-8 pb-2 sm:px-3 sm:pt-8 sm:pb-3 lg:px-4 lg:pt-8 lg:pb-4">
             <div
@@ -947,6 +1010,78 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 </p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                v-if="speechLogsOpen"
+                class="fixed inset-0 z-50 flex items-start justify-end bg-stone-950/20 p-4"
+                @click.self="closeSpeechLogs"
+            >
+                <div class="mt-8 w-full max-w-md overflow-hidden rounded-[1.25rem] bg-white shadow-2xl ring-1 ring-stone-200">
+                    <div class="flex items-center justify-between border-b border-stone-200 px-4 py-3">
+                        <div>
+                            <p class="text-sm font-semibold text-stone-950">
+                                Speech logs
+                            </p>
+                            <p class="text-xs text-stone-500">
+                                Everything the monitor has spoken
+                            </p>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[11px] font-semibold text-stone-700"
+                                :disabled="speechLogsLoading"
+                                @click="loadSpeechLogs"
+                            >
+                                Refresh
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[11px] font-semibold text-stone-700"
+                                @click="closeSpeechLogs"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="max-h-[70vh] overflow-y-auto px-3 py-3">
+                        <p v-if="speechLogsLoading" class="text-sm text-stone-500">
+                            Loading logs...
+                        </p>
+
+                        <div v-else-if="speechLogs.length > 0" class="space-y-2">
+                            <div
+                                v-for="log in speechLogs"
+                                :key="log.id"
+                                class="rounded-[0.9rem] bg-stone-50 px-3 py-2 ring-1 ring-stone-200"
+                            >
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                                        {{ log.kind }}
+                                    </p>
+                                    <p class="shrink-0 text-[10px] text-stone-500">
+                                        {{ log.spoken_at_label ?? 'Just now' }}
+                                    </p>
+                                </div>
+
+                                <p class="mt-1 text-sm font-medium text-stone-950">
+                                    {{ log.message }}
+                                </p>
+
+                                <p v-if="log.student_name" class="mt-1 text-[11px] text-stone-500">
+                                    {{ log.student_name }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <p v-else class="text-sm text-stone-500">
+                            No spoken announcements yet.
+                        </p>
                     </div>
                 </div>
             </div>

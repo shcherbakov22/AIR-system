@@ -9,6 +9,27 @@ use Illuminate\Support\Facades\DB;
 
 class SpeechAnnouncementController extends Controller
 {
+    public function history(): JsonResponse
+    {
+        return response()->json([
+            'announcements' => SpeechAnnouncement::query()
+                ->with('student')
+                ->whereNotNull('spoken_at')
+                ->latest('spoken_at')
+                ->limit(100)
+                ->get()
+                ->map(fn (SpeechAnnouncement $announcement) => [
+                    'id' => $announcement->id,
+                    'kind' => $announcement->kind,
+                    'message' => $announcement->message,
+                    'spoken_at' => $announcement->spoken_at?->toIso8601String(),
+                    'spoken_at_label' => $announcement->spoken_at?->format('j M, H:i:s'),
+                    'student_name' => $announcement->student?->display_name,
+                ])
+                ->values(),
+        ]);
+    }
+
     public function next(): JsonResponse
     {
         $announcement = DB::transaction(function () {
