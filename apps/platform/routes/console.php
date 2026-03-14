@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Artisan;
+use App\Console\Commands\PurgeStudentMonitorCapturesCommand;
 use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\StudentConsequenceProfile;
@@ -16,6 +18,8 @@ use Symfony\Component\Process\Process;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Schedule::command(PurgeStudentMonitorCapturesCommand::class)->dailyAt('23:59');
 
 Artisan::command('legacy:import-recent-users
     {--source-json=}

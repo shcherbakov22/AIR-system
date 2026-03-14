@@ -102,6 +102,9 @@ const props = defineProps<{
 type DashboardCapture = NonNullable<DashboardStudent['latest_screen_capture']>;
 
 const selectedCapture = ref<(DashboardCapture & { studentName: string }) | null>(null);
+const selectedCaptureHistory = ref<Array<DashboardCapture & { studentName: string }>>([]);
+const selectedCaptureHistoryIndex = ref(0);
+const captureHistoryLoading = ref(false);
 const speechEnabled = ref(false);
 const isSpeaking = ref(false);
 
@@ -435,10 +438,19 @@ const openCapture = (studentName: string, capture: DashboardCapture) => {
         ...capture,
         studentName,
     };
+    selectedCaptureHistory.value = [{
+        ...capture,
+        studentName,
+    }];
+    selectedCaptureHistoryIndex.value = 0;
+    loadCaptureHistory(studentName, capture.id);
 };
 
 const closeCapture = () => {
     selectedCapture.value = null;
+    selectedCaptureHistory.value = [];
+    selectedCaptureHistoryIndex.value = 0;
+    captureHistoryLoading.value = false;
 };
 
 const openCapturePlaceholder = (
@@ -457,6 +469,67 @@ const openCapturePlaceholder = (
         image_url: '',
         studentName,
     };
+    selectedCaptureHistory.value = [];
+    selectedCaptureHistoryIndex.value = 0;
+};
+
+const loadCaptureHistory = async (studentName: string, captureId: number) => {
+    if (!captureId) {
+        return;
+    }
+
+    captureHistoryLoading.value = true;
+
+    try {
+        const response = await window.fetch(route('admin.student-monitor-captures.day-history', captureId), {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const payload = await response.json() as {
+            captures: DashboardCapture[];
+        };
+
+        selectedCaptureHistory.value = payload.captures.map((historyCapture) => ({
+            ...historyCapture,
+            studentName,
+        }));
+
+        const currentIndex = selectedCaptureHistory.value.findIndex((historyCapture) => historyCapture.id === captureId);
+
+        if (currentIndex >= 0) {
+            selectedCaptureHistoryIndex.value = currentIndex;
+            selectedCapture.value = selectedCaptureHistory.value[currentIndex];
+        }
+    } finally {
+        captureHistoryLoading.value = false;
+    }
+};
+
+const showCaptureHistoryItem = (index: number) => {
+    const nextCapture = selectedCaptureHistory.value[index];
+
+    if (!nextCapture) {
+        return;
+    }
+
+    selectedCaptureHistoryIndex.value = index;
+    selectedCapture.value = nextCapture;
+};
+
+const showPreviousCapture = () => {
+    showCaptureHistoryItem(selectedCaptureHistoryIndex.value + 1);
+};
+
+const showNextCapture = () => {
+    showCaptureHistoryItem(selectedCaptureHistoryIndex.value - 1);
 };
 
 const blockRowClass = (status: string): string => {
@@ -749,13 +822,40 @@ const blockTooltip = (block: DashboardBlock): string => {
                             </p>
                         </div>
 
-                        <button
-                            type="button"
-                            class="rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700"
-                            @click="closeCapture"
-                        >
-                            Close
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <p
+                                v-if="selectedCaptureHistory.length > 0"
+                                class="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500"
+                            >
+                                {{ selectedCaptureHistoryIndex + 1 }} / {{ selectedCaptureHistory.length }}
+                            </p>
+
+                            <button
+                                type="button"
+                                class="rounded-full border border-stone-300 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                :disabled="captureHistoryLoading || selectedCaptureHistoryIndex >= selectedCaptureHistory.length - 1"
+                                @click="showPreviousCapture"
+                            >
+                                Older
+                            </button>
+
+                            <button
+                                type="button"
+                                class="rounded-full border border-stone-300 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                :disabled="captureHistoryLoading || selectedCaptureHistoryIndex <= 0"
+                                @click="showNextCapture"
+                            >
+                                Newer
+                            </button>
+
+                            <button
+                                type="button"
+                                class="rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700"
+                                @click="closeCapture"
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
 
                     <div class="grid gap-0 lg:grid-cols-[minmax(0,1fr)_18rem]">
