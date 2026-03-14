@@ -38,17 +38,12 @@ class StudentCreationTest extends TestCase
             'username' => 'new_student',
             'name' => 'New Student User',
             'display_name' => 'New Student',
-            'email' => 'new.student@example.com',
             'password' => 'StudentPass123!',
-            'status' => 'paused',
-            'notes' => 'Created from the admin flow.',
-            'is_active' => false,
             'can_manage_own_schedule' => true,
             'can_use_ad_hoc_timer' => false,
             'preferred_timezone' => 'Africa/Cairo',
             'default_push_up_count' => 12,
             'rest_duration_seconds' => 90,
-            'consequence_notes' => 'Legacy push-up baseline.',
         ]);
 
         $response
@@ -58,14 +53,14 @@ class StudentCreationTest extends TestCase
         $this->assertDatabaseHas('users', [
             'username' => 'new_student',
             'name' => 'New Student User',
-            'email' => 'new.student@example.com',
+            'email' => null,
             'role' => UserRole::Student->value,
-            'is_active' => false,
+            'is_active' => true,
         ]);
         $this->assertDatabaseHas('students', [
             'display_name' => 'New Student',
-            'status' => 'paused',
-            'notes' => 'Created from the admin flow.',
+            'status' => 'active',
+            'notes' => null,
         ]);
 
         $studentUser = User::query()->where('username', 'new_student')->firstOrFail();
@@ -82,7 +77,7 @@ class StudentCreationTest extends TestCase
             'student_id' => $student->id,
             'default_push_up_count' => 12,
             'rest_duration_seconds' => 90,
-            'notes' => 'Legacy push-up baseline.',
+            'notes' => null,
         ]);
     }
 

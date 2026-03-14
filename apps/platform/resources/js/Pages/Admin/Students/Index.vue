@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { PageProps } from '@/types';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { labelStudentStatus } from '@/lib/labels';
 import { computed } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
@@ -9,14 +8,11 @@ const props = defineProps<{
     students: Array<{
         id: number;
         display_name: string;
-        status: string;
-        notes?: string | null;
         user: {
             id: number;
             username: string;
             name: string;
-            email?: string | null;
-            is_active: boolean;
+            last_login_at?: string | null;
         };
     }>;
 }>();
@@ -59,80 +55,42 @@ const deleteStudent = (studentId: number, displayName: string) => {
                     <article
                         v-for="student in props.students"
                         :key="student.id"
-                        class="grid gap-4 px-6 py-6 md:grid-cols-[1.1fr_0.7fr_0.9fr]"
+                        class="flex flex-wrap items-center gap-3 px-6 py-4 text-sm"
                     >
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Display name
-                            </p>
-                            <h3 class="mt-2 text-2xl font-semibold text-stone-950">
+                        <div class="min-w-0 flex-1">
+                            <h3 class="truncate text-base font-semibold text-stone-950">
                                 {{ student.display_name }}
                             </h3>
-                            <p class="mt-2 text-sm text-stone-600">
-                                Account name: {{ student.user.name }}
+                            <p class="truncate text-xs text-stone-500">
+                                {{ student.user.username }}
                             </p>
+                        </div>
+                        <div class="shrink-0 text-xs text-stone-500">
+                            <span v-if="student.user.last_login_at">
+                                Last login: {{ new Date(student.user.last_login_at).toLocaleString() }}
+                            </span>
+                            <span v-else>Never logged in</span>
+                        </div>
+                        <div class="flex shrink-0 flex-wrap items-center gap-2">
                             <Link
                                 :href="route('admin.students.edit', student.id)"
-                                class="mt-4 inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                class="inline-flex rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                             >
-                                Edit student
+                                Edit
                             </Link>
                             <Link
                                 :href="route('admin.students.progress', student.id)"
-                                class="mt-4 ml-2 inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                class="inline-flex rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                             >
                                 Progress
                             </Link>
                             <button
                                 type="button"
-                                class="mt-4 ml-2 inline-flex rounded-full border border-rose-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-700 transition hover:border-rose-700 hover:text-rose-800"
+                                class="inline-flex rounded-full border border-rose-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-700 hover:text-rose-800"
                                 @click="deleteStudent(student.id, student.display_name)"
                             >
                                 Delete
                             </button>
-                        </div>
-
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Login
-                            </p>
-                            <p class="mt-2 text-sm font-semibold text-stone-950">
-                                {{ student.user.username }}
-                            </p>
-                            <p class="mt-2 text-sm text-stone-600">
-                                {{ student.user.email || 'No email address provided' }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                Status
-                            </p>
-                            <div class="mt-2 flex flex-wrap items-center gap-3">
-                                <span
-                                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                    :class="
-                                        student.status === 'active'
-                                            ? 'bg-emerald-100 text-emerald-800'
-                                            : 'bg-stone-200 text-stone-700'
-                                    "
-                                >
-                                    {{ labelStudentStatus(student.status) }}
-                                </span>
-                                <span
-                                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                                    :class="
-                                        student.user.is_active
-                                            ? 'bg-amber-100 text-amber-800'
-                                            : 'bg-rose-100 text-rose-700'
-                                    "
-                                >
-                                    {{ student.user.is_active ? 'login allowed' : 'login disabled' }}
-                                </span>
-                            </div>
-                            <p v-if="student.notes" class="mt-3 text-sm leading-6 text-stone-600">
-                                {{ student.notes }}
-                            </p>
                         </div>
                     </article>
                 </div>

@@ -5,23 +5,18 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 
 const form = useForm({
     username: '',
     name: '',
     display_name: '',
-    email: '',
     password: '',
-    status: 'active',
-    notes: '',
-    is_active: true,
     can_manage_own_schedule: true,
     can_use_ad_hoc_timer: true,
     preferred_timezone: 'UTC',
     default_push_up_count: '0',
     rest_duration_seconds: '0',
-    consequence_notes: '',
 });
 
 const submit = () => {
@@ -56,40 +51,9 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <InputLabel for="email" value="Email (optional)" />
-                        <TextInput id="email" v-model="form.email" type="email" class="mt-2 block w-full rounded-xl border-stone-300" />
-                        <InputError class="mt-2" :message="form.errors.email" />
-                    </div>
-
-                    <div>
                         <InputLabel for="password" value="Password" />
                         <TextInput id="password" v-model="form.password" type="password" class="mt-2 block w-full rounded-xl border-stone-300" />
                         <InputError class="mt-2" :message="form.errors.password" />
-                    </div>
-
-                    <div>
-                        <InputLabel for="status" value="Student status" />
-                        <select id="status" v-model="form.status" class="mt-2 block w-full rounded-xl border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700">
-                            <option value="active">Active</option>
-                            <option value="paused">Paused</option>
-                        </select>
-                        <InputError class="mt-2" :message="form.errors.status" />
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <InputLabel for="notes" value="Notes" />
-                        <textarea id="notes" v-model="form.notes" rows="5" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700" />
-                        <InputError class="mt-2" :message="form.errors.notes" />
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="inline-flex items-center gap-3">
-                            <Checkbox v-model:checked="form.is_active" />
-                            <span class="text-sm text-stone-700">
-                                Allow this student to log in immediately after creation
-                            </span>
-                        </label>
-                        <InputError class="mt-2" :message="form.errors.is_active" />
                     </div>
 
                     <div class="md:col-span-2 rounded-[1.5rem] bg-stone-100 p-6">
@@ -142,11 +106,6 @@ const submit = () => {
                                 <InputError class="mt-2" :message="form.errors.rest_duration_seconds" />
                             </div>
 
-                            <div class="md:col-span-2">
-                                <InputLabel for="consequence_notes" value="Consequence notes" />
-                                <textarea id="consequence_notes" v-model="form.consequence_notes" rows="4" class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700" />
-                                <InputError class="mt-2" :message="form.errors.consequence_notes" />
-                            </div>
                         </div>
                     </div>
 

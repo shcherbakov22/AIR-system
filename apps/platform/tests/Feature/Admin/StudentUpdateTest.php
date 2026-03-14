@@ -45,7 +45,6 @@ class StudentUpdateTest extends TestCase
                 ->where('student.id', $student->id)
                 ->where('student.display_name', 'Editable Student')
                 ->where('student.user.username', 'editable_student')
-                ->where('student.user.is_active', false)
                 ->where('student.user.last_login_at', null)
                 ->where('student.settings.can_manage_own_schedule', true)
                 ->where('student.consequence_profile.default_push_up_count', 0)
@@ -80,16 +79,11 @@ class StudentUpdateTest extends TestCase
             'username' => 'edited_student',
             'name' => 'Edited Student User',
             'display_name' => 'Edited Student',
-            'email' => '',
-            'status' => 'active',
-            'notes' => 'Updated by admin.',
-            'is_active' => true,
             'can_manage_own_schedule' => false,
             'can_use_ad_hoc_timer' => false,
             'preferred_timezone' => 'Africa/Cairo',
             'default_push_up_count' => 8,
             'rest_duration_seconds' => 120,
-            'consequence_notes' => 'Updated consequence profile.',
         ]);
 
         $response
@@ -102,12 +96,12 @@ class StudentUpdateTest extends TestCase
         $this->assertSame('edited_student', $studentUser->username);
         $this->assertSame('Edited Student User', $studentUser->name);
         $this->assertNull($studentUser->email);
-        $this->assertTrue($studentUser->is_active);
+        $this->assertFalse($studentUser->is_active);
         $this->assertSame($existingPasswordHash, $studentUser->password);
 
         $this->assertSame('Edited Student', $student->display_name);
-        $this->assertSame('active', $student->status);
-        $this->assertSame('Updated by admin.', $student->notes);
+        $this->assertSame('paused', $student->status);
+        $this->assertSame('Needs review', $student->notes);
         $this->assertDatabaseHas('student_settings', [
             'student_id' => $student->id,
             'can_manage_own_schedule' => false,
@@ -118,7 +112,7 @@ class StudentUpdateTest extends TestCase
             'student_id' => $student->id,
             'default_push_up_count' => 8,
             'rest_duration_seconds' => 120,
-            'notes' => 'Updated consequence profile.',
+            'notes' => null,
         ]);
     }
 

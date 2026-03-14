@@ -26,8 +26,6 @@ class StudentController extends Controller
         return [
             'id' => $student->id,
             'display_name' => $student->display_name,
-            'status' => $student->status,
-            'notes' => $student->notes,
             'settings' => [
                 'can_manage_own_schedule' => $student->canManageOwnSchedule(),
                 'can_use_ad_hoc_timer' => $student->canUseAdHocTimer(),
@@ -37,14 +35,11 @@ class StudentController extends Controller
                 'default_push_up_count' => $student->consequenceProfile?->default_push_up_count ?? 0,
                 'rest_duration_seconds' => $student->consequenceProfile?->rest_duration_seconds ?? 0,
                 'legacy_owner_user_id' => $student->consequenceProfile?->legacy_owner_user_id,
-                'notes' => $student->consequenceProfile?->notes,
             ],
             'user' => [
                 'id' => $student->user->id,
                 'username' => $student->user->username,
                 'name' => $student->user->name,
-                'email' => $student->user->email,
-                'is_active' => $student->user->is_active,
                 'last_login_at' => $student->user->last_login_at?->toAtomString(),
             ],
         ];
@@ -61,17 +56,17 @@ class StudentController extends Controller
             $user = User::create([
                 'username' => $request->string('username')->toString(),
                 'name' => $request->string('name')->toString(),
-                'email' => $request->input('email'),
+                'email' => null,
                 'role' => UserRole::Student,
-                'is_active' => $request->boolean('is_active'),
+                'is_active' => true,
                 'password' => Hash::make($request->string('password')->toString()),
             ]);
 
             $student = Student::create([
                 'user_id' => $user->id,
                 'display_name' => $request->string('display_name')->toString(),
-                'status' => $request->string('status')->toString(),
-                'notes' => $request->input('notes') ?: null,
+                'status' => 'active',
+                'notes' => null,
             ]);
 
             StudentSetting::create([
@@ -86,7 +81,7 @@ class StudentController extends Controller
                 'default_push_up_count' => (int) $request->input('default_push_up_count'),
                 'rest_duration_seconds' => (int) $request->input('rest_duration_seconds'),
                 'legacy_owner_user_id' => null,
-                'notes' => $request->input('consequence_notes') ?: null,
+                'notes' => null,
             ]);
 
             return $student;
@@ -112,14 +107,11 @@ class StudentController extends Controller
             $student->user->update([
                 'username' => $request->string('username')->toString(),
                 'name' => $request->string('name')->toString(),
-                'email' => $request->input('email'),
-                'is_active' => $request->boolean('is_active'),
+                'email' => null,
             ]);
 
             $student->update([
                 'display_name' => $request->string('display_name')->toString(),
-                'status' => $request->string('status')->toString(),
-                'notes' => $request->input('notes') ?: null,
             ]);
 
             $student->setting()->updateOrCreate(
@@ -136,7 +128,7 @@ class StudentController extends Controller
                 [
                     'default_push_up_count' => (int) $request->input('default_push_up_count'),
                     'rest_duration_seconds' => (int) $request->input('rest_duration_seconds'),
-                    'notes' => $request->input('consequence_notes') ?: null,
+                    'notes' => $student->consequenceProfile?->notes,
                 ],
             );
         });
