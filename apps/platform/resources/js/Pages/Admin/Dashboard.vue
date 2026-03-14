@@ -712,9 +712,6 @@ const blockTooltip = (block: DashboardBlock): string => {
                             </div>
                         </div>
 
-                        <p v-else class="mt-1.5 text-[11px] text-stone-600">
-                            No open violations.
-                        </p>
                     </div>
 
                     <div class="mt-1.5 min-w-0">
