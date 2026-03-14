@@ -18,21 +18,12 @@ class LegacyCaptureController extends Controller
 {
     public function check(Request $request)
     {
-        $student = $this->authenticateStudent($request);
+        $this->authenticateStudent($request);
 
-        $taskSession = $this->latestTaskSession($student);
-        $remainingSeconds = 30 * 60 + 30;
-
-        if ($taskSession && $taskSession->planned_duration_minutes) {
-            $elapsedSeconds = max(
-                $taskSession->duration_seconds ?? 0,
-                ($taskSession->duration_seconds ?? 0) + now()->diffInSeconds($taskSession->started_at),
-            );
-
-            $remainingSeconds = max(($taskSession->planned_duration_minutes * 60) - $elapsedSeconds, 0);
-        }
-
-        return response($this->formatLegacyClock($remainingSeconds).':OK', 200)
+        // The legacy uploader used this endpoint to fetch a "delays" pair,
+        // not the current task's remaining time. Keep the old format so the
+        // client continues to schedule uploads normally.
+        return response('30:30:OK', 200)
             ->header('Content-Type', 'text/plain; charset=UTF-8');
     }
 
@@ -144,14 +135,5 @@ class LegacyCaptureController extends Controller
         }
 
         return $upload;
-    }
-
-    protected function formatLegacyClock(int $seconds): string
-    {
-        $safeSeconds = max(0, $seconds);
-        $minutes = intdiv($safeSeconds, 60);
-        $remainingSeconds = $safeSeconds % 60;
-
-        return sprintf('%02d:%02d', $minutes, $remainingSeconds);
     }
 }
