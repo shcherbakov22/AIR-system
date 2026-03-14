@@ -185,7 +185,7 @@ onBeforeUnmount(() => {
                     :class="message.sent_by_role === viewerRole ? 'justify-end' : 'justify-start'"
                 >
                     <article
-                        class="max-w-[42rem] rounded-[1.25rem] px-4 py-3 shadow-sm ring-1"
+                        class="min-w-0 max-w-[42rem] break-words rounded-[1.25rem] px-4 py-3 shadow-sm ring-1"
                         :class="
                             message.sent_by_role === viewerRole
                                 ? 'bg-amber-50 ring-amber-200'
@@ -203,7 +203,7 @@ onBeforeUnmount(() => {
 
                         <div
                             v-if="message.body"
-                            class="mt-2 text-sm leading-6 text-stone-900"
+                            class="mt-2 break-words text-sm leading-6 text-stone-900 [overflow-wrap:anywhere] [&_a]:break-all"
                             v-html="renderMessageBody(message.body)"
                         />
 
@@ -212,9 +212,9 @@ onBeforeUnmount(() => {
                                 :href="message.attachment.url"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                class="inline-flex items-center gap-2 rounded-full border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                class="inline-flex max-w-full items-center gap-2 rounded-full border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                             >
-                                <span>{{ message.attachment.name || 'Attachment' }}</span>
+                                <span class="break-all">{{ message.attachment.name || 'Attachment' }}</span>
                                 <span v-if="formatFileSize(message.attachment.size)" class="text-xs text-stone-500">
                                     {{ formatFileSize(message.attachment.size) }}
                                 </span>
