@@ -330,7 +330,7 @@ const blockTooltip = (block: DashboardBlock): string => {
     <Head title="Mentor monitor" />
 
     <AuthenticatedLayout :sidebar-drawer="true" :full-width="true">
-        <div class="px-2 py-2 sm:px-3 lg:px-4">
+        <div class="px-2 pt-12 pb-2 sm:px-3 sm:pt-12 lg:px-4 lg:pt-12">
             <div
                 v-if="monitorStudents.length === 0"
                 class="rounded-[2rem] bg-white px-6 py-8 shadow-sm ring-1 ring-stone-200"
