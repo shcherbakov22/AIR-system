@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
 type DashboardBlock = {
     id: number;
@@ -149,6 +149,7 @@ watch(
 let clockInterval: number | null = null;
 let reloadInterval: number | null = null;
 let isReloading = false;
+const scheduleBoardRefs = new Map<number, HTMLElement>();
 
 const reloadMonitorBoard = () => {
     if (isReloading || document.hidden) {
@@ -171,12 +172,41 @@ const handleVisibilityChange = () => {
     }
 };
 
+const setScheduleBoardRef = (studentId: number, element: unknown) => {
+    if (element instanceof HTMLElement) {
+        scheduleBoardRefs.set(studentId, element);
+        return;
+    }
+
+    scheduleBoardRefs.delete(studentId);
+};
+
+const scrollScheduleBoardsToActiveBlock = () => {
+    scheduleBoardRefs.forEach((board) => {
+        const activeBlock = board.querySelector<HTMLElement>('[data-active-block="true"]');
+
+        if (!activeBlock) {
+            board.scrollTop = 0;
+            return;
+        }
+
+        const boardHeight = board.clientHeight;
+        const targetTop = Math.max(activeBlock.offsetTop - Math.max((boardHeight - activeBlock.offsetHeight) / 2, 24), 0);
+
+        board.scrollTo({
+            top: targetTop,
+            behavior: 'smooth',
+        });
+    });
+};
+
 onMounted(() => {
     syncLiveNow();
     clockInterval = window.setInterval(syncLiveNow, 1000);
     reloadInterval = window.setInterval(reloadMonitorBoard, 5000);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', reloadMonitorBoard);
+    nextTick(scrollScheduleBoardsToActiveBlock);
 });
 
 onBeforeUnmount(() => {
@@ -191,6 +221,15 @@ onBeforeUnmount(() => {
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('focus', reloadMonitorBoard);
 });
+
+watch(
+    () => props.monitorStudents,
+    async () => {
+        await nextTick();
+        scrollScheduleBoardsToActiveBlock();
+    },
+    { deep: true },
+);
 
 const monitorStudents = computed(() => {
     const liveDeltaSeconds = Math.max(0, Math.floor((liveNowMs.value - serverNowMs.value) / 1000));
@@ -353,7 +392,7 @@ const blockTooltip = (block: DashboardBlock): string => {
     <Head title="Mentor monitor" />
 
     <AuthenticatedLayout :sidebar-drawer="true" :full-width="true">
-        <div class="px-2 pt-8 pb-4 sm:px-3 sm:pt-8 sm:pb-5 lg:px-4 lg:pt-8 lg:pb-6">
+        <div class="h-[calc(100vh-1.75rem)] overflow-hidden px-2 pt-8 pb-2 sm:px-3 sm:pt-8 sm:pb-3 lg:px-4 lg:pt-8 lg:pb-4">
             <div
                 v-if="monitorStudents.length === 0"
                 class="rounded-[2rem] bg-white px-6 py-8 shadow-sm ring-1 ring-stone-200"
@@ -365,12 +404,12 @@ const blockTooltip = (block: DashboardBlock): string => {
 
             <div
                 v-else
-                class="grid items-start gap-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+                class="grid h-full items-stretch gap-2 overflow-hidden md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
             >
                 <article
                     v-for="student in monitorStudents"
                     :key="student.id"
-                    class="relative flex min-h-0 flex-col rounded-[1.25rem] bg-white p-2 shadow-sm ring-1 ring-stone-200"
+                    class="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[1.25rem] bg-white p-2 shadow-sm ring-1 ring-stone-200"
                 >
                     <div class="flex items-start justify-between gap-1.5">
                         <div class="min-w-0">
@@ -542,14 +581,18 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </p>
                     </div>
 
-                    <div v-if="student.schedule_board" class="mt-1.5 rounded-[0.65rem] bg-stone-50/60 p-px">
-                        <div class="grid grid-cols-1 gap-px content-start">
+                    <div v-if="student.schedule_board" class="mt-1.5 min-h-0 flex-1 overflow-hidden rounded-[0.65rem] bg-stone-50/60 p-px">
+                        <div
+                            :ref="(element) => setScheduleBoardRef(student.id, element)"
+                            class="grid h-full grid-cols-1 content-start gap-px overflow-y-auto pr-px"
+                        >
                             <div
                                 v-for="block in student.schedule_board.blocks"
                                 :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
                                 class="rounded-[0.35rem] border px-1 py-[3px]"
                                 :class="blockRowClass(block.status)"
                                 :title="blockTooltip(block)"
+                                :data-active-block="block.status === 'in_progress' || block.status === 'paused' ? 'true' : 'false'"
                             >
                                 <div class="flex items-center justify-between gap-1.5 text-[9px] leading-none">
                                     <p class="min-w-0 truncate font-medium text-stone-900">
@@ -565,7 +608,7 @@ const blockTooltip = (block: DashboardBlock): string => {
 
                     <div
                         v-else
-                        class="mt-1.5 flex items-center justify-center rounded-[1rem] border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-center text-sm text-stone-500"
+                        class="mt-1.5 flex min-h-0 flex-1 items-center justify-center rounded-[1rem] border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-center text-sm text-stone-500"
                     >
                         No schedule available.
                     </div>
