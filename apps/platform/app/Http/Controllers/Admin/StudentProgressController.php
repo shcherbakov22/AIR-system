@@ -94,12 +94,45 @@ class StudentProgressController extends Controller
         ];
     }
 
+    protected function taskSequencePayload(TaskSession $taskSession): array
+    {
+        $actualDurationSeconds = $this->actualDurationSeconds($taskSession);
+        $plannedDurationSeconds = max(0, (int) ($taskSession->planned_duration_minutes ?? 0) * 60);
+        $deltaSeconds = $actualDurationSeconds - $plannedDurationSeconds;
+
+        return [
+            'id' => $taskSession->id,
+            'status' => $taskSession->status,
+            'task_title' => $taskSession->task_title_snapshot,
+            'planned_duration_minutes' => $taskSession->planned_duration_minutes,
+            'planned_duration_label' => $this->formatDuration($plannedDurationSeconds),
+            'actual_duration_seconds' => $actualDurationSeconds,
+            'actual_duration_label' => $this->formatDuration($actualDurationSeconds),
+            'delta_seconds' => $deltaSeconds,
+            'delta_label' => ($deltaSeconds > 0 ? '+' : '').$this->formatDuration(abs($deltaSeconds)),
+            'started_at' => $taskSession->started_at?->toIso8601String(),
+            'started_at_label' => $taskSession->started_at?->format('d M, H:i'),
+            'ended_at' => $taskSession->ended_at?->toIso8601String(),
+            'ended_at_label' => $taskSession->ended_at?->format('d M, H:i'),
+            'was_in_schedule' => $taskSession->schedule_run_block_id !== null,
+            'block_position' => $taskSession->scheduleRunBlock?->position,
+        ];
+    }
+
     protected function runPayload(ScheduleRun $scheduleRun): array
     {
         $blocks = $scheduleRun->blocks
             ->sortBy('position')
             ->values()
             ->map(fn (ScheduleRunBlock $block) => $this->blockPayload($block));
+
+        $taskSequence = $scheduleRun->taskSessions
+            ->sortBy([
+                ['started_at', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->values()
+            ->map(fn (TaskSession $taskSession) => $this->taskSequencePayload($taskSession));
 
         $totalActualDurationSeconds = $blocks->sum('actual_duration_seconds');
         $totalPlannedDurationMinutes = $scheduleRun->blocks->sum('duration_minutes_snapshot');
@@ -119,7 +152,7 @@ class StudentProgressController extends Controller
             'total_planned_duration_label' => $this->formatDuration($totalPlannedDurationMinutes * 60),
             'total_actual_duration_seconds' => $totalActualDurationSeconds,
             'total_actual_duration_label' => $this->formatDuration($totalActualDurationSeconds),
-            'blocks' => $blocks->all(),
+            'task_sequence' => $taskSequence->all(),
         ];
     }
 
@@ -136,6 +169,10 @@ class StudentProgressController extends Controller
                                 ->orderBy('id'),
                         ])
                         ->orderBy('position'),
+                    'taskSessions' => fn ($taskSessionQuery) => $taskSessionQuery
+                        ->with('scheduleRunBlock')
+                        ->orderBy('started_at')
+                        ->orderBy('id'),
                 ])
                 ->latest('started_at')
                 ->latest('id'),
@@ -177,7 +214,7 @@ class StudentProgressController extends Controller
             ->values();
 
         $taskSummary = $runs
-            ->flatMap(fn (array $run) => $run['blocks'])
+            ->flatMap(fn (array $run) => $run['task_sequence'])
             ->groupBy('task_title')
             ->map(function ($blocks, string $taskTitle): array {
                 $totalActualSeconds = $blocks->sum('actual_duration_seconds');

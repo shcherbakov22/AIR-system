@@ -50,9 +50,8 @@ defineProps<{
         total_planned_duration_label: string;
         total_actual_duration_seconds: number;
         total_actual_duration_label: string;
-        blocks: Array<{
+        task_sequence: Array<{
             id: number;
-            position: number;
             status: string;
             task_title: string;
             planned_duration_minutes: number;
@@ -61,15 +60,10 @@ defineProps<{
             actual_duration_label: string;
             delta_seconds: number;
             delta_label: string;
-            actual_started_at_label?: string | null;
-            actual_ended_at_label?: string | null;
-            session_logs: Array<{
-                id: number;
-                status: string;
-                started_at_label?: string | null;
-                ended_at_label?: string | null;
-                duration_label: string;
-            }>;
+            started_at_label?: string | null;
+            ended_at_label?: string | null;
+            was_in_schedule: boolean;
+            block_position?: number | null;
         }>;
     }>;
 }>();
@@ -271,9 +265,9 @@ defineProps<{
 
                     <div class="mt-5 overflow-hidden rounded-[1.5rem] border border-stone-200">
                         <div class="hidden bg-stone-100 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 lg:grid lg:grid-cols-[5rem_minmax(0,1.6fr)_8rem_8rem_8rem_8rem_8rem] lg:gap-3">
-                            <span>Block</span>
+                            <span>#</span>
                             <span>Task</span>
-                            <span>Status</span>
+                            <span>Source</span>
                             <span>Started</span>
                             <span>Ended</span>
                             <span>Planned</span>
@@ -281,78 +275,49 @@ defineProps<{
                         </div>
 
                         <div class="divide-y divide-stone-200">
-                            <details
-                                v-for="block in run.blocks"
-                                :key="block.id"
-                                class="group"
+                            <div
+                                v-for="(task, index) in run.task_sequence"
+                                :key="task.id"
+                                class="px-4 py-4 transition hover:bg-stone-50"
                             >
-                                <summary class="cursor-pointer list-none px-4 py-4 transition hover:bg-stone-50">
-                                    <div class="grid gap-2 lg:grid-cols-[5rem_minmax(0,1.6fr)_8rem_8rem_8rem_8rem_8rem] lg:items-center lg:gap-3">
-                                        <div class="text-sm font-semibold text-stone-950">
-                                            {{ block.position }}
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-medium text-stone-950">
-                                                {{ block.task_title }}
-                                            </p>
-                                            <p class="mt-1 text-xs text-stone-500 lg:hidden">
-                                                {{ block.status }} - {{ block.actual_started_at_label || 'Not started' }} - {{ block.actual_duration_label }}
-                                            </p>
-                                        </div>
-                                        <div class="hidden text-sm capitalize text-stone-700 lg:block">
-                                            {{ block.status }}
-                                        </div>
-                                        <div class="hidden text-sm text-stone-700 lg:block">
-                                            {{ block.actual_started_at_label || '-' }}
-                                        </div>
-                                        <div class="hidden text-sm text-stone-700 lg:block">
-                                            {{ block.actual_ended_at_label || '-' }}
-                                        </div>
-                                        <div class="hidden text-sm text-stone-700 lg:block">
-                                            {{ block.planned_duration_label }}
-                                        </div>
-                                        <div class="hidden text-sm font-medium text-stone-950 lg:block">
-                                            {{ block.actual_duration_label }}
+                                <div class="grid gap-2 lg:grid-cols-[5rem_minmax(0,1.6fr)_8rem_8rem_8rem_8rem_8rem] lg:items-center lg:gap-3">
+                                    <div class="text-sm font-semibold text-stone-950">
+                                        {{ index + 1 }}
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-stone-950">
+                                            {{ task.task_title }}
+                                        </p>
+                                        <div class="mt-1 flex flex-wrap gap-3 text-xs text-stone-500 lg:hidden">
+                                            <span>{{ task.was_in_schedule ? `Block ${task.block_position}` : 'Outside schedule' }}</span>
+                                            <span>{{ task.started_at_label || 'Not started' }}</span>
+                                            <span>{{ task.actual_duration_label }}</span>
                                         </div>
                                     </div>
-                                </summary>
-
-                                <div class="border-t border-stone-200 bg-stone-50 px-4 py-4">
-                                    <div class="flex flex-wrap gap-4 text-sm text-stone-700">
-                                        <span>Planned {{ block.planned_duration_label }}</span>
-                                        <span>Actual {{ block.actual_duration_label }}</span>
-                                        <span :class="block.delta_seconds > 0 ? 'text-rose-700' : 'text-emerald-700'">
-                                            Delta {{ block.delta_label }}
-                                        </span>
+                                    <div class="hidden text-sm text-stone-700 lg:block">
+                                        {{ task.was_in_schedule ? `Block ${task.block_position}` : 'Outside' }}
                                     </div>
-
-                                    <div class="mt-4 overflow-hidden rounded-[1.25rem] border border-stone-200 bg-white">
-                                        <div class="grid grid-cols-[8rem_8rem_8rem_1fr] gap-3 bg-stone-100 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
-                                            <span>Started</span>
-                                            <span>Ended</span>
-                                            <span>Duration</span>
-                                            <span>Status</span>
-                                        </div>
-
-                                        <div v-if="block.session_logs.length === 0" class="px-4 py-4 text-sm text-stone-500">
-                                            No task session log for this block yet.
-                                        </div>
-
-                                        <div v-else class="divide-y divide-stone-200">
-                                            <div
-                                                v-for="sessionLog in block.session_logs"
-                                                :key="sessionLog.id"
-                                                class="grid grid-cols-[8rem_8rem_8rem_1fr] gap-3 px-4 py-3 text-sm text-stone-700"
-                                            >
-                                                <span>{{ sessionLog.started_at_label || '-' }}</span>
-                                                <span>{{ sessionLog.ended_at_label || '-' }}</span>
-                                                <span>{{ sessionLog.duration_label }}</span>
-                                                <span class="capitalize">{{ sessionLog.status }}</span>
-                                            </div>
-                                        </div>
+                                    <div class="hidden text-sm text-stone-700 lg:block">
+                                        {{ task.started_at_label || '-' }}
+                                    </div>
+                                    <div class="hidden text-sm text-stone-700 lg:block">
+                                        {{ task.ended_at_label || '-' }}
+                                    </div>
+                                    <div class="hidden text-sm text-stone-700 lg:block">
+                                        {{ task.planned_duration_label }}
+                                    </div>
+                                    <div class="hidden text-sm font-medium text-stone-950 lg:block">
+                                        {{ task.actual_duration_label }}
                                     </div>
                                 </div>
-                            </details>
+
+                                <div class="mt-3 flex flex-wrap gap-4 text-sm text-stone-700">
+                                    <span class="capitalize">{{ task.status }}</span>
+                                    <span :class="task.delta_seconds > 0 ? 'text-rose-700' : 'text-emerald-700'">
+                                        Delta {{ task.delta_label }}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </article>

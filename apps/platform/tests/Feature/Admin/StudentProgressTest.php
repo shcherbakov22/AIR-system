@@ -108,6 +108,20 @@ class StudentProgressTest extends TestCase
             'started_by_user_id' => $studentUser->id,
         ]);
 
+        TaskSession::create([
+            'student_id' => $student->id,
+            'schedule_run_id' => $scheduleRun->id,
+            'schedule_run_block_id' => null,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Custom timer',
+            'planned_duration_minutes' => 10,
+            'started_at' => Carbon::parse('2026-03-12 09:40:00'),
+            'ended_at' => Carbon::parse('2026-03-12 09:50:00'),
+            'duration_seconds' => 600,
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
         $this->actingAs($admin)
             ->get(route('admin.students.progress', $student))
             ->assertOk()
@@ -122,12 +136,17 @@ class StudentProgressTest extends TestCase
                 ->where('summary.total_blocks', 2)
                 ->where('summary.active_schedule_name', 'Focus Day')
                 ->where('runs.0.schedule_name', 'Focus Day')
-                ->where('runs.0.blocks.0.task_title', 'Math')
-                ->where('runs.0.blocks.0.actual_duration_seconds', 1800)
-                ->where('runs.0.blocks.1.task_title', 'Reading')
-                ->where('runs.0.blocks.1.actual_duration_seconds', 5400)
-                ->where('runs.0.blocks.1.session_logs.0.status', 'paused')
-                ->where('runs.0.blocks.1.session_logs.1.status', 'active')
+                ->where('runs.0.task_sequence.0.task_title', 'Math')
+                ->where('runs.0.task_sequence.0.actual_duration_seconds', 1800)
+                ->where('runs.0.task_sequence.1.task_title', 'Reading')
+                ->where('runs.0.task_sequence.1.actual_duration_seconds', 900)
+                ->where('runs.0.task_sequence.1.was_in_schedule', true)
+                ->where('runs.0.task_sequence.2.task_title', 'Reading')
+                ->where('runs.0.task_sequence.2.actual_duration_seconds', 4500)
+                ->where('runs.0.task_sequence.2.was_in_schedule', true)
+                ->where('runs.0.task_sequence.3.task_title', 'Custom timer')
+                ->where('runs.0.task_sequence.3.actual_duration_seconds', 600)
+                ->where('runs.0.task_sequence.3.was_in_schedule', false)
                 ->where('task_summary.0.task_title', 'Reading')
                 ->where('task_summary.0.total_actual_duration_seconds', 5400)
             );
