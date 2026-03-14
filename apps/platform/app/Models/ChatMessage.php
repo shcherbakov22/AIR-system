@@ -13,6 +13,7 @@ class ChatMessage extends Model
     protected $fillable = [
         'student_id',
         'sender_user_id',
+        'channel',
         'body',
         'attachment_disk',
         'attachment_path',
@@ -41,6 +42,16 @@ class ChatMessage extends Model
     public function hasAttachment(): bool
     {
         return filled($this->attachment_path);
+    }
+
+    public function isAnnouncement(): bool
+    {
+        return $this->channel === 'announcement';
+    }
+
+    public function isChat(): bool
+    {
+        return $this->channel !== 'announcement';
     }
 
     public function isImage(): bool

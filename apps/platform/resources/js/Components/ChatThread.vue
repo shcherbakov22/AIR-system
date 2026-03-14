@@ -18,13 +18,19 @@ type ChatMessage = {
     } | null;
 };
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     title: string;
     subtitle: string;
     viewerRole: 'mentor' | 'student';
-    sendRoute: string;
+    sendRoute?: string | null;
+    readOnly?: boolean;
+    emptyMessage?: string;
     messages: ChatMessage[];
-}>();
+}>(), {
+    sendRoute: null,
+    readOnly: false,
+    emptyMessage: 'No messages yet.',
+});
 
 const page = usePage<PageProps>();
 const flashSuccess = computed(() => page.props.flash?.success ?? null);
@@ -41,6 +47,10 @@ const form = useForm<{
 let refreshInterval: number | null = null;
 
 const submit = () => {
+    if (!props.sendRoute) {
+        return;
+    }
+
     form.post(props.sendRoute, {
         forceFormData: true,
         preserveScroll: true,
@@ -124,7 +134,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="border-b border-stone-200 px-5 py-4">
-                <form class="space-y-3" @submit.prevent="submit">
+                <form v-if="!readOnly" class="space-y-3" @submit.prevent="submit">
                     <textarea
                         v-model="form.body"
                         rows="3"
@@ -162,6 +172,9 @@ onBeforeUnmount(() => {
                         {{ flashError || form.errors.body || form.errors.attachment }}
                     </p>
                 </form>
+                <div v-else class="text-sm text-stone-600">
+                    Announcements are read-only for students.
+                </div>
             </div>
 
             <div class="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-5">
@@ -225,7 +238,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div v-if="messages.length === 0" class="rounded-[1.25rem] bg-stone-50 px-5 py-6 text-sm text-stone-600 ring-1 ring-stone-200">
-                    No messages yet.
+                    {{ emptyMessage }}
                 </div>
             </div>
         </div>

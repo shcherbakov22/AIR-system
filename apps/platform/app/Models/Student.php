@@ -34,6 +34,11 @@ class Student extends Model
         return $this->hasMany(ChatMessage::class);
     }
 
+    public function announcementMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class)->where('channel', 'announcement');
+    }
+
     public function scheduleTemplates(): HasMany
     {
         return $this->hasMany(ScheduleTemplate::class);
@@ -105,7 +110,16 @@ class Student extends Model
 
     public function latestChatMessage(): HasOne
     {
-        return $this->hasOne(ChatMessage::class)->latestOfMany();
+        return $this->hasOne(ChatMessage::class)
+            ->where('channel', 'chat')
+            ->latestOfMany();
+    }
+
+    public function latestAnnouncementMessage(): HasOne
+    {
+        return $this->hasOne(ChatMessage::class)
+            ->where('channel', 'announcement')
+            ->latestOfMany();
     }
 
     public function hasOpenViolations(): bool

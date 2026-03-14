@@ -43,6 +43,11 @@ const navItems = computed(() => {
             active: route().current('admin.chats.*'),
         });
         items.push({
+            label: 'Announcements',
+            href: route('admin.announcements.index'),
+            active: route().current('admin.announcements.*'),
+        });
+        items.push({
             label: 'Tasks',
             href: route('admin.task-templates.index'),
             active: route().current('admin.task-templates.*'),
@@ -67,6 +72,11 @@ const navItems = computed(() => {
             label: 'Chat',
             href: route('student.chat.show'),
             active: route().current('student.chat.*'),
+        });
+        items.push({
+            label: 'Announcements',
+            href: route('student.announcements.show'),
+            active: route().current('student.announcements.*'),
         });
         items.push({
             label: 'Rules',

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\AnnouncementController as AdminAnnouncementController;
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LegacyCaptureController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Student\ChatController as StudentChatController;
+use App\Http\Controllers\Student\AnnouncementController as StudentAnnouncementController;
 use App\Http\Controllers\Student\HomeController as StudentHomeController;
 use App\Http\Controllers\Student\RuleController as StudentRuleController;
 use App\Http\Controllers\Student\ScheduleRunController as StudentScheduleRunController;
@@ -58,6 +60,9 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+        Route::get('/announcements', [AdminAnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('/announcements/{student}', [AdminAnnouncementController::class, 'show'])->name('announcements.show');
+        Route::post('/announcements/{student}', [AdminAnnouncementController::class, 'store'])->name('announcements.store');
         Route::get('/chats', [AdminChatController::class, 'index'])->name('chats.index');
         Route::get('/chats/{student}', [AdminChatController::class, 'show'])->name('chats.show');
         Route::post('/chats/{student}', [AdminChatController::class, 'store'])->name('chats.store');
@@ -101,6 +106,7 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('student')->name('student.')->middleware('student')->group(function () {
         Route::get('/home', StudentHomeController::class)->name('home');
+        Route::get('/announcements', [StudentAnnouncementController::class, 'show'])->name('announcements.show');
         Route::get('/chat', [StudentChatController::class, 'show'])->name('chat.show');
         Route::post('/chat', [StudentChatController::class, 'store'])->name('chat.store');
         Route::get('/rules', StudentRuleController::class)->name('rules.index');

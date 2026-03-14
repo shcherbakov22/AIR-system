@@ -35,6 +35,7 @@ class ChatController extends Controller
         ChatMessage::create([
             'student_id' => $student->id,
             'sender_user_id' => $request->user()->id,
+            'channel' => 'chat',
             'body' => $request->string('body')->trim()->toString() ?: null,
             'attachment_disk' => $path ? 'local' : null,
             'attachment_path' => $path,
@@ -50,7 +51,13 @@ class ChatController extends Controller
 
     private function threadPayload(Student $student): array
     {
-        $student->loadMissing(['user', 'chatMessages.sender']);
+        $student->loadMissing('user');
+        $messages = ChatMessage::query()
+            ->with('sender')
+            ->where('student_id', $student->id)
+            ->where('channel', 'chat')
+            ->orderBy('created_at')
+            ->get();
 
         return [
             'student' => [
@@ -58,9 +65,7 @@ class ChatController extends Controller
                 'display_name' => $student->display_name,
                 'username' => $student->user->username,
             ],
-            'messages' => $student->chatMessages
-                ->sortBy('created_at')
-                ->values()
+            'messages' => $messages
                 ->map(fn (ChatMessage $message) => [
                     'id' => $message->id,
                     'body' => $message->body,
