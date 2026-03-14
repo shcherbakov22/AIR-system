@@ -57,6 +57,8 @@ class DashboardController extends Controller
             'capture_kind' => $capture->capture_kind,
             'captured_at' => $capture->captured_at?->toIso8601String(),
             'captured_at_label' => $capture->captured_at?->format('d M, H:i'),
+            'uploaded_at' => $capture->uploaded_at?->toIso8601String(),
+            'uploaded_at_label' => $capture->uploaded_at?->format('d M, H:i'),
             'task_title' => $capture->task_title_snapshot,
             'source_label' => $capture->source_label,
             'image_url' => route('admin.student-monitor-captures.show', $capture),

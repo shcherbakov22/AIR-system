@@ -63,12 +63,24 @@ type DashboardStudent = {
     } | null;
     latest_screen_capture?: {
         id: number;
+        capture_kind: string;
+        captured_at?: string | null;
         captured_at_label?: string | null;
+        uploaded_at?: string | null;
+        uploaded_at_label?: string | null;
+        task_title?: string | null;
+        source_label?: string | null;
         image_url: string;
     } | null;
     latest_camera_capture?: {
         id: number;
+        capture_kind: string;
+        captured_at?: string | null;
         captured_at_label?: string | null;
+        uploaded_at?: string | null;
+        uploaded_at_label?: string | null;
+        task_title?: string | null;
+        source_label?: string | null;
         image_url: string;
     } | null;
     open_violations: Array<{
@@ -86,6 +98,10 @@ const props = defineProps<{
     }>;
     monitorStudents: DashboardStudent[];
 }>();
+
+type DashboardCapture = NonNullable<DashboardStudent['latest_screen_capture']>;
+
+const selectedCapture = ref<(DashboardCapture & { studentName: string }) | null>(null);
 
 const selectedRules = reactive<Record<number, string>>({});
 
@@ -246,6 +262,17 @@ const deleteViolation = (violationId: number) => {
         preserveScroll: true,
         preserveState: true,
     });
+};
+
+const openCapture = (studentName: string, capture: DashboardCapture) => {
+    selectedCapture.value = {
+        ...capture,
+        studentName,
+    };
+};
+
+const closeCapture = () => {
+    selectedCapture.value = null;
 };
 
 const studentStatusClass = (student: DashboardStudent): string => {
@@ -486,12 +513,11 @@ const blockTooltip = (block: DashboardBlock): string => {
                         v-if="student.latest_screen_capture || student.latest_camera_capture"
                         class="mt-1.5 grid grid-cols-2 gap-1.5"
                     >
-                        <a
+                        <button
                             v-if="student.latest_screen_capture"
-                            :href="student.latest_screen_capture.image_url"
-                            target="_blank"
-                            rel="noreferrer"
+                            type="button"
                             class="group overflow-hidden rounded-[0.75rem] border border-stone-200 bg-stone-50"
+                            @click="openCapture(student.display_name, student.latest_screen_capture)"
                         >
                             <img
                                 :src="student.latest_screen_capture.image_url"
@@ -503,17 +529,16 @@ const blockTooltip = (block: DashboardBlock): string => {
                                     Screen
                                 </p>
                                 <p class="truncate text-[9px] text-stone-500">
-                                    {{ student.latest_screen_capture.captured_at_label ?? 'Just now' }}
+                                    {{ student.latest_screen_capture.uploaded_at_label ?? student.latest_screen_capture.captured_at_label ?? 'Just now' }}
                                 </p>
                             </div>
-                        </a>
+                        </button>
 
-                        <a
+                        <button
                             v-if="student.latest_camera_capture"
-                            :href="student.latest_camera_capture.image_url"
-                            target="_blank"
-                            rel="noreferrer"
+                            type="button"
                             class="group overflow-hidden rounded-[0.75rem] border border-stone-200 bg-stone-50"
+                            @click="openCapture(student.display_name, student.latest_camera_capture)"
                         >
                             <img
                                 :src="student.latest_camera_capture.image_url"
@@ -525,10 +550,10 @@ const blockTooltip = (block: DashboardBlock): string => {
                                     Camera
                                 </p>
                                 <p class="truncate text-[9px] text-stone-500">
-                                    {{ student.latest_camera_capture.captured_at_label ?? 'Just now' }}
+                                    {{ student.latest_camera_capture.uploaded_at_label ?? student.latest_camera_capture.captured_at_label ?? 'Just now' }}
                                 </p>
                             </div>
-                        </a>
+                        </button>
                     </div>
 
                     <div class="mt-1.5 min-w-0">
@@ -582,6 +607,81 @@ const blockTooltip = (block: DashboardBlock): string => {
                         No schedule available.
                     </div>
                 </article>
+            </div>
+
+            <div
+                v-if="selectedCapture"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/85 p-4"
+                @click.self="closeCapture"
+            >
+                <div class="w-full max-w-6xl overflow-hidden rounded-[1.25rem] bg-white shadow-2xl">
+                    <div class="flex items-start justify-between gap-4 border-b border-stone-200 px-4 py-3">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-semibold text-stone-950">
+                                {{ selectedCapture.studentName }} - {{ selectedCapture.capture_kind === 'camera' ? 'Camera' : 'Screen' }}
+                            </p>
+                            <p class="truncate text-xs text-stone-500">
+                                {{ selectedCapture.task_title ?? 'No activity snapshot' }}
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700"
+                            @click="closeCapture"
+                        >
+                            Close
+                        </button>
+                    </div>
+
+                    <div class="grid gap-0 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                        <div class="bg-stone-950">
+                            <img
+                                :src="selectedCapture.image_url"
+                                :alt="selectedCapture.capture_kind === 'camera' ? 'Camera capture' : 'Screen capture'"
+                                class="max-h-[80vh] w-full object-contain"
+                            >
+                        </div>
+
+                        <div class="space-y-3 px-4 py-4 text-sm text-stone-700">
+                            <div>
+                                <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                    Uploaded
+                                </p>
+                                <p class="mt-1 text-sm font-medium text-stone-950">
+                                    {{ selectedCapture.uploaded_at_label ?? selectedCapture.captured_at_label ?? 'Unknown' }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                    Captured
+                                </p>
+                                <p class="mt-1 text-sm font-medium text-stone-950">
+                                    {{ selectedCapture.captured_at_label ?? selectedCapture.uploaded_at_label ?? 'Unknown' }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                    Activity
+                                </p>
+                                <p class="mt-1 text-sm font-medium text-stone-950">
+                                    {{ selectedCapture.task_title ?? 'No activity snapshot' }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                    Source
+                                </p>
+                                <p class="mt-1 text-sm font-medium text-stone-950">
+                                    {{ selectedCapture.source_label ?? 'Unknown source' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </AuthenticatedLayout>
