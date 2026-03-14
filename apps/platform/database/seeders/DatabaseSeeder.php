@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate([
             'username' => 'admin',
         ], [
-            'name' => 'Локальный наставник',
+            'name' => 'Local mentor',
             'email' => 'admin@school-system.local',
             'role' => UserRole::Admin,
             'is_active' => true,
