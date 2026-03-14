@@ -56,11 +56,7 @@ const deleteStudent = (studentId: number, displayName: string) => {
             </div>
 
             <div class="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">
-                <div class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-between">
-                    <p class="text-sm text-stone-600">
-                        Current student profiles created in the new platform.
-                    </p>
-
+                <div class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-end">
                     <Link
                         :href="route('admin.students.create')"
                         class="inline-flex rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-stone-800"

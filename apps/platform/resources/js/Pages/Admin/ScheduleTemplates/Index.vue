@@ -70,11 +70,7 @@ function deleteSchedule(scheduleTemplateId: number, scheduleName: string): void 
             </div>
 
             <div class="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">
-                <div class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-between">
-                    <p class="text-sm text-stone-600">
-                        Weekly schedule templates place task blocks on specific weekdays for a specific student.
-                    </p>
-
+                <div class="flex flex-col gap-4 border-b border-stone-200 px-6 py-5 md:flex-row md:items-center md:justify-end">
                     <Link
                         :href="route('admin.schedule-templates.create')"
                         class="inline-flex rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-stone-800"

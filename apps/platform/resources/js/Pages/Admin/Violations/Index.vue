@@ -82,9 +82,6 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
                     <h1 class="text-lg font-semibold text-stone-950">
                         Violations matrix
                     </h1>
-                    <p class="mt-1 text-sm text-stone-600">
-                        Click any student and rule intersection to add that violation immediately.
-                    </p>
                 </div>
 
                 <div class="overflow-x-auto">
