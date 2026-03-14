@@ -603,7 +603,7 @@ const blockTooltip = (block: DashboardBlock): string => {
 
             <div
                 v-else
-                class="grid auto-rows-fr gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(9.75rem,1fr))]"
+                class="grid auto-rows-fr gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(8.75rem,1fr))]"
             >
                 <article
                     v-for="student in monitorStudents"
