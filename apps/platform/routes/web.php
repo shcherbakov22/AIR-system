@@ -96,6 +96,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/student-monitor-captures/{studentMonitorCapture}', [AdminStudentMonitorCaptureController::class, 'show'])->name('student-monitor-captures.show');
         Route::get('/speech-announcements/history', [AdminSpeechAnnouncementController::class, 'history'])->name('speech-announcements.history');
         Route::get('/speech-announcements/next', [AdminSpeechAnnouncementController::class, 'next'])->name('speech-announcements.next');
+        Route::patch('/speech-announcements/state', [AdminSpeechAnnouncementController::class, 'updateState'])->name('speech-announcements.state.update');
     });
 
     Route::prefix('student')->name('student.')->middleware('student')->group(function () {

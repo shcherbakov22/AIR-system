@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\UserRole;
+use App\Models\AppSetting;
 use App\Models\SpeechAnnouncement;
 use App\Models\Student;
 use App\Models\User;
@@ -139,6 +140,44 @@ class SpeechAnnouncementTest extends TestCase
         $announcement->refresh();
 
         $this->assertNotNull($announcement->spoken_at);
+        $this->assertNull($announcement->processing_started_at);
+        $this->assertNull($announcement->processing_host);
+    }
+
+    public function test_admin_can_toggle_server_speech_state(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.speech-announcements.state.update'), [
+                'enabled' => false,
+            ])
+            ->assertOk()
+            ->assertJson([
+                'enabled' => false,
+            ]);
+
+        $this->assertSame('0', AppSetting::getValue('server_speech_enabled'));
+    }
+
+    public function test_speech_worker_leaves_announcements_pending_when_server_speech_is_disabled(): void
+    {
+        Process::fake();
+        AppSetting::putBoolean('server_speech_enabled', false);
+
+        $announcement = SpeechAnnouncement::create([
+            'kind' => 'violation',
+            'message' => 'Voice should stay paused.',
+        ]);
+
+        $this->artisan('speech:play-announcements --once')
+            ->assertExitCode(0);
+
+        $announcement->refresh();
+
+        $this->assertNull($announcement->spoken_at);
         $this->assertNull($announcement->processing_started_at);
         $this->assertNull($announcement->processing_host);
     }

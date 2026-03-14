@@ -92,6 +92,10 @@ type DashboardStudent = {
 
 const props = defineProps<{
     serverNow: string;
+    serverSpeech: {
+        enabled: boolean;
+        pending_count: number;
+    };
     ruleDefinitions: Array<{
         id: number;
         title: string;
@@ -105,6 +109,9 @@ const selectedCapture = ref<(DashboardCapture & { studentName: string }) | null>
 const selectedCaptureHistory = ref<Array<DashboardCapture & { studentName: string }>>([]);
 const selectedCaptureHistoryIndex = ref(0);
 const captureHistoryLoading = ref(false);
+const serverSpeechEnabled = ref(props.serverSpeech.enabled);
+const serverSpeechPendingCount = ref(props.serverSpeech.pending_count);
+const speechStateSaving = ref(false);
 const speechLogsOpen = ref(false);
 const speechLogsLoading = ref(false);
 const speechLogs = ref<Array<{
@@ -159,6 +166,15 @@ watch(
     { immediate: true },
 );
 
+watch(
+    () => props.serverSpeech,
+    (serverSpeech) => {
+        serverSpeechEnabled.value = serverSpeech.enabled;
+        serverSpeechPendingCount.value = serverSpeech.pending_count;
+    },
+    { immediate: true, deep: true },
+);
+
 let clockInterval: number | null = null;
 let reloadInterval: number | null = null;
 let isReloading = false;
@@ -172,7 +188,7 @@ const reloadMonitorBoard = () => {
     isReloading = true;
 
     router.reload({
-        only: ['serverNow', 'monitorStudents'],
+        only: ['serverNow', 'monitorStudents', 'serverSpeech'],
         onFinish: () => {
             isReloading = false;
         },
@@ -243,6 +259,44 @@ const loadSpeechLogs = async () => {
         speechLogs.value = payload.announcements ?? [];
     } finally {
         speechLogsLoading.value = false;
+    }
+};
+
+const toggleServerSpeech = async () => {
+    if (speechStateSaving.value) {
+        return;
+    }
+
+    speechStateSaving.value = true;
+
+    try {
+        const response = await window.fetch(route('admin.speech-announcements.state.update'), {
+            method: 'PATCH',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name=\"csrf-token\"]')?.content ?? '',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                enabled: !serverSpeechEnabled.value,
+            }),
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const payload = await response.json() as {
+            enabled: boolean;
+            pending_count: number;
+        };
+
+        serverSpeechEnabled.value = payload.enabled;
+        serverSpeechPendingCount.value = payload.pending_count;
+    } finally {
+        speechStateSaving.value = false;
     }
 };
 
@@ -544,16 +598,23 @@ const blockTooltip = (block: DashboardBlock): string => {
                 <span>Logs</span>
             </button>
 
-            <div
-                class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-900"
+            <button
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold transition"
+                :class="serverSpeechEnabled ? 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100' : 'bg-stone-200 text-stone-700 hover:bg-stone-300'"
+                :disabled="speechStateSaving"
+                @click="toggleServerSpeech"
             >
-                <span class="sr-only">Server voice status</span>
+                <span class="sr-only">Toggle server voice</span>
                 <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
                     <path d="M4 8H7L11 5V15L7 12H4V8Z" stroke-linejoin="round" />
-                    <path d="M14 7C15.3333 8.16667 16 9.16667 16 10C16 10.8333 15.3333 11.8333 14 13" stroke-linecap="round" />
+                    <path v-if="serverSpeechEnabled" d="M14 7C15.3333 8.16667 16 9.16667 16 10C16 10.8333 15.3333 11.8333 14 13" stroke-linecap="round" />
                 </svg>
-                <span>Server voice</span>
-            </div>
+                <span>{{ speechStateSaving ? 'Saving...' : (serverSpeechEnabled ? 'Voice on' : 'Voice off') }}</span>
+                <span class="text-[10px] opacity-70">
+                    {{ serverSpeechPendingCount }}
+                </span>
+            </button>
         </div>
 
         <div class="h-[calc(100vh-1.75rem)] overflow-hidden px-2 pt-8 pb-2 sm:px-3 sm:pt-8 sm:pb-3 lg:px-4 lg:pt-8 lg:pb-4">

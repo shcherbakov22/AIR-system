@@ -11,11 +11,17 @@ use App\Models\Student;
 use App\Models\StudentMonitorCapture;
 use App\Models\ScheduleTemplate;
 use App\Models\TaskSession;
+use App\Models\SpeechAnnouncement;
+use App\Services\SpeechAnnouncementPlaybackService;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        protected SpeechAnnouncementPlaybackService $speechPlaybackService,
+    ) {}
+
     protected function actualDurationSeconds(TaskSession $taskSession): int
     {
         $baseDuration = (int) ($taskSession->duration_seconds ?? 0);
@@ -350,6 +356,10 @@ class DashboardController extends Controller
             'serverNow' => now()->toIso8601String(),
             'monitorStudents' => $monitorStudents,
             'ruleDefinitions' => $ruleDefinitions,
+            'serverSpeech' => [
+                'enabled' => $this->speechPlaybackService->isEnabled(),
+                'pending_count' => SpeechAnnouncement::query()->whereNull('spoken_at')->count(),
+            ],
         ]);
     }
 }

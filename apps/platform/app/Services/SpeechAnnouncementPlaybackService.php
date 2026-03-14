@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AppSetting;
 use App\Models\SpeechAnnouncement;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
@@ -10,6 +11,18 @@ use Throwable;
 
 class SpeechAnnouncementPlaybackService
 {
+    public const ENABLED_SETTING_KEY = 'server_speech_enabled';
+
+    public function isEnabled(): bool
+    {
+        return AppSetting::getBoolean(self::ENABLED_SETTING_KEY, true);
+    }
+
+    public function setEnabled(bool $enabled): void
+    {
+        AppSetting::putBoolean(self::ENABLED_SETTING_KEY, $enabled);
+    }
+
     public function releaseExpiredClaims(int $staleAfterSeconds = 120): int
     {
         return SpeechAnnouncement::query()
@@ -120,6 +133,10 @@ class SpeechAnnouncementPlaybackService
         string $playerBinary = 'aplay',
         int $staleAfterSeconds = 120,
     ): bool {
+        if (! $this->isEnabled()) {
+            return false;
+        }
+
         $announcement = $this->claimNextAnnouncement($staleAfterSeconds);
 
         if (! $announcement) {

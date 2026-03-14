@@ -39,6 +39,7 @@ class DashboardRoutingTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Dashboard')
                 ->has('serverNow')
+                ->where('serverSpeech.enabled', true)
                 ->has('monitorStudents', 0)
                 ->has('ruleDefinitions')
             );

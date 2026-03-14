@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SpeechAnnouncement;
+use App\Services\SpeechAnnouncementPlaybackService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
 class SpeechAnnouncementController extends Controller
 {
     public function history(): JsonResponse
@@ -49,6 +52,20 @@ class SpeechAnnouncementController extends Controller
                 'processing_started_at' => $announcement->processing_started_at?->toIso8601String(),
                 'processing_host' => $announcement->processing_host,
             ],
+        ]);
+    }
+
+    public function updateState(Request $request, SpeechAnnouncementPlaybackService $playbackService): JsonResponse
+    {
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $playbackService->setEnabled((bool) $validated['enabled']);
+
+        return response()->json([
+            'enabled' => $playbackService->isEnabled(),
+            'pending_count' => SpeechAnnouncement::query()->whereNull('spoken_at')->count(),
         ]);
     }
 }
