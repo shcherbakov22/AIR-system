@@ -148,15 +148,35 @@ watch(
 
 let clockInterval: number | null = null;
 let reloadInterval: number | null = null;
+let isReloading = false;
+
+const reloadMonitorBoard = () => {
+    if (isReloading || document.hidden) {
+        return;
+    }
+
+    isReloading = true;
+
+    router.reload({
+        only: ['serverNow', 'monitorStudents'],
+        onFinish: () => {
+            isReloading = false;
+        },
+    });
+};
+
+const handleVisibilityChange = () => {
+    if (!document.hidden) {
+        reloadMonitorBoard();
+    }
+};
 
 onMounted(() => {
     syncLiveNow();
     clockInterval = window.setInterval(syncLiveNow, 1000);
-    reloadInterval = window.setInterval(() => {
-        router.reload({
-            only: ['serverNow', 'monitorStudents'],
-        });
-    }, 30000);
+    reloadInterval = window.setInterval(reloadMonitorBoard, 5000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', reloadMonitorBoard);
 });
 
 onBeforeUnmount(() => {
@@ -167,6 +187,9 @@ onBeforeUnmount(() => {
     if (reloadInterval !== null) {
         window.clearInterval(reloadInterval);
     }
+
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('focus', reloadMonitorBoard);
 });
 
 const monitorStudents = computed(() => {
