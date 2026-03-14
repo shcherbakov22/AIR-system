@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LegacyCaptureController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Student\HomeController as StudentHomeController;
 use App\Http\Controllers\Student\RuleController as StudentRuleController;
@@ -25,6 +26,12 @@ Route::get('/', function () {
         'canLogin' => Route::has('login'),
     ]);
 })->name('home');
+
+Route::prefix('ss')->group(function () {
+    Route::match(['get', 'post'], '/upl1.php', [LegacyCaptureController::class, 'check']);
+    Route::post('/uplcam.php', [LegacyCaptureController::class, 'storeCamera']);
+    Route::post('/uplscr.php', [LegacyCaptureController::class, 'storeScreen']);
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
