@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\ChatMessage;
-use App\Models\Student;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,23 +16,20 @@ class AnnouncementController extends Controller
         abort_unless($student, 403);
 
         return Inertia::render('Student/Announcements/Show', [
-            'studentThread' => $this->threadPayload($student),
+            'announcementThread' => $this->threadPayload(),
         ]);
     }
 
-    private function threadPayload(Student $student): array
+    private function threadPayload(): array
     {
-        $student->loadMissing(['user', 'announcementMessages.sender']);
-
+        $messages = ChatMessage::query()
+            ->with('sender')
+            ->where('channel', 'announcement')
+            ->orderBy('created_at')
+            ->get();
+        
         return [
-            'student' => [
-                'id' => $student->id,
-                'display_name' => $student->display_name,
-                'username' => $student->user->username,
-            ],
-            'messages' => $student->announcementMessages
-                ->sortBy('created_at')
-                ->values()
+            'messages' => $messages
                 ->map(fn (ChatMessage $message) => [
                     'id' => $message->id,
                     'body' => $message->body,

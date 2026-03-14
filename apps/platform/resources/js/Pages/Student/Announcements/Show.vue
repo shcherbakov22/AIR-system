@@ -4,12 +4,7 @@ import ChatThread from '@/Components/ChatThread.vue';
 import { Head } from '@inertiajs/vue3';
 
 defineProps<{
-    studentThread: {
-        student: {
-            id: number;
-            display_name: string;
-            username: string;
-        };
+    announcementThread: {
         messages: Array<{
             id: number;
             body?: string | null;
@@ -47,7 +42,7 @@ defineProps<{
             title="Mentor announcements"
             subtitle="Announcements, files, images, and links from your mentor"
             viewer-role="student"
-            :messages="studentThread.messages"
+            :messages="announcementThread.messages"
             :read-only="true"
             empty-message="No announcements yet."
         />

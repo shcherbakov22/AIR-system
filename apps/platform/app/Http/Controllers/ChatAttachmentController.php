@@ -13,7 +13,10 @@ class ChatAttachmentController extends Controller
         abort_unless($user, 403);
 
         if ($user->isStudent()) {
-            abort_unless($user->student?->id === $chatMessage->student_id, 404);
+            abort_unless(
+                $chatMessage->isAnnouncement() || $user->student?->id === $chatMessage->student_id,
+                404,
+            );
         } else {
             abort_unless($user->isAdmin(), 403);
         }

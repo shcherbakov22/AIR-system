@@ -61,8 +61,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
         Route::get('/announcements', [AdminAnnouncementController::class, 'index'])->name('announcements.index');
-        Route::get('/announcements/{student}', [AdminAnnouncementController::class, 'show'])->name('announcements.show');
-        Route::post('/announcements/{student}', [AdminAnnouncementController::class, 'store'])->name('announcements.store');
+        Route::post('/announcements', [AdminAnnouncementController::class, 'store'])->name('announcements.store');
         Route::get('/chats', [AdminChatController::class, 'index'])->name('chats.index');
         Route::get('/chats/{student}', [AdminChatController::class, 'show'])->name('chats.show');
         Route::post('/chats/{student}', [AdminChatController::class, 'store'])->name('chats.store');

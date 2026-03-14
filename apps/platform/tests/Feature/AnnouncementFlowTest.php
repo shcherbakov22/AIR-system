@@ -28,7 +28,7 @@ class AnnouncementFlowTest extends TestCase
             'username' => 'ego',
         ]);
 
-        $student = Student::create([
+        Student::create([
             'user_id' => $studentUser->id,
             'display_name' => 'Ego',
             'status' => 'active',
@@ -38,11 +38,11 @@ class AnnouncementFlowTest extends TestCase
         $file = UploadedFile::fake()->create('notice.png', 120, 'image/png');
 
         $this->actingAs($mentor)
-            ->post(route('admin.announcements.store', $student), [
+            ->post(route('admin.announcements.store'), [
                 'body' => 'Read https://example.com/update',
                 'attachment' => $file,
             ])
-            ->assertRedirect(route('admin.announcements.show', $student, absolute: false))
+            ->assertRedirect(route('admin.announcements.index', absolute: false))
             ->assertSessionHas('success', 'Announcement sent.');
 
         /** @var ChatMessage $message */
@@ -50,7 +50,7 @@ class AnnouncementFlowTest extends TestCase
 
         $this->assertSame('announcement', $message->channel);
         $this->assertSame($mentor->id, $message->sender_user_id);
-        $this->assertSame($student->id, $message->student_id);
+        $this->assertNull($message->student_id);
         $this->assertSame('Read https://example.com/update', $message->body);
         Storage::disk('local')->assertExists($message->attachment_path);
     }
@@ -74,7 +74,7 @@ class AnnouncementFlowTest extends TestCase
         ]);
 
         ChatMessage::create([
-            'student_id' => $student->id,
+            'student_id' => null,
             'sender_user_id' => $mentor->id,
             'channel' => 'announcement',
             'body' => 'This is read only.',
@@ -85,19 +85,69 @@ class AnnouncementFlowTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Student/Announcements/Show')
-                ->where('studentThread.messages.0.body', 'This is read only.')
-                ->where('studentThread.messages.0.sent_by_role', 'mentor')
+                ->where('announcementThread.messages.0.body', 'This is read only.')
+                ->where('announcementThread.messages.0.sent_by_role', 'mentor')
             );
     }
 
-    public function test_student_cannot_post_to_announcement_thread(): void
+    public function test_all_students_see_the_same_global_announcement_thread(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $firstStudentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        Student::create([
+            'user_id' => $firstStudentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $secondStudentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'dim',
+        ]);
+
+        Student::create([
+            'user_id' => $secondStudentUser->id,
+            'display_name' => 'Dim',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        ChatMessage::create([
+            'student_id' => null,
+            'sender_user_id' => $mentor->id,
+            'channel' => 'announcement',
+            'body' => 'Shared with everyone.',
+        ]);
+
+        $this->actingAs($firstStudentUser)
+            ->get(route('student.announcements.show'))
+            ->assertInertia(fn ($page) => $page
+                ->where('announcementThread.messages.0.body', 'Shared with everyone.')
+            );
+
+        $this->actingAs($secondStudentUser)
+            ->get(route('student.announcements.show'))
+            ->assertInertia(fn ($page) => $page
+                ->where('announcementThread.messages.0.body', 'Shared with everyone.')
+            );
+    }
+
+    public function test_student_cannot_post_to_global_announcement_thread(): void
     {
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
             'username' => 'ego',
         ]);
 
-        $student = Student::create([
+        Student::create([
             'user_id' => $studentUser->id,
             'display_name' => 'Ego',
             'status' => 'active',
@@ -105,7 +155,7 @@ class AnnouncementFlowTest extends TestCase
         ]);
 
         $this->actingAs($studentUser)
-            ->post(route('admin.announcements.store', $student), [
+            ->post(route('admin.announcements.store'), [
                 'body' => 'I should not be able to do this.',
             ])
             ->assertRedirect(route('dashboard', absolute: false));
