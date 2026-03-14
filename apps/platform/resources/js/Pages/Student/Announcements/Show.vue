@@ -29,8 +29,6 @@ defineProps<{
     <AuthenticatedLayout>
 
         <ChatThread
-            title="Mentor announcements"
-            subtitle="Announcements, files, images, and links from your mentor"
             viewer-role="student"
             :messages="announcementThread.messages"
             :read-only="true"

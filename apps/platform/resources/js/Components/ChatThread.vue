@@ -19,8 +19,8 @@ type ChatMessage = {
 };
 
 const props = withDefaults(defineProps<{
-    title: string;
-    subtitle: string;
+    title?: string;
+    subtitle?: string;
     viewerRole: 'mentor' | 'student';
     sendRoute?: string | null;
     readOnly?: boolean;
@@ -31,6 +31,8 @@ const props = withDefaults(defineProps<{
     readOnly: false,
     emptyMessage: 'No messages yet.',
 });
+
+const hasHeader = computed(() => Boolean(props.title || props.subtitle));
 
 const page = usePage<PageProps>();
 const flashSuccess = computed(() => page.props.flash?.success ?? null);
@@ -124,11 +126,11 @@ onBeforeUnmount(() => {
 <template>
     <div class="mx-auto max-w-5xl px-5 py-6">
         <div class="rounded-[1.75rem] bg-white shadow-sm ring-1 ring-stone-200">
-            <div class="border-b border-stone-200 px-5 py-4">
-                <p class="text-xs uppercase tracking-[0.28em] text-stone-500">
+            <div v-if="hasHeader" class="border-b border-stone-200 px-5 py-4">
+                <p v-if="subtitle" class="text-xs uppercase tracking-[0.28em] text-stone-500">
                     {{ subtitle }}
                 </p>
-                <h2 class="mt-2 text-3xl font-semibold text-stone-950">
+                <h2 v-if="title" class="text-3xl font-semibold text-stone-950" :class="subtitle ? 'mt-2' : ''">
                     {{ title }}
                 </h2>
             </div>

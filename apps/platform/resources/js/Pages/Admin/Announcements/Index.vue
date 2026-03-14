@@ -28,8 +28,6 @@ defineProps<{
 
     <AuthenticatedLayout>
         <ChatThread
-            title="Global announcements"
-            subtitle="Announcements, files, images, and links visible to every student"
             viewer-role="mentor"
             :send-route="route('admin.announcements.store')"
             :messages="announcementThread.messages"

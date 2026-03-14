@@ -34,8 +34,6 @@ defineProps<{
     <AuthenticatedLayout>
 
         <ChatThread
-            title="Mentor chat"
-            subtitle="You can send messages, links, images, and attachments here"
             viewer-role="student"
             :send-route="route('student.chat.store')"
             :messages="studentThread.messages"

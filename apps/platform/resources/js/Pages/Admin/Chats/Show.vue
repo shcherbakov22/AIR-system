@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import ChatThread from '@/Components/ChatThread.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 
 defineProps<{
     studentThread: {
@@ -34,8 +34,6 @@ defineProps<{
     <AuthenticatedLayout>
 
         <ChatThread
-            :title="studentThread.student.display_name"
-            :subtitle="`Chat with ${studentThread.student.username}`"
             viewer-role="mentor"
             :send-route="route('admin.chats.store', studentThread.student.id)"
             :messages="studentThread.messages"
