@@ -412,12 +412,6 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </Link>
                     </div>
 
-                    <div v-if="student.open_violations.length > 0" class="mt-1.5 flex flex-wrap gap-1.5">
-                        <span v-if="student.open_violations.length > 0" class="inline-flex rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-red-700">
-                            {{ student.open_violations.length }} open
-                        </span>
-                    </div>
-
                     <div class="mt-1.5 grid grid-cols-2 gap-1.5">
                         <button
                             v-if="student.latest_screen_capture"
