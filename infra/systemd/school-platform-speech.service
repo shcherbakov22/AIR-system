@@ -4,8 +4,8 @@ After=network.target sound.target postgresql.service
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
+User=root
+Group=root
 WorkingDirectory=/var/www/school-system-redo/platform
 ExecStart=/usr/bin/php artisan speech:play-announcements --device=plughw:0,0 --idle-sleep-ms=1500
 Restart=always
