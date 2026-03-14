@@ -6,9 +6,11 @@ import { computed, ref } from 'vue';
 const props = withDefaults(defineProps<{
     hideSidebar?: boolean;
     fullWidth?: boolean;
+    sidebarDrawer?: boolean;
 }>(), {
     hideSidebar: false,
     fullWidth: false,
+    sidebarDrawer: false,
 });
 
 const page = usePage<PageProps>();
@@ -98,10 +100,16 @@ const closeMobileNav = () => {
             @click="closeMobileNav"
         />
 
+        <div
+            v-if="mobileNavOpen && props.sidebarDrawer && !props.hideSidebar"
+            class="fixed inset-0 z-40 hidden bg-stone-950/45 lg:block"
+            @click="closeMobileNav"
+        />
+
         <aside
             v-if="!props.hideSidebar"
-            class="fixed inset-y-0 left-0 z-50 flex w-[15.5rem] max-w-[82vw] -translate-x-full flex-col border-r border-stone-200 bg-white transition-transform duration-200 lg:translate-x-0"
-            :class="mobileNavOpen ? 'translate-x-0' : ''"
+            class="fixed inset-y-0 left-0 z-50 flex w-[15.5rem] max-w-[82vw] -translate-x-full flex-col border-r border-stone-200 bg-white transition-transform duration-200"
+            :class="mobileNavOpen || !props.sidebarDrawer ? 'translate-x-0' : ''"
         >
             <div class="flex items-center justify-end border-b border-stone-200 px-4 py-4 lg:hidden">
                 <button
@@ -144,15 +152,24 @@ const closeMobileNav = () => {
             </div>
         </aside>
 
-        <div class="min-w-0" :class="props.hideSidebar ? '' : 'lg:pl-[15.5rem]'">
+        <div class="min-w-0" :class="props.hideSidebar || props.sidebarDrawer ? '' : 'lg:pl-[15.5rem]'">
             <div
                 v-if="!props.hideSidebar"
-                class="border-b border-stone-200 bg-white/90 px-3 py-3 backdrop-blur lg:hidden"
+                class="border-b border-stone-200 bg-white/90 px-3 py-3 backdrop-blur"
             >
-                <div class="flex items-center justify-end gap-2">
+                <div class="flex items-center justify-between gap-2">
                     <button
                         type="button"
                         class="inline-flex items-center rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 lg:hidden"
+                        @click="mobileNavOpen = true"
+                    >
+                        Menu
+                    </button>
+
+                    <button
+                        v-if="props.sidebarDrawer"
+                        type="button"
+                        class="hidden items-center rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 lg:inline-flex"
                         @click="mobileNavOpen = true"
                     >
                         Menu

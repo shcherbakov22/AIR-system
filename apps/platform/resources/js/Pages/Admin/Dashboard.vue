@@ -329,55 +329,7 @@ const blockTooltip = (block: DashboardBlock): string => {
 <template>
     <Head title="Mentor monitor" />
 
-    <AuthenticatedLayout :hide-sidebar="true" :full-width="true">
-        <template #header>
-            <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Mentor dashboard
-                    </p>
-                    <h2 class="font-serif text-3xl leading-none text-stone-950">
-                        Schedule columns
-                    </h2>
-                </div>
-
-                <div class="flex flex-col items-start gap-2 lg:items-end">
-                    <p class="text-sm text-stone-500">
-                        Column view for all students. Each card keeps the schedule readable without the page turning into a wall of rows.
-                    </p>
-
-                    <div class="flex flex-wrap items-center gap-2">
-                        <Link
-                            :href="route('admin.students.index')"
-                            class="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
-                        >
-                            Students
-                        </Link>
-                        <Link
-                            :href="route('admin.rule-definitions.index')"
-                            class="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
-                        >
-                            Rules
-                        </Link>
-                        <Link
-                            :href="route('profile.edit')"
-                            class="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
-                        >
-                            Profile
-                        </Link>
-                        <Link
-                            :href="route('logout')"
-                            method="post"
-                            as="button"
-                            class="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
-                        >
-                            Log out
-                        </Link>
-                    </div>
-                </div>
-            </div>
-        </template>
-
+    <AuthenticatedLayout :sidebar-drawer="true" :full-width="true">
         <div class="px-4 py-3 sm:px-5 lg:px-6">
             <div
                 v-if="monitorStudents.length === 0"
