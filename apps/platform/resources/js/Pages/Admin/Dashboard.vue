@@ -556,6 +556,13 @@ const blockTooltip = (block: DashboardBlock): string => {
 
     <AuthenticatedLayout :sidebar-drawer="true" :full-width="true">
         <div class="fixed right-2 top-1.5 z-30 flex items-center gap-2">
+            <Link
+                :href="route('admin.violations.index')"
+                class="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-stone-700 transition hover:text-stone-950"
+            >
+                <span>Violations</span>
+            </Link>
+
             <button
                 type="button"
                 class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-stone-700 transition hover:text-stone-950"
