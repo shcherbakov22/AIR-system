@@ -21,16 +21,6 @@ defineProps<{
     <Head title="Chats" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2">
-                <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Mentor dashboard
-                </p>
-                <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    Chats
-                </h2>
-            </div>
-        </template>
 
         <div class="mx-auto max-w-6xl px-6 py-10">
             <div class="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">

@@ -76,34 +76,6 @@ const deleteViolation = () => {
     <Head :title="`Violation: ${props.violation.rule_title}`" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div class="flex flex-col gap-2">
-                    <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Mentor dashboard
-                    </p>
-                    <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Violation review
-                    </h2>
-                </div>
-
-                <div class="flex flex-wrap gap-3">
-                    <Link
-                        :href="route('admin.violations.index')"
-                        class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                    >
-                        Back to violations
-                    </Link>
-                    <button
-                        type="button"
-                        class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
-                        @click="deleteViolation"
-                    >
-                        Delete violation
-                    </button>
-                </div>
-            </div>
-        </template>
 
         <div class="mx-auto max-w-6xl px-6 py-10">
             <div

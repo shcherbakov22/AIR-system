@@ -43,25 +43,6 @@ const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
     <Head title="My schedules" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div class="flex flex-col gap-2">
-                    <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Student portal
-                    </p>
-                    <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        My schedules
-                    </h2>
-                </div>
-
-                <Link
-                    :href="route('student.schedules.create')"
-                    class="inline-flex rounded-full bg-amber-500 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-stone-950 transition hover:bg-amber-400"
-                >
-                    New schedule
-                </Link>
-            </div>
-        </template>
 
         <div class="mx-auto max-w-6xl px-5 py-8">
             <div
@@ -82,9 +63,6 @@ const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
                 <div v-if="scheduleTemplates.length === 0" class="mt-6 rounded-[1.5rem] bg-stone-100 px-5 py-6">
                     <p class="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
                         No schedules yet
-                    </p>
-                    <p class="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-                        Create your first plan to build your own task sequence.
                     </p>
                     <Link
                         :href="route('student.schedules.create')"

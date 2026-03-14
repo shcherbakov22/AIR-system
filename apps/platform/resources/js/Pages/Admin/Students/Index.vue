@@ -39,16 +39,6 @@ const deleteStudent = (studentId: number, displayName: string) => {
     <Head title="Students" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2">
-                <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Mentor dashboard
-                </p>
-                <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    Students
-                </h2>
-            </div>
-        </template>
 
         <div class="mx-auto max-w-7xl px-6 py-10">
             <div v-if="successMessage" class="mb-5 rounded-[1.5rem] bg-emerald-50 px-6 py-4 text-sm text-emerald-800 ring-1 ring-emerald-200">

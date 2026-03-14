@@ -33,41 +33,10 @@ const submit = () => {
     <Head title="Create student" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div class="flex flex-col gap-2">
-                    <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Mentor dashboard
-                    </p>
-                    <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Create student
-                    </h2>
-                </div>
-
-                <Link
-                    :href="route('admin.students.index')"
-                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                >
-                    Back to students
-                </Link>
-            </div>
-        </template>
 
         <div class="mx-auto max-w-5xl px-6 py-10">
             <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
-                <div class="max-w-2xl">
-                    <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Student creation
-                    </p>
-                    <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        Create a new student account
-                    </h3>
-                    <p class="mt-4 text-sm leading-7 text-stone-600">
-                        This form creates both the login account and the student profile in one step.
-                    </p>
-                </div>
-
-                <form class="mt-10 grid gap-6 md:grid-cols-2" @submit.prevent="submit">
+                <form class="grid gap-6 md:grid-cols-2" @submit.prevent="submit">
                     <div>
                         <InputLabel for="username" value="Username" />
                         <TextInput id="username" v-model="form.username" type="text" class="mt-2 block w-full rounded-xl border-stone-300" autofocus autocomplete="off" />

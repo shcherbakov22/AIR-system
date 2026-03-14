@@ -21,25 +21,6 @@ defineProps<{
     <Head title="Rules" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div class="flex flex-col gap-2">
-                    <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Student portal
-                    </p>
-                    <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Rules
-                    </h2>
-                </div>
-
-                <Link
-                    :href="route('student.home')"
-                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                >
-                    Back to overview
-                </Link>
-            </div>
-        </template>
 
         <div class="mx-auto max-w-6xl px-6 py-10">
             <section class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">

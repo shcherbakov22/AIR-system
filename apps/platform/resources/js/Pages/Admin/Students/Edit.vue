@@ -91,32 +91,6 @@ const deleteStudent = () => {
     <Head :title="`Edit: ${props.student.display_name}`" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div class="flex flex-col gap-2">
-                    <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Mentor dashboard
-                    </p>
-                    <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Edit student
-                    </h2>
-                </div>
-
-                <Link
-                    :href="route('admin.students.progress', props.student.id)"
-                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                >
-                    View progress
-                </Link>
-
-                <Link
-                    :href="route('admin.students.index')"
-                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                >
-                    Back to students
-                </Link>
-            </div>
-        </template>
 
         <div class="mx-auto max-w-5xl px-6 py-10">
             <div

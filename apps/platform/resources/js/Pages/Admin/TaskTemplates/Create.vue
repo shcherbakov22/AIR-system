@@ -21,41 +21,10 @@ const submit = () => {
     <Head title="Create task template" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div class="flex flex-col gap-2">
-                    <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                        Mentor dashboard
-                    </p>
-                    <h2 class="font-serif text-4xl leading-none text-stone-950">
-                        Create task template
-                    </h2>
-                </div>
-
-                <Link
-                    :href="route('admin.task-templates.index')"
-                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                >
-                    Back to task library
-                </Link>
-            </div>
-        </template>
 
         <div class="mx-auto max-w-5xl px-6 py-10">
             <div class="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-stone-200">
-                <div class="max-w-2xl">
-                    <p class="text-xs uppercase tracking-[0.3em] text-amber-700/70">
-                        Task design
-                    </p>
-                    <h3 class="mt-4 font-serif text-3xl text-stone-950">
-                        Add a reusable task template
-                    </h3>
-                    <p class="mt-4 text-sm leading-7 text-stone-600">
-                        This template does not assign work to anyone yet. It only defines a task that schedules and student sessions can reference later.
-                    </p>
-                </div>
-
-                <form class="mt-10 grid gap-6 md:grid-cols-2" @submit.prevent="submit">
+                <form class="grid gap-6 md:grid-cols-2" @submit.prevent="submit">
                     <div class="md:col-span-2">
                         <InputLabel for="title" value="Task title" />
                         <TextInput

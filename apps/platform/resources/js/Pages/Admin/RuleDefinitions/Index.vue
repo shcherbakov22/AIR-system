@@ -29,16 +29,6 @@ const deleteRuleDefinition = (ruleDefinitionId: number, ruleDefinitionTitle: str
     <Head title="Rules" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2">
-                <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Mentor dashboard
-                </p>
-                <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    Rules
-                </h2>
-            </div>
-        </template>
 
         <div class="mx-auto max-w-7xl px-6 py-10">
             <div

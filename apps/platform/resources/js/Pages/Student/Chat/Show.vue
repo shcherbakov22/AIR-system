@@ -32,16 +32,6 @@ defineProps<{
     <Head title="Chat" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-2">
-                <p class="text-xs uppercase tracking-[0.35em] text-amber-700/70">
-                    Student portal
-                </p>
-                <h2 class="font-serif text-4xl leading-none text-stone-950">
-                    Chat
-                </h2>
-            </div>
-        </template>
 
         <ChatThread
             title="Mentor chat"
