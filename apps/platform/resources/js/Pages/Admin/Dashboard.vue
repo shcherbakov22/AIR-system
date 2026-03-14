@@ -682,12 +682,8 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </button>
                     </div>
 
-                    <div class="mt-1.5 rounded-[0.85rem] bg-stone-50 px-2 py-1.5">
-                        <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
-                            Violations
-                        </p>
-
-                        <div v-if="student.open_violations.length > 0" class="mt-1.5 space-y-1">
+                    <div v-if="student.open_violations.length > 0" class="mt-1.5 rounded-[0.85rem] bg-stone-50 px-2 py-1.5">
+                        <div class="space-y-1">
                             <div
                                 v-for="violation in student.open_violations"
                                 :key="violation.id"
@@ -711,7 +707,6 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 </button>
                             </div>
                         </div>
-
                     </div>
 
                     <div class="mt-1.5 min-w-0">
