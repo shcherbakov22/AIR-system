@@ -540,6 +540,23 @@ const showNextCapture = () => {
     showCaptureHistoryItem(selectedCaptureHistoryIndex.value - 1);
 };
 
+const handleCaptureWheel = (event: WheelEvent) => {
+    if (selectedCaptureHistory.value.length <= 1 || captureHistoryLoading.value) {
+        return;
+    }
+
+    event.preventDefault();
+
+    if (event.deltaY > 0) {
+        showPreviousCapture();
+        return;
+    }
+
+    if (event.deltaY < 0) {
+        showNextCapture();
+    }
+};
+
 const blockRowClass = (status: string): string => {
     if (status === 'completed') {
         return 'border-emerald-200 bg-emerald-50';
@@ -867,7 +884,10 @@ const blockTooltip = (block: DashboardBlock): string => {
                     </div>
 
                     <div class="grid gap-0 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                        <div class="flex min-h-[24rem] items-center justify-center bg-stone-950">
+                        <div
+                            class="flex min-h-[24rem] items-center justify-center bg-stone-950"
+                            @wheel="handleCaptureWheel"
+                        >
                             <img
                                 v-if="selectedCapture.image_url"
                                 :src="selectedCapture.image_url"
