@@ -174,9 +174,9 @@ const closeMobileNav = () => {
 
         <div class="min-w-0" :class="props.hideSidebar || props.sidebarDrawer ? '' : 'lg:pl-[15.5rem]'">
             <button
-                v-if="!props.hideSidebar && props.sidebarDrawer"
+                v-if="!props.hideSidebar"
                 type="button"
-                class="fixed left-2 top-1.5 z-30 inline-flex items-center justify-center p-0 leading-none text-stone-700 transition hover:text-stone-900"
+                class="fixed left-3 top-3 z-30 inline-flex items-center justify-center rounded-full bg-white/90 p-2 text-stone-700 shadow-sm ring-1 ring-stone-200 transition hover:text-stone-900 lg:hidden"
                 @click="mobileNavOpen = true"
             >
                 <span class="sr-only">Open menu</span>
@@ -186,33 +186,6 @@ const closeMobileNav = () => {
                     <path d="M4 14H16" stroke-linecap="round" />
                 </svg>
             </button>
-
-            <div
-                v-if="!props.hideSidebar && !props.sidebarDrawer"
-                class="border-b border-stone-200 bg-white/90 px-3 py-3 backdrop-blur"
-            >
-                <div class="flex items-center justify-between gap-2">
-                    <button
-                        type="button"
-                        class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-300 text-stone-700 transition hover:border-stone-900 hover:text-stone-900 lg:hidden"
-                        @click="mobileNavOpen = true"
-                    >
-                        <span class="sr-only">Open menu</span>
-                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M4 6H16" stroke-linecap="round" />
-                            <path d="M4 10H16" stroke-linecap="round" />
-                            <path d="M4 14H16" stroke-linecap="round" />
-                        </svg>
-                    </button>
-
-                </div>
-            </div>
-
-            <header v-if="$slots.header" class="border-b border-stone-200 bg-white">
-                <div :class="props.fullWidth ? 'px-5 py-5 lg:px-6' : 'mx-auto max-w-7xl px-5 py-6'">
-                    <slot name="header" />
-                </div>
-            </header>
 
             <main>
                 <slot />
