@@ -509,10 +509,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </span>
                     </div>
 
-                    <div
-                        v-if="student.latest_screen_capture || student.latest_camera_capture"
-                        class="mt-1.5 grid grid-cols-2 gap-1.5"
-                    >
+                    <div class="mt-1.5 grid grid-cols-2 gap-1.5">
                         <button
                             v-if="student.latest_screen_capture"
                             type="button"
@@ -533,6 +530,17 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 </p>
                             </div>
                         </button>
+                        <div
+                            v-else
+                            class="flex aspect-[4/3] flex-col items-center justify-center rounded-[0.75rem] border border-dashed border-stone-300 bg-stone-50 px-2 text-center"
+                        >
+                            <p class="text-[8px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                                Screen
+                            </p>
+                            <p class="mt-1 text-[9px] text-stone-400">
+                                No capture
+                            </p>
+                        </div>
 
                         <button
                             v-if="student.latest_camera_capture"
@@ -554,6 +562,17 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 </p>
                             </div>
                         </button>
+                        <div
+                            v-else
+                            class="flex aspect-[4/3] flex-col items-center justify-center rounded-[0.75rem] border border-dashed border-stone-300 bg-stone-50 px-2 text-center"
+                        >
+                            <p class="text-[8px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                                Camera
+                            </p>
+                            <p class="mt-1 text-[9px] text-stone-400">
+                                No capture
+                            </p>
+                        </div>
                     </div>
 
                     <div class="mt-1.5 min-w-0">
