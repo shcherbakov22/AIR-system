@@ -156,11 +156,11 @@ const closeMobileNav = () => {
             <button
                 v-if="!props.hideSidebar && props.sidebarDrawer"
                 type="button"
-                class="fixed left-3 top-2 z-30 inline-flex h-6 w-6 items-center justify-center text-stone-700 transition hover:text-stone-900"
+                class="fixed left-2 top-1.5 z-30 inline-flex items-center justify-center p-0 leading-none text-stone-700 transition hover:text-stone-900"
                 @click="mobileNavOpen = true"
             >
                 <span class="sr-only">Open menu</span>
-                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
                     <path d="M4 6H16" stroke-linecap="round" />
                     <path d="M4 10H16" stroke-linecap="round" />
                     <path d="M4 14H16" stroke-linecap="round" />
