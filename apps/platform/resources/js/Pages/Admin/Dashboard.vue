@@ -631,10 +631,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 class="aspect-[4/3] h-auto w-full object-cover transition group-hover:scale-[1.02]"
                             >
                             <div class="px-1.5 py-1">
-                                <p class="text-[8px] font-semibold uppercase tracking-[0.14em] text-stone-600">
-                                    Screen
-                                </p>
-                                <p class="truncate text-[9px] text-stone-500">
+                                <p class="truncate text-[11px] font-medium text-stone-600">
                                     {{ student.latest_screen_capture.uploaded_at_label ?? student.latest_screen_capture.captured_at_label ?? 'Just now' }}
                                 </p>
                             </div>
@@ -665,10 +662,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 class="aspect-[4/3] h-auto w-full object-cover transition group-hover:scale-[1.02]"
                             >
                             <div class="px-1.5 py-1">
-                                <p class="text-[8px] font-semibold uppercase tracking-[0.14em] text-stone-600">
-                                    Camera
-                                </p>
-                                <p class="truncate text-[9px] text-stone-500">
+                                <p class="truncate text-[11px] font-medium text-stone-600">
                                     {{ student.latest_camera_capture.uploaded_at_label ?? student.latest_camera_capture.captured_at_label ?? 'Just now' }}
                                 </p>
                             </div>
