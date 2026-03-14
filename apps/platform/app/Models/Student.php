@@ -29,6 +29,11 @@ class Student extends Model
         return $this->hasMany(TaskAssignment::class);
     }
 
+    public function chatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class);
+    }
+
     public function scheduleTemplates(): HasMany
     {
         return $this->hasMany(ScheduleTemplate::class);
@@ -96,6 +101,11 @@ class Student extends Model
                 ['captured_at' => 'max', 'id' => 'max'],
                 fn ($query) => $query->where('capture_kind', 'camera'),
             );
+    }
+
+    public function latestChatMessage(): HasOne
+    {
+        return $this->hasOne(ChatMessage::class)->latestOfMany();
     }
 
     public function hasOpenViolations(): bool

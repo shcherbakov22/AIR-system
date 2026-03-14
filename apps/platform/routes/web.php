@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
 use App\Http\Controllers\Admin\SpeechAnnouncementController as AdminSpeechAnnouncementController;
@@ -9,9 +10,11 @@ use App\Http\Controllers\Admin\StudentProgressController as AdminStudentProgress
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
+use App\Http\Controllers\ChatAttachmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LegacyCaptureController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Student\ChatController as StudentChatController;
 use App\Http\Controllers\Student\HomeController as StudentHomeController;
 use App\Http\Controllers\Student\RuleController as StudentRuleController;
 use App\Http\Controllers\Student\ScheduleRunController as StudentScheduleRunController;
@@ -51,9 +54,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/chat-messages/{chatMessage}/attachment', [ChatAttachmentController::class, 'show'])->name('chat-messages.attachment.show');
 
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+        Route::get('/chats', [AdminChatController::class, 'index'])->name('chats.index');
+        Route::get('/chats/{student}', [AdminChatController::class, 'show'])->name('chats.show');
+        Route::post('/chats/{student}', [AdminChatController::class, 'store'])->name('chats.store');
         Route::get('/rule-definitions', [AdminRuleDefinitionController::class, 'index'])->name('rule-definitions.index');
         Route::get('/rule-definitions/create', [AdminRuleDefinitionController::class, 'create'])->name('rule-definitions.create');
         Route::post('/rule-definitions', [AdminRuleDefinitionController::class, 'store'])->name('rule-definitions.store');
@@ -93,6 +100,8 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('student')->name('student.')->middleware('student')->group(function () {
         Route::get('/home', StudentHomeController::class)->name('home');
+        Route::get('/chat', [StudentChatController::class, 'show'])->name('chat.show');
+        Route::post('/chat', [StudentChatController::class, 'store'])->name('chat.store');
         Route::get('/rules', StudentRuleController::class)->name('rules.index');
         Route::get('/schedules', [StudentScheduleController::class, 'index'])->name('schedules.index');
         Route::get('/schedules/create', [StudentScheduleController::class, 'create'])->name('schedules.create');

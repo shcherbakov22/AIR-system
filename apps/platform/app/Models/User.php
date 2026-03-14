@@ -95,6 +95,11 @@ class User extends Authenticatable
         return $this->hasMany(TaskSession::class, 'stopped_by_user_id');
     }
 
+    public function sentChatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class, 'sender_user_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;
