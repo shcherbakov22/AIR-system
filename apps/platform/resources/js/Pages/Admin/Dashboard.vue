@@ -210,7 +210,10 @@ const scrollScheduleBoardsToActiveBlock = () => {
 const getSpeechVoice = (): SpeechSynthesisVoice | null => {
     const voices = window.speechSynthesis.getVoices();
 
-    return voices.find((voice) => voice.lang?.toLowerCase().startsWith('en')) ?? voices[0] ?? null;
+    return voices.find((voice) => voice.lang?.toLowerCase() === 'en-us')
+        ?? voices.find((voice) => voice.lang?.toLowerCase() === 'en-gb')
+        ?? voices.find((voice) => voice.lang?.toLowerCase().startsWith('en'))
+        ?? null;
 };
 
 const speakText = (text: string): Promise<void> => new Promise((resolve) => {
@@ -219,9 +222,14 @@ const speakText = (text: string): Promise<void> => new Promise((resolve) => {
 
     utterance.lang = 'en-US';
 
-    if (voice) {
-        utterance.voice = voice;
+    if (!voice) {
+        resolve();
+        return;
     }
+
+    utterance.voice = voice;
+    utterance.rate = 1;
+    utterance.pitch = 1;
 
     utterance.onend = () => {
         isSpeaking.value = false;
