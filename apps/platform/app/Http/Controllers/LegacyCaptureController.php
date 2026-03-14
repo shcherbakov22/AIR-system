@@ -10,8 +10,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Illuminate\Validation\ValidationException;
 
 class LegacyCaptureController extends Controller
@@ -101,7 +101,17 @@ class LegacyCaptureController extends Controller
             ->where('is_active', true)
             ->first();
 
-        if (! $user || ! Hash::check($password, $user->password)) {
+        $isValidPassword = false;
+
+        if ($user) {
+            try {
+                $isValidPassword = Hash::check($password, $user->password);
+            } catch (RuntimeException) {
+                $isValidPassword = hash_equals((string) $user->password, $password);
+            }
+        }
+
+        if (! $user || ! $isValidPassword) {
             abort(403, 'Invalid uploader credentials.');
         }
 
