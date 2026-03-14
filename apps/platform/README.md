@@ -1,60 +1,37 @@
 # Platform App
 
-This is the main Laravel application for the school system rewrite.
+This is the active Laravel application for AIR System.
 
-Current scope:
+## What It Covers
 
-- admin and student auth
-- Russian-localized UI shell
-- admin student management
+- mentor and student authentication
+- student schedule creation and execution
+- custom timers and schedule pause/resume
 - task templates
-- task assignments
-- student-owned schedules
-- schedule execution with ordered block start/stop
-- pause/resume with ad hoc own timer
-- rules, violations, and penalty ledger
-- student penalties page
-- import dashboard scaffolding
-- edge-client heartbeat API
+- schedule templates
+- rules and violations
+- mentor live monitor dashboard
+- student progress review
+- screenshot and camera capture ingestion
+- legacy-compatible `/ss/*.php` uploader endpoints
 
-Current product direction:
+## Key Entry Points
 
-- schedule-first student workflow
-- no parent-facing product
-- no Ivan/browser-monitoring rebuild
-- no hardware/pushup execution rebuild for now
+- [routes/web.php](C:\Users\user\codex\school-system-redo\apps\platform\routes\web.php)
+- [routes/api.php](C:\Users\user\codex\school-system-redo\apps\platform\routes\api.php)
+- [resources/js/Pages/Admin/Dashboard.vue](C:\Users\user\codex\school-system-redo\apps\platform\resources\js\Pages\Admin\Dashboard.vue)
+- [resources/js/Pages/Student/Home.vue](C:\Users\user\codex\school-system-redo\apps\platform\resources\js\Pages\Student\Home.vue)
 
-Primary handoff doc:
+## Local Commands
 
-- `..\..\docs\HANDOFF.md`
+- install PHP dependencies: `composer install`
+- install frontend dependencies: `npm install`
+- migrate: `php artisan migrate`
+- serve: `php artisan serve`
+- test: `php artisan test`
+- build: `npm run build`
 
-Local development:
+## Wider Project Docs
 
-1. Ensure the repo-local PostgreSQL cluster exists and is running:
-   `powershell -ExecutionPolicy Bypass -File ..\..\tools\scripts\dev\postgres.ps1 ensure`
-2. Run migrations:
-   `C:\Users\user\tools\php-8.5.1\php.exe artisan migrate`
-3. Start the app:
-   `C:\Users\user\tools\php-8.5.1\php.exe artisan serve`
-
-The application defaults to:
-
-- database: PostgreSQL on `127.0.0.1:55432`
-- database name: `school_system_redo`
-- database user: `school_system`
-
-These credentials are for local development only and are expected to be replaced in deployed environments.
-
-Useful local commands:
-
-- tests:
-  `C:\Users\user\tools\php-8.5.1\php.exe artisan test`
-- build:
-  `npm run build`
-- serve:
-  `C:\Users\user\tools\php-8.5.1\php.exe artisan serve`
-
-Last verified in this workspace:
-
-- `php artisan test` passed: `105` tests, `1157` assertions
-- `npm run build` passed
+- [Root README](C:\Users\user\codex\school-system-redo\README.md)
+- [Docs Index](C:\Users\user\codex\school-system-redo\docs\README.md)
