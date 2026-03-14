@@ -426,6 +426,63 @@ class ScheduleTemplateManagementTest extends TestCase
             );
     }
 
+    public function test_admin_can_delete_a_schedule_template(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedules',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedules',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Schedules',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading Block',
+            'summary' => 'Read and summarize.',
+            'instructions' => 'Read the material and summarize it.',
+            'default_duration_minutes' => 40,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleTemplate = ScheduleTemplate::create([
+            'student_id' => $student->id,
+            'name' => 'Monday Reading',
+            'weekday' => ScheduleWeekday::Monday,
+            'notes' => 'Core literacy block.',
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $entry = $scheduleTemplate->entries()->create([
+            'task_template_id' => $taskTemplate->id,
+            'position' => 1,
+            'start_time' => '09:15',
+            'duration_minutes' => 40,
+            'notes' => 'Bring the chapter notebook.',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.schedule-templates.destroy', $scheduleTemplate))
+            ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
+            ->assertSessionHas('success', 'Schedule Monday Reading deleted.');
+
+        $this->assertDatabaseMissing('schedule_templates', [
+            'id' => $scheduleTemplate->id,
+        ]);
+
+        $this->assertDatabaseMissing('schedule_entries', [
+            'id' => $entry->id,
+        ]);
+    }
+
     public function test_students_are_redirected_away_from_schedule_routes(): void
     {
         $studentUser = User::factory()->create([

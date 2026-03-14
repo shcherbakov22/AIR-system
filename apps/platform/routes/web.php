@@ -83,6 +83,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/schedule-templates', [AdminScheduleTemplateController::class, 'store'])->name('schedule-templates.store');
         Route::get('/schedule-templates/{scheduleTemplate}/edit', [AdminScheduleTemplateController::class, 'edit'])->name('schedule-templates.edit');
         Route::put('/schedule-templates/{scheduleTemplate}', [AdminScheduleTemplateController::class, 'update'])->name('schedule-templates.update');
+        Route::delete('/schedule-templates/{scheduleTemplate}', [AdminScheduleTemplateController::class, 'destroy'])->name('schedule-templates.destroy');
         Route::delete('/task-templates/{taskTemplate}', [AdminTaskTemplateController::class, 'destroy'])->name('task-templates.destroy');
         Route::get('/task-templates', [AdminTaskTemplateController::class, 'index'])->name('task-templates.index');
         Route::get('/task-templates/create', [AdminTaskTemplateController::class, 'create'])->name('task-templates.create');

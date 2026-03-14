@@ -2,7 +2,7 @@
 import type { PageProps } from '@/types';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{
     scheduleTemplates: Array<{
@@ -36,6 +36,14 @@ const props = defineProps<{
 
 const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
+
+function deleteSchedule(scheduleTemplateId: number, scheduleName: string): void {
+    if (!window.confirm(`Delete schedule "${scheduleName}"?`)) {
+        return;
+    }
+
+    router.delete(route('admin.schedule-templates.destroy', scheduleTemplateId));
+}
 </script>
 
 <template>
@@ -87,12 +95,21 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
                                     Schedule
                                 </p>
 
-                                <Link
-                                    :href="route('admin.schedule-templates.edit', scheduleTemplate.id)"
-                                    class="inline-flex rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                                >
-                                    Edit
-                                </Link>
+                                <div class="flex items-center gap-2">
+                                    <Link
+                                        :href="route('admin.schedule-templates.edit', scheduleTemplate.id)"
+                                        class="inline-flex rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    >
+                                        Edit
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        class="inline-flex rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-700 hover:text-rose-800"
+                                        @click="deleteSchedule(scheduleTemplate.id, scheduleTemplate.name)"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
                             </div>
                             <h3 class="mt-2 text-2xl font-semibold text-stone-950">
                                 {{ scheduleTemplate.name }}

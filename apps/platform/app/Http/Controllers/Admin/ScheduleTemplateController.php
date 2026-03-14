@@ -231,4 +231,18 @@ class ScheduleTemplateController extends Controller
             ->route('admin.schedule-templates.index')
             ->with('success', "Schedule {$scheduleTemplate->name} updated.");
     }
+
+    public function destroy(ScheduleTemplate $scheduleTemplate): RedirectResponse
+    {
+        $scheduleName = $scheduleTemplate->name;
+
+        DB::transaction(function () use ($scheduleTemplate) {
+            $scheduleTemplate->entries()->delete();
+            $scheduleTemplate->delete();
+        });
+
+        return redirect()
+            ->route('admin.schedule-templates.index')
+            ->with('success', "Schedule {$scheduleName} deleted.");
+    }
 }
