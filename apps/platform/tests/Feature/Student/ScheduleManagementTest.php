@@ -83,7 +83,7 @@ class ScheduleManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('student.schedules.index', absolute: false))
-            ->assertSessionHas('success', 'Расписание Monday Plan сохранено.');
+            ->assertSessionHas('success', 'Schedule Monday Plan saved.');
 
         $scheduleTemplate = ScheduleTemplate::query()
             ->with('entries.taskTemplate')
@@ -175,7 +175,7 @@ class ScheduleManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('student.schedules.index', absolute: false))
-            ->assertSessionHas('success', 'Расписание Tuesday Plan обновлено.');
+            ->assertSessionHas('success', 'Schedule Tuesday Plan updated.');
 
         $scheduleTemplate->refresh();
         $scheduleTemplate->load('entries.taskTemplate');
@@ -243,7 +243,7 @@ class ScheduleManagementTest extends TestCase
         $this->actingAs($studentUser)
             ->delete(route('student.schedules.destroy', $scheduleTemplate))
             ->assertRedirect(route('student.schedules.index', absolute: false))
-            ->assertSessionHas('success', 'Расписание Monday Plan удалено.');
+            ->assertSessionHas('success', 'Schedule Monday Plan deleted.');
 
         $this->assertDatabaseMissing('schedule_templates', [
             'id' => $scheduleTemplate->id,

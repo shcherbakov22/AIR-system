@@ -6,7 +6,6 @@ use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTempla
 use App\Http\Controllers\Admin\SpeechAnnouncementController as AdminSpeechAnnouncementController;
 use App\Http\Controllers\Admin\StudentMonitorCaptureController as AdminStudentMonitorCaptureController;
 use App\Http\Controllers\Admin\StudentProgressController as AdminStudentProgressController;
-use App\Http\Controllers\Admin\TaskAssignmentController as AdminTaskAssignmentController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
@@ -73,11 +72,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/schedule-templates/{scheduleTemplate}/edit', [AdminScheduleTemplateController::class, 'edit'])->name('schedule-templates.edit');
         Route::put('/schedule-templates/{scheduleTemplate}', [AdminScheduleTemplateController::class, 'update'])->name('schedule-templates.update');
         Route::delete('/task-templates/{taskTemplate}', [AdminTaskTemplateController::class, 'destroy'])->name('task-templates.destroy');
-        Route::get('/task-assignments', [AdminTaskAssignmentController::class, 'index'])->name('task-assignments.index');
-        Route::get('/task-assignments/create', [AdminTaskAssignmentController::class, 'create'])->name('task-assignments.create');
-        Route::post('/task-assignments', [AdminTaskAssignmentController::class, 'store'])->name('task-assignments.store');
-        Route::get('/task-assignments/{taskAssignment}/edit', [AdminTaskAssignmentController::class, 'edit'])->name('task-assignments.edit');
-        Route::put('/task-assignments/{taskAssignment}', [AdminTaskAssignmentController::class, 'update'])->name('task-assignments.update');
         Route::get('/task-templates', [AdminTaskTemplateController::class, 'index'])->name('task-templates.index');
         Route::get('/task-templates/create', [AdminTaskTemplateController::class, 'create'])->name('task-templates.create');
         Route::post('/task-templates', [AdminTaskTemplateController::class, 'store'])->name('task-templates.store');
@@ -110,7 +104,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/schedule-runs/{scheduleRun}/resume', [StudentScheduleRunController::class, 'resume'])->name('schedule-runs.resume');
         Route::post('/schedule-runs/{scheduleRun}/complete', [StudentScheduleRunController::class, 'complete'])->name('schedule-runs.complete');
         Route::post('/schedule-runs/{scheduleRun}/blocks/{scheduleRunBlock}/start', [StudentScheduleRunTaskSessionController::class, 'store'])->name('schedule-run-blocks.start');
-        Route::post('/task-sessions', [StudentTaskSessionController::class, 'store'])->name('task-sessions.store');
         Route::patch('/task-sessions/{taskSession}/stop', [StudentTaskSessionController::class, 'stop'])->name('task-sessions.stop');
     });
 });

@@ -139,7 +139,7 @@ class StudentSettingsEnforcementTest extends TestCase
                 'notes' => 'Should not start.',
             ])
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('error', 'Собственные таймеры для этого ученика отключены.');
+            ->assertSessionHas('error', 'Custom timers are disabled for this student.');
         $this->assertDatabaseMissing('task_sessions', [
             'student_id' => $student->id,
             'task_template_id' => $breakTemplate->id,

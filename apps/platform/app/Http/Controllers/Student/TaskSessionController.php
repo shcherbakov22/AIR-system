@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\StopTaskSessionRequest;
-use App\Http\Requests\Student\StoreTaskSessionRequest;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\Student;
-use App\Models\TaskAssignment;
 use App\Models\TaskSession;
 use App\Services\AutomaticObserveTheTimeViolationService;
 use App\Services\SpeechAnnouncementService;
@@ -17,70 +15,6 @@ use Illuminate\Support\Facades\DB;
 
 class TaskSessionController extends Controller
 {
-    public function store(StoreTaskSessionRequest $request): RedirectResponse
-    {
-        $studentId = $request->user()?->student?->id;
-
-        if (! $studentId) {
-            abort(403);
-        }
-
-        $taskAssignmentId = (int) $request->input('task_assignment_id');
-
-        $result = DB::transaction(function () use ($request, $studentId, $taskAssignmentId) {
-            Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
-
-            $hasActiveSession = TaskSession::query()
-                ->where('student_id', $studentId)
-                ->where('status', 'active')
-                ->exists();
-
-            if ($hasActiveSession) {
-                return [
-                    'success' => false,
-                    'message' => 'Stop the current task session before starting a new one.',
-                ];
-            }
-
-            $taskAssignment = TaskAssignment::query()
-                ->with('taskTemplate')
-                ->whereKey($taskAssignmentId)
-                ->where('student_id', $studentId)
-                ->where('status', 'assigned')
-                ->firstOrFail();
-
-            TaskSession::create([
-                'student_id' => $studentId,
-                'task_assignment_id' => $taskAssignment->id,
-                'task_template_id' => $taskAssignment->task_template_id,
-                'status' => 'active',
-                'task_title_snapshot' => $taskAssignment->taskTemplate->title,
-                'task_summary_snapshot' => $taskAssignment->taskTemplate->summary,
-                'task_instructions_snapshot' => $taskAssignment->taskTemplate->instructions,
-                'assignment_notes_snapshot' => $taskAssignment->notes,
-                'planned_duration_minutes' => $taskAssignment->taskTemplate->default_duration_minutes,
-                'duration_seconds' => 0,
-                'started_at' => now(),
-                'started_by_user_id' => $request->user()->id,
-            ]);
-
-            return [
-                'success' => true,
-                'message' => "Task session {$taskAssignment->taskTemplate->title} started.",
-            ];
-        });
-
-        if (! $result['success']) {
-            return redirect()
-                ->route('student.home')
-                ->with('error', $result['message']);
-        }
-
-        return redirect()
-            ->route('student.home')
-            ->with('success', $result['message']);
-    }
-
     public function stop(
         StopTaskSessionRequest $request,
         TaskSession $taskSession,

@@ -1,4 +1,4 @@
-# ADR-001: Actor Model Is Admin + Student Only
+# ADR-001: Actor Model Is Mentor + Student Only
 
 Status: Accepted
 
@@ -22,14 +22,10 @@ The user explicitly clarified that parents do not use this system and no parent 
 
 The rewrite supports these human roles:
 
-- `superadmin`
-- `admin`
+- `mentor`
 - `student`
 
-Optional non-human or limited actors may exist later:
-
-- `observer`
-- `device-agent`
+The codebase still uses the internal role key `admin` in a few places for compatibility, but the product role is mentor.
 
 There is no `parent` role.
 There is no `guardian` role.
@@ -37,10 +33,10 @@ There is no `household` or `family` product model in v1.
 
 ## Implementation Rules
 
-- Use `admin` and `student` terminology consistently in code, docs, routes, and UI.
+- Use `mentor` and `student` terminology in user-facing docs and UI.
 - Do not create parent login flows, parent dashboards, parent notifications, or parent-specific permissions.
-- If legacy data implies ownership or grouping, treat it as legacy metadata or admin scoping, not as a user-facing parent concept.
-- Student oversight pages belong to the admin UI.
+- If legacy data implies ownership or grouping, treat it as legacy metadata or mentor scoping, not as a user-facing parent concept.
+- Student oversight pages belong to the mentor UI.
 
 ## Do Not Do
 
