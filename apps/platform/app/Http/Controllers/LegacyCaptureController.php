@@ -10,6 +10,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Illuminate\Validation\ValidationException;
@@ -18,6 +20,13 @@ class LegacyCaptureController extends Controller
 {
     public function check(Request $request)
     {
+        Log::info('legacy_capture.check', [
+            'ip' => $request->ip(),
+            'method' => $request->method(),
+            'query' => $request->query(),
+            'content_type' => $request->header('Content-Type'),
+        ]);
+
         $this->authenticateStudent($request);
 
         // The legacy uploader used this endpoint to fetch a "delays" pair,
@@ -39,6 +48,17 @@ class LegacyCaptureController extends Controller
 
     protected function storeCapture(Request $request, string $captureKind)
     {
+        Log::info('legacy_capture.upload_attempt', [
+            'kind' => $captureKind,
+            'ip' => $request->ip(),
+            'method' => $request->method(),
+            'query' => $request->query(),
+            'keys' => array_keys($request->except(['filename', 'capture', 'image'])),
+            'file_keys' => array_keys($request->allFiles()),
+            'content_type' => $request->header('Content-Type'),
+            'content_length' => $request->header('Content-Length'),
+        ]);
+
         $student = $this->resolveStudentForUpload($request);
         $upload = $this->resolveUpload($request);
         $taskSession = $this->latestTaskSession($student);
@@ -70,6 +90,13 @@ class LegacyCaptureController extends Controller
                 'legacy_compat' => true,
                 'remote_addr' => $request->ip(),
             ],
+        ]);
+
+        Log::info('legacy_capture.upload_stored', [
+            'kind' => $captureKind,
+            'student' => $student->user->username,
+            'path' => $path,
+            'size_bytes' => $upload->getSize(),
         ]);
 
         return response('OK', 200)->header('Content-Type', 'text/plain; charset=UTF-8');
@@ -156,6 +183,36 @@ class LegacyCaptureController extends Controller
             ?? $request->file('filename');
 
         if (! $upload instanceof UploadedFile) {
+            $rawBody = $request->getContent();
+            $contentType = strtolower((string) $request->header('Content-Type'));
+
+            if ($rawBody !== '' && (str_contains($contentType, 'image/') || str_contains($contentType, 'application/octet-stream'))) {
+                $tempPath = storage_path('app/tmp/'.Str::uuid().'.jpg');
+                @mkdir(dirname($tempPath), 0777, true);
+                file_put_contents($tempPath, $rawBody);
+
+                Log::info('legacy_capture.upload_raw_body', [
+                    'content_type' => $contentType,
+                    'bytes' => strlen($rawBody),
+                ]);
+
+                return new UploadedFile(
+                    $tempPath,
+                    'legacy-upload.jpg',
+                    $request->header('Content-Type') ?: 'image/jpeg',
+                    null,
+                    true,
+                );
+            }
+
+            Log::warning('legacy_capture.upload_missing_file', [
+                'content_type' => $request->header('Content-Type'),
+                'content_length' => $request->header('Content-Length'),
+                'raw_bytes' => strlen((string) $request->getContent()),
+                'keys' => array_keys($request->request->all()),
+                'file_keys' => array_keys($request->allFiles()),
+            ]);
+
             throw ValidationException::withMessages([
                 'filename' => 'An image upload is required.',
             ]);
