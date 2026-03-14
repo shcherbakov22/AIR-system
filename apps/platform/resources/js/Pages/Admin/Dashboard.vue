@@ -603,12 +603,12 @@ const blockTooltip = (block: DashboardBlock): string => {
 
             <div
                 v-else
-                class="grid items-start gap-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+                class="grid items-start gap-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
             >
                 <article
                     v-for="student in monitorStudents"
                     :key="student.id"
-                    class="relative flex min-h-[22rem] max-h-[calc(100vh-3.5rem)] min-w-0 flex-col overflow-hidden rounded-[1.25rem] bg-white p-2 shadow-sm ring-1 ring-stone-200"
+                    class="relative flex min-h-[22rem] max-h-[calc(100vh-3.5rem)] min-w-0 max-w-[15rem] flex-col overflow-hidden rounded-[1.25rem] bg-white p-2 shadow-sm ring-1 ring-stone-200"
                 >
                     <div class="flex items-start justify-between gap-1.5">
                         <div class="min-w-0">
@@ -625,7 +625,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </Link>
                     </div>
 
-                    <div class="mt-1.5 grid grid-cols-2 gap-1.5">
+                    <div class="mt-1.5 flex flex-col gap-1.5">
                         <button
                             v-if="student.latest_screen_capture"
                             type="button"
