@@ -17,6 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        $middleware->validateCsrfTokens(except: [
+            'ss/upl1.php',
+            'ss/uplcam.php',
+            'ss/uplscr.php',
+        ]);
+
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'student' => \App\Http\Middleware\EnsureUserIsStudent::class,
