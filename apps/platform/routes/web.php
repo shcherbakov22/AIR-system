@@ -18,6 +18,11 @@ use App\Http\Controllers\Student\ScheduleRunController as StudentScheduleRunCont
 use App\Http\Controllers\Student\ScheduleRunTaskSessionController as StudentScheduleRunTaskSessionController;
 use App\Http\Controllers\Student\ScheduleController as StudentScheduleController;
 use App\Http\Controllers\Student\TaskSessionController as StudentTaskSessionController;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -27,11 +32,19 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
-Route::prefix('ss')->group(function () {
+Route::prefix('ss')
+    ->withoutMiddleware([
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        VerifyCsrfToken::class,
+    ])
+    ->group(function () {
     Route::match(['get', 'post'], '/upl1.php', [LegacyCaptureController::class, 'check']);
     Route::post('/uplcam.php', [LegacyCaptureController::class, 'storeCamera']);
     Route::post('/uplscr.php', [LegacyCaptureController::class, 'storeScreen']);
-});
+    });
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
