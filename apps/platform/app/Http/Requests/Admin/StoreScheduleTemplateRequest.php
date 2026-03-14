@@ -14,12 +14,22 @@ class StoreScheduleTemplateRequest extends FormRequest
     {
         $name = trim((string) $this->input('name'));
         $notes = trim((string) $this->input('notes'));
-        $entryNotes = trim((string) $this->input('entry_notes'));
+        $entries = collect($this->input('entries', []))
+            ->map(fn ($entry) => [
+                'task_template_id' => ($taskTemplateId = trim((string) data_get($entry, 'task_template_id'))) === ''
+                    ? null
+                    : (int) $taskTemplateId,
+                'notes' => ($entryNotes = trim((string) data_get($entry, 'notes'))) === ''
+                    ? null
+                    : $entryNotes,
+            ])
+            ->values()
+            ->all();
 
         $this->merge([
             'name' => $name,
             'notes' => $notes === '' ? null : $notes,
-            'entry_notes' => $entryNotes === '' ? null : $entryNotes,
+            'entries' => $entries,
         ]);
     }
 
@@ -42,14 +52,13 @@ class StoreScheduleTemplateRequest extends FormRequest
             'name' => ['required', 'string', 'max:120'],
             'weekday' => ['required', Rule::enum(ScheduleWeekday::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'task_template_id' => [
+            'entries' => ['required', 'array', 'min:1', 'max:12'],
+            'entries.*.task_template_id' => [
                 'required',
                 'integer',
                 Rule::exists(TaskTemplate::class, 'id'),
             ],
-            'start_time' => ['required', 'date_format:H:i'],
-            'duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],
-            'entry_notes' => ['nullable', 'string', 'max:2000'],
+            'entries.*.notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }

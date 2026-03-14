@@ -104,10 +104,12 @@ class ScheduleTemplateManagementTest extends TestCase
             'name' => 'Monday Reading',
             'weekday' => ScheduleWeekday::Monday->value,
             'notes' => 'Core literacy block.',
-            'task_template_id' => $taskTemplate->id,
-            'start_time' => '09:15',
-            'duration_minutes' => 40,
-            'entry_notes' => 'Bring the chapter notebook.',
+            'entries' => [
+                [
+                    'task_template_id' => $taskTemplate->id,
+                    'notes' => 'Bring the chapter notebook.',
+                ],
+            ],
         ]);
 
         $response
@@ -132,7 +134,7 @@ class ScheduleTemplateManagementTest extends TestCase
             'notes' => 'Bring the chapter notebook.',
         ]);
 
-        $this->assertSame('09:15', substr((string) $scheduleTemplate->entries()->firstOrFail()->start_time, 0, 5));
+        $this->assertSame('09:00', substr((string) $scheduleTemplate->entries()->firstOrFail()->start_time, 0, 5));
     }
 
     public function test_admin_can_view_the_edit_schedule_screen(): void
@@ -186,6 +188,7 @@ class ScheduleTemplateManagementTest extends TestCase
                 ->component('Admin/ScheduleTemplates/Edit')
                 ->where('scheduleTemplate.id', $scheduleTemplate->id)
                 ->where('scheduleTemplate.name', 'Monday Reading')
+                ->where('scheduleTemplate.entries.0.task_template_id', $taskTemplate->id)
                 ->has('students', 1)
                 ->has('taskTemplates', 1)
                 ->has('weekdays', 7)
@@ -262,10 +265,12 @@ class ScheduleTemplateManagementTest extends TestCase
             'name' => 'Wednesday Writing',
             'weekday' => ScheduleWeekday::Wednesday->value,
             'notes' => 'Midweek writing focus.',
-            'task_template_id' => $secondTaskTemplate->id,
-            'start_time' => '10:30',
-            'duration_minutes' => 50,
-            'entry_notes' => 'Start with the outline.',
+            'entries' => [
+                [
+                    'task_template_id' => $secondTaskTemplate->id,
+                    'notes' => 'Start with the outline.',
+                ],
+            ],
         ]);
 
         $response
@@ -281,8 +286,11 @@ class ScheduleTemplateManagementTest extends TestCase
             'created_by_user_id' => $admin->id,
         ]);
 
-        $this->assertDatabaseHas('schedule_entries', [
+        $this->assertDatabaseMissing('schedule_entries', [
             'id' => $entry->id,
+        ]);
+
+        $this->assertDatabaseHas('schedule_entries', [
             'schedule_template_id' => $scheduleTemplate->id,
             'task_template_id' => $secondTaskTemplate->id,
             'position' => 1,
@@ -290,9 +298,9 @@ class ScheduleTemplateManagementTest extends TestCase
             'notes' => 'Start with the outline.',
         ]);
 
-        $entry->refresh();
+        $replacementEntry = $scheduleTemplate->entries()->firstOrFail();
 
-        $this->assertSame('10:30', substr((string) $entry->start_time, 0, 5));
+        $this->assertSame('09:00', substr((string) $replacementEntry->start_time, 0, 5));
     }
 
     public function test_admin_can_keep_the_current_task_template_when_updating_a_schedule(): void
@@ -353,10 +361,12 @@ class ScheduleTemplateManagementTest extends TestCase
                 'name' => 'Archived Monday Reading',
                 'weekday' => ScheduleWeekday::Monday->value,
                 'notes' => 'Legacy schedule updated.',
-                'task_template_id' => $currentTaskTemplate->id,
-                'start_time' => '08:45',
-                'duration_minutes' => 25,
-                'entry_notes' => 'Still tied to the current task.',
+                'entries' => [
+                    [
+                        'task_template_id' => $currentTaskTemplate->id,
+                        'notes' => 'Still tied to the current task.',
+                    ],
+                ],
             ])
             ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
             ->assertSessionHas('success', 'Schedule Archived Monday Reading updated.');
@@ -366,7 +376,7 @@ class ScheduleTemplateManagementTest extends TestCase
 
         $this->assertSame('Legacy schedule updated.', $scheduleTemplate->notes);
         $this->assertSame('Still tied to the current task.', $entry->notes);
-        $this->assertSame('08:45', substr((string) $entry->start_time, 0, 5));
+        $this->assertSame('09:00', substr((string) $entry->start_time, 0, 5));
     }
 
     public function test_admin_can_view_existing_schedule_templates(): void

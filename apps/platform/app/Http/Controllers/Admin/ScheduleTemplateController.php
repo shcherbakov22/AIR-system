@@ -6,11 +6,11 @@ use App\Enums\ScheduleWeekday;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreScheduleTemplateRequest;
 use App\Http\Requests\Admin\UpdateScheduleTemplateRequest;
-use App\Models\ScheduleEntry;
 use App\Models\ScheduleTemplate;
 use App\Models\Student;
 use App\Models\TaskTemplate;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -33,7 +33,7 @@ class ScheduleTemplateController extends Controller
             ->all();
     }
 
-    protected function taskTemplateOptions(?ScheduleTemplate $scheduleTemplate = null): array
+    protected function taskTemplateOptions(): array
     {
         return TaskTemplate::query()
             ->orderBy('title')
@@ -44,6 +44,23 @@ class ScheduleTemplateController extends Controller
                 'default_duration_minutes' => $taskTemplate->default_duration_minutes,
             ])
             ->all();
+    }
+
+    protected function selectedTaskTemplates(array $entries): Collection
+    {
+        return TaskTemplate::query()
+            ->whereIn(
+                'id',
+                collect($entries)
+                    ->pluck('task_template_id')
+                    ->filter(fn ($taskTemplateId) => $taskTemplateId !== null)
+                    ->map(fn ($taskTemplateId) => (int) $taskTemplateId)
+                    ->unique()
+                    ->values()
+                    ->all(),
+            )
+            ->get()
+            ->keyBy('id');
     }
 
     protected function formatTime(string $time): string
@@ -102,6 +119,9 @@ class ScheduleTemplateController extends Controller
                 ->map(fn ($entry) => [
                     'id' => $entry->id,
                     'position' => $entry->position,
+                    'task_template_id' => $entry->task_template_id,
+                    'task_title' => $entry->resolvedTaskTitle(),
+                    'task_instructions' => $entry->resolvedTaskInstructions(),
                     'start_time' => $this->formatTime((string) $entry->start_time),
                     'end_time' => $this->formatEndTime((string) $entry->start_time, $entry->duration_minutes),
                     'duration_minutes' => $entry->duration_minutes,
@@ -113,6 +133,28 @@ class ScheduleTemplateController extends Controller
                     ],
                 ])
                 ->values()
+                ->all(),
+        ];
+    }
+
+    protected function toFormPayload(ScheduleTemplate $scheduleTemplate): array
+    {
+        $payload = $this->toPayload($scheduleTemplate);
+
+        return [
+            'id' => $payload['id'],
+            'student_id' => (string) $scheduleTemplate->student_id,
+            'name' => $payload['name'],
+            'weekday' => $payload['weekday']['value'],
+            'notes' => $payload['notes'] ?? '',
+            'entries' => collect($payload['entries'])
+                ->map(fn (array $entry) => [
+                    'task_template_id' => $entry['task_template_id'],
+                    'task_title' => (string) $entry['task_title'],
+                    'task_instructions' => (string) ($entry['task_instructions'] ?? ''),
+                    'duration_minutes' => $entry['duration_minutes'],
+                    'notes' => $entry['notes'] ?? '',
+                ])
                 ->all(),
         ];
     }
@@ -143,6 +185,9 @@ class ScheduleTemplateController extends Controller
     {
         /** @var ScheduleTemplate $scheduleTemplate */
         $scheduleTemplate = DB::transaction(function () use ($request) {
+            $entries = collect((array) $request->input('entries', []))->values();
+            $taskTemplates = $this->selectedTaskTemplates($entries->all());
+
             $scheduleTemplate = ScheduleTemplate::create([
                 'student_id' => (int) $request->input('student_id'),
                 'name' => $request->string('name')->toString(),
@@ -151,13 +196,28 @@ class ScheduleTemplateController extends Controller
                 'created_by_user_id' => $request->user()->id,
             ]);
 
-            $scheduleTemplate->entries()->create([
-                'task_template_id' => (int) $request->input('task_template_id'),
-                'position' => 1,
-                'start_time' => $request->string('start_time')->toString(),
-                'duration_minutes' => (int) $request->input('duration_minutes'),
-                'notes' => $request->input('entry_notes'),
-            ]);
+            $currentMinutes = 9 * 60;
+
+            foreach ($entries as $index => $entry) {
+                $taskTemplate = $taskTemplates->get((int) data_get($entry, 'task_template_id'));
+
+                if (! $taskTemplate) {
+                    continue;
+                }
+
+                $scheduleTemplate->entries()->create([
+                    'task_template_id' => $taskTemplate->id,
+                    'task_title' => null,
+                    'task_summary' => null,
+                    'task_instructions' => null,
+                    'position' => $index + 1,
+                    'start_time' => sprintf('%02d:%02d', intdiv($currentMinutes, 60), $currentMinutes % 60),
+                    'duration_minutes' => $taskTemplate->default_duration_minutes,
+                    'notes' => data_get($entry, 'notes'),
+                ]);
+
+                $currentMinutes = min(23 * 60 + 55, $currentMinutes + $taskTemplate->default_duration_minutes);
+            }
 
             return $scheduleTemplate;
         });
@@ -169,28 +229,12 @@ class ScheduleTemplateController extends Controller
 
     public function edit(ScheduleTemplate $scheduleTemplate): Response
     {
-        $scheduleTemplate->loadMissing('entries');
-        $weekday = $this->resolveWeekday($scheduleTemplate->weekday);
-
-        /** @var ScheduleEntry|null $entry */
-        $entry = $scheduleTemplate->entries->sortBy('position')->first();
+        $scheduleTemplate->loadMissing('entries.taskTemplate');
 
         return Inertia::render('Admin/ScheduleTemplates/Edit', [
-            'scheduleTemplate' => [
-                'id' => $scheduleTemplate->id,
-                'student_id' => (string) $scheduleTemplate->student_id,
-                'name' => $scheduleTemplate->name,
-                'weekday' => $weekday?->value ?? (string) $scheduleTemplate->weekday,
-                'notes' => $scheduleTemplate->notes ?? '',
-                'entry' => [
-                    'task_template_id' => (string) ($entry?->task_template_id ?? ''),
-                    'start_time' => $entry ? $this->formatTime((string) $entry->start_time) : '09:00',
-                    'duration_minutes' => $entry?->duration_minutes ?? 30,
-                    'notes' => $entry?->notes ?? '',
-                ],
-            ],
+            'scheduleTemplate' => $this->toFormPayload($scheduleTemplate),
             'students' => $this->studentOptions(),
-            'taskTemplates' => $this->taskTemplateOptions($scheduleTemplate),
+            'taskTemplates' => $this->taskTemplateOptions(),
             'weekdays' => ScheduleWeekday::options(),
         ]);
     }
@@ -198,6 +242,9 @@ class ScheduleTemplateController extends Controller
     public function update(UpdateScheduleTemplateRequest $request, ScheduleTemplate $scheduleTemplate): RedirectResponse
     {
         DB::transaction(function () use ($request, $scheduleTemplate) {
+            $entries = collect((array) $request->input('entries', []))->values();
+            $taskTemplates = $this->selectedTaskTemplates($entries->all());
+
             $scheduleTemplate->update([
                 'student_id' => (int) $request->input('student_id'),
                 'name' => $request->string('name')->toString(),
@@ -205,26 +252,29 @@ class ScheduleTemplateController extends Controller
                 'notes' => $request->input('notes'),
             ]);
 
-            $entry = $scheduleTemplate->entries()->orderBy('position')->first();
+            $scheduleTemplate->entries()->delete();
+            $currentMinutes = 9 * 60;
 
-            if ($entry) {
-                $entry->update([
-                    'task_template_id' => (int) $request->input('task_template_id'),
-                    'start_time' => $request->string('start_time')->toString(),
-                    'duration_minutes' => (int) $request->input('duration_minutes'),
-                    'notes' => $request->input('entry_notes'),
+            foreach ($entries as $index => $entry) {
+                $taskTemplate = $taskTemplates->get((int) data_get($entry, 'task_template_id'));
+
+                if (! $taskTemplate) {
+                    continue;
+                }
+
+                $scheduleTemplate->entries()->create([
+                    'task_template_id' => $taskTemplate->id,
+                    'task_title' => null,
+                    'task_summary' => null,
+                    'task_instructions' => null,
+                    'position' => $index + 1,
+                    'start_time' => sprintf('%02d:%02d', intdiv($currentMinutes, 60), $currentMinutes % 60),
+                    'duration_minutes' => $taskTemplate->default_duration_minutes,
+                    'notes' => data_get($entry, 'notes'),
                 ]);
 
-                return;
+                $currentMinutes = min(23 * 60 + 55, $currentMinutes + $taskTemplate->default_duration_minutes);
             }
-
-            $scheduleTemplate->entries()->create([
-                'task_template_id' => (int) $request->input('task_template_id'),
-                'position' => 1,
-                'start_time' => $request->string('start_time')->toString(),
-                'duration_minutes' => (int) $request->input('duration_minutes'),
-                'notes' => $request->input('entry_notes'),
-            ]);
         });
 
         return redirect()
