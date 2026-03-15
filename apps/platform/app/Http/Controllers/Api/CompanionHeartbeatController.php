@@ -18,6 +18,10 @@ class CompanionHeartbeatController extends Controller
             'app_version' => $request->input('app_version') ?: $device->app_version,
             'last_seen_at' => now(),
             'last_seen_ip' => $request->ip(),
+            'last_ipv4' => $request->input('ipv4') ?: $device->last_ipv4,
+            'last_mac_address' => $request->input('mac_address') ?: $device->last_mac_address,
+            'last_gateway_ipv4' => $request->input('gateway_ipv4') ?: $device->last_gateway_ipv4,
+            'network_adapter_name' => $request->input('network_adapter_name') ?: $device->network_adapter_name,
             'meta' => array_merge($device->meta ?? [], $request->input('meta', [])),
         ])->save();
 

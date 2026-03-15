@@ -19,6 +19,10 @@ const props = defineProps<{
         app_version?: string | null;
         last_seen_at?: string | null;
         last_seen_ip?: string | null;
+        last_ipv4?: string | null;
+        last_mac_address?: string | null;
+        last_gateway_ipv4?: string | null;
+        network_adapter_name?: string | null;
         revoked_at?: string | null;
         policy: {
             mode: string;
@@ -139,6 +143,19 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                                     <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Internet policy</p>
                                     <p class="mt-2 font-semibold text-stone-950">{{ device.policy.internet_allowed ? 'Allowed' : 'Blocked' }}</p>
                                     <p class="mt-1 text-xs text-stone-500">{{ prettyCommand(device.policy.reason) }}</p>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <div class="rounded-[1.25rem] bg-stone-100 p-4 text-sm text-stone-700">
+                                    <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Network identity</p>
+                                    <p class="mt-2 font-semibold text-stone-950">{{ device.last_ipv4 || 'No IPv4 reported yet' }}</p>
+                                    <p v-if="device.last_mac_address" class="mt-1 text-xs text-stone-500">{{ device.last_mac_address }}</p>
+                                </div>
+                                <div class="rounded-[1.25rem] bg-stone-100 p-4 text-sm text-stone-700">
+                                    <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Gateway route</p>
+                                    <p class="mt-2 font-semibold text-stone-950">{{ device.last_gateway_ipv4 || 'Unknown gateway' }}</p>
+                                    <p v-if="device.network_adapter_name" class="mt-1 text-xs text-stone-500">{{ device.network_adapter_name }}</p>
                                 </div>
                             </div>
 

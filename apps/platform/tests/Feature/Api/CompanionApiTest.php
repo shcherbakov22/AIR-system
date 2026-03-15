@@ -203,6 +203,10 @@ class CompanionApiTest extends TestCase
                 'label' => 'Desk PC',
                 'hostname' => 'desk-pc',
                 'app_version' => '0.1.0',
+                'ipv4' => '192.168.11.44',
+                'mac_address' => 'aa:bb:cc:dd:ee:ff',
+                'gateway_ipv4' => '192.168.11.228',
+                'network_adapter_name' => 'Ethernet 1',
                 'meta' => ['health' => 'ok'],
             ])
             ->assertOk()
@@ -233,6 +237,13 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('accepted', true);
 
         $this->assertDatabaseCount('device_heartbeats', 1);
+        $this->assertDatabaseHas('student_devices', [
+            'id' => $device->id,
+            'last_ipv4' => '192.168.11.44',
+            'last_mac_address' => 'aa:bb:cc:dd:ee:ff',
+            'last_gateway_ipv4' => '192.168.11.228',
+            'network_adapter_name' => 'Ethernet 1',
+        ]);
         $this->assertDatabaseHas('device_activity_events', [
             'student_device_id' => $device->id,
             'event_type' => 'focused_app',

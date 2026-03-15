@@ -42,6 +42,11 @@ return [
     'network_control' => [
         'base_url' => env('NETWORK_CONTROL_BASE_URL'),
         'token' => env('NETWORK_CONTROL_TOKEN'),
+        'local_gateway_enabled' => env('LOCAL_GATEWAY_ENABLED', false),
+        'gateway_server_ipv4' => env('LOCAL_GATEWAY_SERVER_IPV4', '192.168.11.228'),
+        'gateway_dns_ipv4' => env('LOCAL_GATEWAY_DNS_IPV4', '192.168.11.228'),
+        'gateway_nft_binary' => env('LOCAL_GATEWAY_NFT_BINARY', 'nft'),
+        'gateway_table_name' => env('LOCAL_GATEWAY_TABLE_NAME', 'air_companion'),
     ],
 
 ];

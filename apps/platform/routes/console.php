@@ -4,6 +4,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use App\Console\Commands\PurgeStudentMonitorCapturesCommand;
+use App\Console\Commands\SyncGatewayPoliciesCommand;
 use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\StudentConsequenceProfile;
@@ -20,6 +21,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command(PurgeStudentMonitorCapturesCommand::class)->dailyAt('23:59');
+Schedule::command(SyncGatewayPoliciesCommand::class)->everyMinute();
 
 Artisan::command('legacy:import-recent-users
     {--source-json=}

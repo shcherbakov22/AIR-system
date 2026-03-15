@@ -9,6 +9,14 @@ class NetworkControlService
 {
     public function sync(StudentDevice $device, array $internetPolicy): array
     {
+        if ((bool) config('services.network_control.local_gateway_enabled', false)) {
+            return [
+                'status' => 'pending_local_sync',
+                'reason' => 'local_gateway_sync_command',
+                'policy' => $internetPolicy,
+            ];
+        }
+
         $baseUrl = rtrim((string) config('services.network_control.base_url'), '/');
 
         if ($baseUrl === '') {
