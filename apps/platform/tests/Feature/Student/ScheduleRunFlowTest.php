@@ -560,6 +560,69 @@ class ScheduleRunFlowTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_resuming_a_schedule_after_a_custom_timer_with_time_remaining_does_not_create_observe_the_time_violation(): void
+    {
+        Carbon::setTestNow('2026-03-08 09:00:00');
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_run_student',
+        ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_auto_violation',
+        ]);
+        $breakTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Break Timer',
+            15,
+            'Handle an urgent interruption.',
+            'Pause the schedule until the interruption is handled.',
+        );
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+        $this->createObserveTheTimeRule($mentor);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate));
+
+        $scheduleRun = ScheduleRun::query()
+            ->with('blocks')
+            ->where('student_id', $student->id)
+            ->sole();
+
+        $firstBlock = $scheduleRun->blocks->firstWhere('position', 1);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [
+                'scheduleRun' => $scheduleRun,
+                'scheduleRunBlock' => $firstBlock,
+            ]));
+
+        Carbon::setTestNow('2026-03-08 09:12:00');
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.pause', $scheduleRun), [
+                'task_template_id' => $breakTemplate->id,
+            ])
+            ->assertRedirect(route('student.home', absolute: false));
+
+        Carbon::setTestNow('2026-03-08 09:20:00');
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.resume', $scheduleRun))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Essay Draft'));
+
+        $this->assertDatabaseCount('violations', 0);
+
+        Carbon::setTestNow();
+    }
+
     public function test_student_can_not_start_a_schedule_run_while_an_open_violation_exists(): void
     {
         $studentUser = User::factory()->create([

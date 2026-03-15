@@ -160,7 +160,16 @@ class ScheduleRunController extends Controller
 
         $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $communicationGateService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
-            $automaticViolationService->evaluate($student);
+
+            $activeTaskSession = TaskSession::query()
+                ->where('student_id', $studentId)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $activeTaskSession || $activeTaskSession->schedule_run_id !== null) {
+                $automaticViolationService->evaluate($student);
+            }
 
             if ($blockingMessage = $this->blockingViolationMessage($student)) {
                 return [
@@ -276,7 +285,16 @@ class ScheduleRunController extends Controller
 
         $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $communicationGateService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
-            $automaticViolationService->evaluate($student);
+
+            $activeTaskSession = TaskSession::query()
+                ->where('student_id', $studentId)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $activeTaskSession || $activeTaskSession->schedule_run_id !== null) {
+                $automaticViolationService->evaluate($student);
+            }
 
             if ($blockingMessage = $this->blockingViolationMessage($student)) {
                 return [
@@ -299,12 +317,6 @@ class ScheduleRunController extends Controller
                 ->where('status', 'paused')
                 ->lockForUpdate()
                 ->firstOrFail();
-
-            $activeTaskSession = TaskSession::query()
-                ->where('student_id', $studentId)
-                ->where('status', 'active')
-                ->lockForUpdate()
-                ->first();
 
             if ($activeTaskSession && $activeTaskSession->schedule_run_id !== null) {
                 return [
@@ -330,6 +342,13 @@ class ScheduleRunController extends Controller
                     'completion_notes' => 'Automatically finished when resuming the schedule.',
                     'stopped_by_user_id' => $request->user()->id,
                 ]);
+
+                $automaticViolationService->evaluateStoppedTaskSession(
+                    $student,
+                    $activeTaskSession,
+                    $endedAt,
+                    $durationSeconds,
+                );
 
                 $completedAdHocTaskTitle = $activeTaskSession->task_title_snapshot;
             }
