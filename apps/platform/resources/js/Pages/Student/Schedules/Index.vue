@@ -60,10 +60,16 @@ const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
             </div>
 
             <div class="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
-                <div class="flex items-center justify-end">
+                <div class="flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-2xl font-semibold text-stone-950">
+                            Schedules
+                        </h2>
+                    </div>
+
                     <Link
                         :href="route('student.schedules.create')"
-                        class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                        class="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                     >
                         Create schedule
                     </Link>
