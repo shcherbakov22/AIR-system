@@ -54,6 +54,27 @@ class AutomaticObserveTheTimeViolationService
         $this->createIdleScheduleViolationIfNeeded($student, $ruleDefinition, $startedScheduleRun);
     }
 
+    public function evaluateStoppedTaskSession(
+        Student $student,
+        TaskSession $taskSession,
+        CarbonInterface $endedAt,
+        int $finalDurationSeconds,
+    ): void {
+        $ruleDefinition = $this->observeTheTimeRule();
+
+        if (! $ruleDefinition) {
+            return;
+        }
+
+        $this->createOverdueTaskViolationForElapsedTimeIfNeeded(
+            $student,
+            $ruleDefinition,
+            $taskSession,
+            max(0, $finalDurationSeconds),
+            $endedAt,
+        );
+    }
+
     private function observeTheTimeRule(): ?RuleDefinition
     {
         return RuleDefinition::query()
@@ -83,6 +104,43 @@ class AutomaticObserveTheTimeViolationService
             ->addSeconds($remainingThresholdSeconds);
 
         if (now()->lt($violationAt)) {
+            return;
+        }
+
+        $this->createViolationOnce(
+            $student,
+            $ruleDefinition,
+            'observe-time:overtime:session:'.$taskSession->id.':threshold:'.$violationAt->toAtomString(),
+            $violationAt,
+            'Automatic violation for exceeding the planned task duration by more than 5 minutes.',
+        );
+    }
+
+    private function createOverdueTaskViolationForElapsedTimeIfNeeded(
+        Student $student,
+        RuleDefinition $ruleDefinition,
+        TaskSession $taskSession,
+        int $finalDurationSeconds,
+        CarbonInterface $endedAt,
+    ): void {
+        if (! $taskSession->started_at || ! $taskSession->planned_duration_minutes || $taskSession->planned_duration_minutes <= 0) {
+            return;
+        }
+
+        $baseDurationSeconds = max(0, (int) ($taskSession->duration_seconds ?? 0));
+        $plannedSeconds = $taskSession->planned_duration_minutes * 60;
+        $thresholdSeconds = $plannedSeconds + (self::GRACE_MINUTES * 60);
+
+        if ($finalDurationSeconds < $thresholdSeconds) {
+            return;
+        }
+
+        $remainingThresholdSeconds = max(0, $thresholdSeconds - $baseDurationSeconds);
+        $violationAt = $taskSession->started_at
+            ->copy()
+            ->addSeconds($remainingThresholdSeconds);
+
+        if ($endedAt->lt($violationAt)) {
             return;
         }
 

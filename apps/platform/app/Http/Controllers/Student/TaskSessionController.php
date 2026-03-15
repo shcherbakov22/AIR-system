@@ -29,7 +29,6 @@ class TaskSessionController extends Controller
 
         $result = DB::transaction(function () use ($request, $studentId, $taskSession, $automaticViolationService, $speechAnnouncementService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
-            $automaticViolationService->evaluate($student);
 
             $lockedTaskSession = TaskSession::query()
                 ->with(['taskAssignment', 'scheduleRun', 'scheduleRunBlock'])
@@ -58,6 +57,13 @@ class TaskSessionController extends Controller
                 'completion_notes' => null,
                 'stopped_by_user_id' => $request->user()->id,
             ]);
+
+            $automaticViolationService->evaluateStoppedTaskSession(
+                $student,
+                $lockedTaskSession,
+                $endedAt,
+                $durationSeconds,
+            );
 
             $speechAnnouncementService->queueTaskSessionFinished($lockedTaskSession, $durationSeconds);
 
