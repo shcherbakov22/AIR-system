@@ -52,7 +52,7 @@ class UpdateScheduleTemplateRequest extends FormRequest
             'name' => ['required', 'string', 'max:120'],
             'weekday' => ['required', Rule::enum(ScheduleWeekday::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'entries' => ['required', 'array', 'min:1', 'max:12'],
+            'entries' => ['required', 'array', 'min:1'],
             'entries.*.task_template_id' => [
                 'required',
                 'integer',

@@ -109,6 +109,74 @@ class ScheduleManagementTest extends TestCase
         );
     }
 
+    public function test_student_can_create_more_than_one_schedule(): void
+    {
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_student',
+        ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Schedule Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $firstTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Reading Review',
+            35,
+            'Read the selected chapter.',
+            'Take notes while you read.',
+        );
+        $secondTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Writing Sprint',
+            25,
+            'Draft the short response.',
+            'Write until the timer ends.',
+        );
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedules.store'), [
+                'name' => 'Morning Plan',
+                'notes' => null,
+                'entries' => [
+                    [
+                        'task_template_id' => $firstTemplate->id,
+                        'notes' => null,
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('student.schedules.index', absolute: false));
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedules.store'), [
+                'name' => 'Evening Plan',
+                'notes' => null,
+                'entries' => [
+                    [
+                        'task_template_id' => $secondTemplate->id,
+                        'notes' => null,
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('student.schedules.index', absolute: false));
+
+        $this->assertSame(
+            ['Evening Plan', 'Morning Plan'],
+            ScheduleTemplate::query()
+                ->where('student_id', $student->id)
+                ->orderBy('name')
+                ->pluck('name')
+                ->all(),
+        );
+    }
+
     public function test_student_can_update_their_own_schedule(): void
     {
         $studentUser = User::factory()->create([

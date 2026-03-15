@@ -40,7 +40,7 @@ abstract class ManagesOwnScheduleRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'entries' => ['required', 'array', 'min:1', 'max:12'],
+            'entries' => ['required', 'array', 'min:1'],
             'entries.*.task_template_id' => [
                 'required',
                 'integer',
