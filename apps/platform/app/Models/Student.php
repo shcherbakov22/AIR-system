@@ -93,6 +93,11 @@ class Student extends Model
         return $this->hasMany(StudentMonitorCapture::class);
     }
 
+    public function devices(): HasMany
+    {
+        return $this->hasMany(StudentDevice::class);
+    }
+
     public function latestScreenCapture(): HasOne
     {
         return $this->hasOne(StudentMonitorCapture::class)

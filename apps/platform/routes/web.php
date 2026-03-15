@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\SpeechAnnouncementController as AdminSpeechAnnoun
 use App\Http\Controllers\Admin\StudentMonitorCaptureController as AdminStudentMonitorCaptureController;
 use App\Http\Controllers\Admin\StudentProgressController as AdminStudentProgressController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
+use App\Http\Controllers\Admin\StudentDeviceController as AdminStudentDeviceController;
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
 use App\Http\Controllers\ChatAttachmentController;
@@ -92,6 +93,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/students/create', [AdminStudentController::class, 'create'])->name('students.create');
         Route::post('/students', [AdminStudentController::class, 'store'])->name('students.store');
         Route::get('/students/{student}/progress', [AdminStudentProgressController::class, 'show'])->name('students.progress');
+        Route::get('/students/{student}/devices', [AdminStudentDeviceController::class, 'index'])->name('students.devices.index');
+        Route::patch('/students/{student}/devices/{studentDevice}', [AdminStudentDeviceController::class, 'update'])->name('students.devices.update');
+        Route::post('/students/{student}/devices/{studentDevice}/commands', [AdminStudentDeviceController::class, 'command'])->name('students.devices.command');
+        Route::patch('/students/{student}/devices/{studentDevice}/revoke', [AdminStudentDeviceController::class, 'revoke'])->name('students.devices.revoke');
         Route::get('/students/{student}/edit', [AdminStudentController::class, 'edit'])->name('students.edit');
         Route::put('/students/{student}', [AdminStudentController::class, 'update'])->name('students.update');
         Route::delete('/students/{student}', [AdminStudentController::class, 'destroy'])->name('students.destroy');

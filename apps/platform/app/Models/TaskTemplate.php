@@ -17,6 +17,7 @@ class TaskTemplate extends Model
         'summary',
         'instructions',
         'default_duration_minutes',
+        'requires_internet',
         'created_by_user_id',
     ];
 
@@ -25,6 +26,7 @@ class TaskTemplate extends Model
         return [
             'legacy_task_id' => 'integer',
             'default_duration_minutes' => 'integer',
+            'requires_internet' => 'boolean',
         ];
     }
 

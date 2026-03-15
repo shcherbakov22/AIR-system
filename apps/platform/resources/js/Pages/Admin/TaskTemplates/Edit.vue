@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -12,6 +13,7 @@ const props = defineProps<{
         title: string;
         instructions?: string | null;
         default_duration_minutes: number;
+        requires_internet: boolean;
     };
 }>();
 
@@ -19,6 +21,7 @@ const form = useForm({
     title: props.taskTemplate.title,
     instructions: props.taskTemplate.instructions ?? '',
     default_duration_minutes: String(props.taskTemplate.default_duration_minutes),
+    requires_internet: props.taskTemplate.requires_internet,
 });
 
 const submit = () => {
@@ -92,6 +95,16 @@ const submit = () => {
                             class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
                         />
                         <InputError class="mt-2" :message="form.errors.instructions" />
+                    </div>
+
+                    <div class="md:col-span-2 rounded-[1.5rem] bg-stone-100 p-5">
+                        <label class="inline-flex items-center gap-3">
+                            <Checkbox v-model:checked="form.requires_internet" />
+                            <span class="text-sm text-stone-700">
+                                This task requires internet access while it is active.
+                            </span>
+                        </label>
+                        <InputError class="mt-2" :message="form.errors.requires_internet" />
                     </div>
 
                     <div class="md:col-span-2 flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">

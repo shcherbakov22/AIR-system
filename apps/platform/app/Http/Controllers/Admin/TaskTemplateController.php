@@ -19,6 +19,7 @@ class TaskTemplateController extends Controller
             'title' => $taskTemplate->title,
             'instructions' => $taskTemplate->instructions,
             'default_duration_minutes' => $taskTemplate->default_duration_minutes,
+            'requires_internet' => $taskTemplate->requires_internet,
             'created_at' => $taskTemplate->created_at?->toDateTimeString(),
         ];
     }
@@ -52,6 +53,7 @@ class TaskTemplateController extends Controller
             'summary' => null,
             'instructions' => $request->input('instructions'),
             'default_duration_minutes' => (int) $request->input('default_duration_minutes'),
+            'requires_internet' => $request->boolean('requires_internet'),
             'created_by_user_id' => $request->user()->id,
         ]);
 
@@ -67,6 +69,7 @@ class TaskTemplateController extends Controller
             'summary' => null,
             'instructions' => $request->input('instructions'),
             'default_duration_minutes' => (int) $request->input('default_duration_minutes'),
+            'requires_internet' => $request->boolean('requires_internet'),
         ]);
 
         return redirect()

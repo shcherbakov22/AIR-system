@@ -39,4 +39,9 @@ return [
         'shared_token' => env('EDGE_CLIENT_SHARED_TOKEN', 'dev-edge-token'),
     ],
 
+    'network_control' => [
+        'base_url' => env('NETWORK_CONTROL_BASE_URL'),
+        'token' => env('NETWORK_CONTROL_TOKEN'),
+    ],
+
 ];

@@ -84,6 +84,12 @@ const deleteStudent = (studentId: number, displayName: string) => {
                             >
                                 Progress
                             </Link>
+                            <Link
+                                :href="route('admin.students.devices.index', student.id)"
+                                class="inline-flex rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                            >
+                                Devices
+                            </Link>
                             <button
                                 type="button"
                                 class="inline-flex rounded-full border border-rose-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-700 hover:text-rose-800"

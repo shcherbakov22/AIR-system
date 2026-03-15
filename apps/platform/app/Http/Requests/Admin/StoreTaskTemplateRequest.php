@@ -13,6 +13,7 @@ class StoreTaskTemplateRequest extends FormRequest
         $this->merge([
             'title' => trim((string) $this->input('title')),
             'instructions' => $instructions === '' ? null : $instructions,
+            'requires_internet' => $this->boolean('requires_internet'),
         ]);
     }
 
@@ -30,6 +31,7 @@ class StoreTaskTemplateRequest extends FormRequest
             'title' => ['required', 'string', 'max:150'],
             'instructions' => ['nullable', 'string', 'max:5000'],
             'default_duration_minutes' => ['required', 'integer', 'min:1', 'max:10000'],
+            'requires_internet' => ['required', 'boolean'],
         ];
     }
 }

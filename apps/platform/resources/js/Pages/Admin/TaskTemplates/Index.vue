@@ -10,6 +10,7 @@ const props = defineProps<{
         title: string;
         instructions?: string | null;
         default_duration_minutes: number;
+        requires_internet: boolean;
     }>;
 }>();
 
@@ -88,6 +89,9 @@ const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) =
                             </p>
                             <p class="mt-2 text-sm font-semibold text-stone-950">
                                 {{ taskTemplate.default_duration_minutes }} min
+                            </p>
+                            <p class="mt-2 text-xs uppercase tracking-[0.18em] text-stone-500">
+                                {{ taskTemplate.requires_internet ? 'Internet allowed' : 'Internet blocked' }}
                             </p>
                         </div>
 

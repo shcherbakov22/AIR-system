@@ -96,6 +96,20 @@ const deleteStudent = () => {
                         <h3 class="font-serif text-3xl text-stone-950">
                             {{ props.student.display_name }}
                         </h3>
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <Link
+                                :href="route('admin.students.progress', props.student.id)"
+                                class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                            >
+                                Progress
+                            </Link>
+                            <Link
+                                :href="route('admin.students.devices.index', props.student.id)"
+                                class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                            >
+                                Devices
+                            </Link>
+                        </div>
                     </div>
 
                     <div class="rounded-[1.5rem] bg-stone-100 p-5">

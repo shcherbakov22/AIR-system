@@ -13,6 +13,7 @@ class StudentMonitorCapture extends Model
     protected $fillable = [
         'student_id',
         'edge_client_id',
+        'student_device_id',
         'task_session_id',
         'schedule_run_id',
         'capture_kind',
@@ -23,6 +24,9 @@ class StudentMonitorCapture extends Model
         'captured_at',
         'uploaded_at',
         'task_title_snapshot',
+        'app_name_snapshot',
+        'window_title_snapshot',
+        'browser_domain_snapshot',
         'source_label',
         'source_version',
         'meta',
@@ -46,6 +50,11 @@ class StudentMonitorCapture extends Model
     public function edgeClient(): BelongsTo
     {
         return $this->belongsTo(EdgeClient::class);
+    }
+
+    public function studentDevice(): BelongsTo
+    {
+        return $this->belongsTo(StudentDevice::class);
     }
 
     public function taskSession(): BelongsTo

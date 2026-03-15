@@ -54,6 +54,7 @@ class TaskTemplateManagementTest extends TestCase
             'summary' => 'Short arithmetic practice block.',
             'instructions' => 'Work through the worksheet without skipping problems.',
             'default_duration_minutes' => 25,
+            'requires_internet' => true,
             'is_active' => true,
         ]);
 
@@ -66,6 +67,7 @@ class TaskTemplateManagementTest extends TestCase
             'summary' => null,
             'instructions' => 'Work through the worksheet without skipping problems.',
             'default_duration_minutes' => 25,
+            'requires_internet' => true,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -83,6 +85,7 @@ class TaskTemplateManagementTest extends TestCase
             'summary' => 'Focused reading block.',
             'instructions' => 'Read quietly and summarize the chapter afterward.',
             'default_duration_minutes' => 40,
+            'requires_internet' => false,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -95,6 +98,7 @@ class TaskTemplateManagementTest extends TestCase
                 ->has('taskTemplates', 1)
                 ->where('taskTemplates.0.title', 'Reading Session')
                 ->where('taskTemplates.0.default_duration_minutes', 40)
+                ->where('taskTemplates.0.requires_internet', false)
             );
     }
 
@@ -110,6 +114,7 @@ class TaskTemplateManagementTest extends TestCase
             'summary' => 'Focused reading block.',
             'instructions' => 'Read quietly and summarize the chapter afterward.',
             'default_duration_minutes' => 40,
+            'requires_internet' => false,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
