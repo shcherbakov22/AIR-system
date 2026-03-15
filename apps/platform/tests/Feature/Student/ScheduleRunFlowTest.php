@@ -486,6 +486,80 @@ class ScheduleRunFlowTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_stopping_a_custom_timer_does_not_create_observe_the_time_violation_for_a_paused_schedule(): void
+    {
+        Carbon::setTestNow('2026-03-08 09:00:00');
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_run_student',
+        ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_auto_violation',
+        ]);
+        $breakTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Break Timer',
+            15,
+            'Handle an urgent interruption.',
+            'Pause the schedule until the interruption is handled.',
+        );
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+        $this->createObserveTheTimeRule($mentor);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate));
+
+        $scheduleRun = ScheduleRun::query()
+            ->with('blocks')
+            ->where('student_id', $student->id)
+            ->sole();
+
+        $firstBlock = $scheduleRun->blocks->firstWhere('position', 1);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [
+                'scheduleRun' => $scheduleRun,
+                'scheduleRunBlock' => $firstBlock,
+            ]));
+
+        Carbon::setTestNow('2026-03-08 09:12:00');
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.pause', $scheduleRun), [
+                'task_template_id' => $breakTemplate->id,
+            ])
+            ->assertRedirect(route('student.home', absolute: false));
+
+        $adHocTaskSession = TaskSession::query()
+            ->where('student_id', $student->id)
+            ->whereNull('schedule_run_id')
+            ->where('status', 'active')
+            ->sole();
+
+        Carbon::setTestNow('2026-03-08 09:20:00');
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $adHocTaskSession))
+            ->assertRedirect(route('student.home', absolute: false));
+
+        $this->assertDatabaseCount('violations', 0);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $this->assertDatabaseCount('violations', 0);
+
+        Carbon::setTestNow();
+    }
+
     public function test_student_can_not_start_a_schedule_run_while_an_open_violation_exists(): void
     {
         $studentUser = User::factory()->create([
@@ -900,6 +974,100 @@ class ScheduleRunFlowTest extends TestCase
             ]))
             ->assertRedirect(route('student.home', absolute: false))
             ->assertSessionHas('error', fn (?string $message) => is_string($message) && str_contains($message, 'Observe the time') && str_contains($message, '09:45'));
+
+        $this->assertDatabaseCount('violations', 1);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_removed_observe_the_time_violation_stays_suppressed_until_a_new_task_is_started(): void
+    {
+        Carbon::setTestNow('2026-03-08 09:00:00');
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_run_student',
+        ]);
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_observe_time',
+        ]);
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+        $this->createObserveTheTimeRule($admin);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate));
+
+        $scheduleRun = ScheduleRun::query()
+            ->with('blocks')
+            ->where('student_id', $student->id)
+            ->sole();
+
+        $firstBlock = $scheduleRun->blocks->firstWhere('position', 1);
+        $secondBlock = $scheduleRun->blocks->firstWhere('position', 2);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [
+                'scheduleRun' => $scheduleRun,
+                'scheduleRunBlock' => $firstBlock,
+            ]));
+
+        $firstTaskSession = TaskSession::query()
+            ->where('student_id', $student->id)
+            ->where('status', 'active')
+            ->sole();
+
+        Carbon::setTestNow('2026-03-08 09:40:00');
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $firstTaskSession));
+
+        Carbon::setTestNow('2026-03-08 09:46:00');
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $violation = Violation::query()->where('student_id', $student->id)->sole();
+
+        $this->actingAs($admin)
+            ->delete(route('admin.violations.destroy', $violation))
+            ->assertRedirect(route('admin.violations.index', absolute: false));
+
+        $this->assertDatabaseCount('violations', 0);
+        $this->assertDatabaseHas('dismissed_automatic_violations', [
+            'student_id' => $student->id,
+            'auto_generated_key' => $violation->auto_generated_key,
+        ]);
+
+        Carbon::setTestNow('2026-03-08 09:55:00');
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $this->assertDatabaseCount('violations', 0);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [
+                'scheduleRun' => $scheduleRun->fresh(),
+                'scheduleRunBlock' => $secondBlock->fresh(),
+            ]))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Reading Review'));
+
+        $this->assertDatabaseMissing('dismissed_automatic_violations', [
+            'student_id' => $student->id,
+            'auto_generated_key' => $violation->auto_generated_key,
+        ]);
+
+        Carbon::setTestNow('2026-03-08 10:31:00');
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
 
         $this->assertDatabaseCount('violations', 1);
 

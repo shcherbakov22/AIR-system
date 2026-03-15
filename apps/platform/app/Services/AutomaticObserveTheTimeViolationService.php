@@ -15,6 +15,7 @@ class AutomaticObserveTheTimeViolationService
 {
     private const RULE_TITLE = 'Observe the time';
     private const GRACE_MINUTES = 5;
+    private const AUTO_KEY_PREFIX = 'observe-time:';
 
     public function __construct(
         private readonly SpeechAnnouncementService $speechAnnouncementService,
@@ -43,7 +44,7 @@ class AutomaticObserveTheTimeViolationService
 
         $startedScheduleRun = ScheduleRun::query()
             ->where('student_id', $student->id)
-            ->whereIn('status', ['active', 'paused'])
+            ->where('status', 'active')
             ->latest('started_at')
             ->first();
 
@@ -73,6 +74,14 @@ class AutomaticObserveTheTimeViolationService
             max(0, $finalDurationSeconds),
             $endedAt,
         );
+    }
+
+    public function clearDismissedViolationsForNewTask(Student $student): void
+    {
+        DB::table('dismissed_automatic_violations')
+            ->where('student_id', $student->id)
+            ->where('auto_generated_key', 'like', self::AUTO_KEY_PREFIX.'%')
+            ->delete();
     }
 
     private function observeTheTimeRule(): ?RuleDefinition

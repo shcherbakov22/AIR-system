@@ -90,6 +90,8 @@ class ScheduleRunTaskSessionController extends Controller
                 ];
             }
 
+            $automaticViolationService->clearDismissedViolationsForNewTask($student);
+
             $startedAt = now();
 
             $ownedScheduleRunBlock->update([

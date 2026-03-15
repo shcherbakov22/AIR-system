@@ -232,6 +232,8 @@ class ScheduleRunController extends Controller
                 'status' => 'paused',
             ]);
 
+            $automaticViolationService->clearDismissedViolationsForNewTask($student);
+
             TaskSession::create([
                 'student_id' => $studentId,
                 'task_assignment_id' => null,
@@ -366,6 +368,8 @@ class ScheduleRunController extends Controller
             $pausedBlock->update([
                 'status' => 'in_progress',
             ]);
+
+            $automaticViolationService->clearDismissedViolationsForNewTask($student);
 
             TaskSession::create([
                 'student_id' => $studentId,
