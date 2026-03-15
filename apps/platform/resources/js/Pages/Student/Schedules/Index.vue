@@ -60,16 +60,19 @@ const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
             </div>
 
             <div class="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
+                <div class="flex items-center justify-end">
+                    <Link
+                        :href="route('student.schedules.create')"
+                        class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                    >
+                        Create schedule
+                    </Link>
+                </div>
+
                 <div v-if="scheduleTemplates.length === 0" class="mt-6 rounded-[1.5rem] bg-stone-100 px-5 py-6">
                     <p class="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
                         No schedules yet
                     </p>
-                    <Link
-                        :href="route('student.schedules.create')"
-                        class="mt-4 inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                    >
-                        Create schedule
-                    </Link>
                 </div>
 
                 <div v-else class="space-y-4">
