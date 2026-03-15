@@ -3,8 +3,13 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\UserRole;
+use App\Models\DeviceActivityEvent;
+use App\Models\DeviceCommand;
+use App\Models\DeviceCommandResult;
+use App\Models\DeviceHeartbeat;
 use App\Models\Student;
 use App\Models\StudentDevice;
+use App\Models\StudentMonitorCapture;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -109,5 +114,110 @@ class StudentDeviceManagementTest extends TestCase
             ->assertSessionHas('success', 'Device Lab Station revoked.');
 
         $this->assertNotNull($device->fresh()->revoked_at);
+    }
+
+    public function test_admin_can_view_companion_debug_for_one_student(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_companion_debug',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_companion_debug',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Companion Debug Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'debug-device',
+            'label' => 'Debug Desk',
+            'hostname' => 'debug-host',
+            'platform' => 'windows',
+            'app_version' => '0.2.0',
+            'last_seen_at' => now(),
+            'last_seen_ip' => '192.168.11.240',
+            'last_ipv4' => '192.168.11.240',
+            'last_mac_address' => 'AA-BB-CC-DD-EE-FF',
+            'last_gateway_ipv4' => '192.168.11.228',
+            'network_adapter_name' => 'Ethernet',
+            'last_network_state' => ['mode' => 'allow_all'],
+            'meta' => ['build' => 'debug'],
+        ]);
+
+        DeviceHeartbeat::create([
+            'student_device_id' => $device->id,
+            'received_at' => now(),
+            'ip_address' => '192.168.11.240',
+            'payload' => ['hostname' => 'debug-host'],
+        ]);
+
+        DeviceActivityEvent::create([
+            'student_device_id' => $device->id,
+            'event_type' => 'focused_app',
+            'app_name' => 'code.exe',
+            'window_title' => 'Visual Studio Code',
+            'browser_domain' => null,
+            'payload' => ['source' => 'foreground'],
+            'observed_at' => now(),
+        ]);
+
+        $command = DeviceCommand::create([
+            'student_device_id' => $device->id,
+            'requested_by_user_id' => $admin->id,
+            'command_type' => 'request_screenshot',
+            'status' => 'completed',
+            'payload' => ['reason' => 'debug'],
+            'requested_at' => now(),
+            'completed_at' => now(),
+        ]);
+
+        DeviceCommandResult::create([
+            'device_command_id' => $command->id,
+            'student_device_id' => $device->id,
+            'status' => 'ok',
+            'payload' => ['stored' => true],
+            'received_at' => now(),
+        ]);
+
+        StudentMonitorCapture::create([
+            'student_id' => $student->id,
+            'student_device_id' => $device->id,
+            'capture_kind' => 'screen',
+            'disk' => 'public',
+            'path' => 'student-monitor-captures/debug/screen.png',
+            'mime_type' => 'image/png',
+            'size_bytes' => 1234,
+            'captured_at' => now(),
+            'uploaded_at' => now(),
+            'task_title_snapshot' => 'Coding',
+            'app_name_snapshot' => 'code.exe',
+            'window_title_snapshot' => 'Visual Studio Code',
+            'browser_domain_snapshot' => null,
+            'source_label' => 'AIR Companion',
+            'source_version' => '0.2.0',
+            'meta' => ['quality' => 'debug'],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.students.devices.debug', $student))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Students/CompanionDebug')
+                ->where('student.id', $student->id)
+                ->where('devices.0.label', 'Debug Desk')
+                ->where('devices.0.heartbeats.0.ip_address', '192.168.11.240')
+                ->where('devices.0.activity_events.0.app_name', 'code.exe')
+                ->where('devices.0.commands.0.command_type', 'request_screenshot')
+                ->where('devices.0.commands.0.results.0.status', 'ok')
+                ->where('devices.0.captures.0.capture_kind', 'screen')
+            );
     }
 }

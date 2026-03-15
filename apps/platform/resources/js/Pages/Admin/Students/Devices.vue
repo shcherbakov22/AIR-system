@@ -109,6 +109,12 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                 >
                     Progress
                 </Link>
+                <Link
+                    :href="route('admin.students.devices.debug', props.student.id)"
+                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                >
+                    Companion debug
+                </Link>
             </div>
 
             <div class="grid gap-5">

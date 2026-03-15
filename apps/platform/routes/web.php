@@ -94,6 +94,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/students', [AdminStudentController::class, 'store'])->name('students.store');
         Route::get('/students/{student}/progress', [AdminStudentProgressController::class, 'show'])->name('students.progress');
         Route::get('/students/{student}/devices', [AdminStudentDeviceController::class, 'index'])->name('students.devices.index');
+        Route::get('/students/{student}/companion-debug', [AdminStudentDeviceController::class, 'debug'])->name('students.devices.debug');
         Route::patch('/students/{student}/devices/{studentDevice}', [AdminStudentDeviceController::class, 'update'])->name('students.devices.update');
         Route::post('/students/{student}/devices/{studentDevice}/commands', [AdminStudentDeviceController::class, 'command'])->name('students.devices.command');
         Route::patch('/students/{student}/devices/{studentDevice}/revoke', [AdminStudentDeviceController::class, 'revoke'])->name('students.devices.revoke');
