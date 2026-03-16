@@ -9,6 +9,7 @@ use App\Models\ScheduleRun;
 use App\Models\ScheduleTemplate;
 use App\Models\TaskTemplate;
 use App\Services\AutomaticObserveTheTimeViolationService;
+use App\Services\ScheduleRunFinishWindowService;
 use App\Services\StudentCommunicationGateService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -57,6 +58,7 @@ class HomeController extends Controller
     public function __invoke(
         Request $request,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
+        ScheduleRunFinishWindowService $scheduleRunFinishWindowService,
         StudentCommunicationGateService $communicationGateService,
     ): Response
     {
@@ -111,6 +113,11 @@ class HomeController extends Controller
 
         return Inertia::render('Student/Home', [
             'serverNow' => now()->toAtomString(),
+            'scheduleFinishWindow' => [
+                'can_finish_now' => $scheduleRunFinishWindowService->canManuallyFinish(now()),
+                'opens_at_label' => '7:00 PM',
+                'closes_at_label' => '8:00 PM',
+            ],
             'student' => [
                 'display_name' => $student?->display_name ?? $request->user()->name,
                 'status' => $student?->status ?? 'pending',

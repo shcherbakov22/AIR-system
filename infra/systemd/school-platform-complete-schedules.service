@@ -1,0 +1,8 @@
+[Unit]
+Description=Complete open student schedules at end of day
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/school-system-redo/platform
+ExecStart=/usr/bin/php artisan schedule-runs:complete-daily-open

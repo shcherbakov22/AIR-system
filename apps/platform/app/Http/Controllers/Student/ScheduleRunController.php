@@ -15,6 +15,7 @@ use App\Models\TaskSession;
 use App\Models\TaskTemplate;
 use App\Models\Violation;
 use App\Services\AutomaticObserveTheTimeViolationService;
+use App\Services\ScheduleRunFinishWindowService;
 use App\Services\StudentCommunicationGateService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -423,6 +424,7 @@ class ScheduleRunController extends Controller
     public function complete(
         ResumeScheduleRunRequest $request,
         ScheduleRun $scheduleRun,
+        ScheduleRunFinishWindowService $scheduleRunFinishWindowService,
         StudentCommunicationGateService $communicationGateService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
@@ -431,8 +433,15 @@ class ScheduleRunController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $communicationGateService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunFinishWindowService, $communicationGateService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+
+            if (! $scheduleRunFinishWindowService->canManuallyFinish(now())) {
+                return [
+                    'success' => false,
+                    'message' => 'Schedules can only be finished manually between 7:00 PM and 8:00 PM.',
+                ];
+            }
 
             if ($blockingMessage = $this->blockingViolationMessage($student)) {
                 return [

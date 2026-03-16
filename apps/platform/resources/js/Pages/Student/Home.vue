@@ -16,6 +16,11 @@ const props = defineProps<{
         can_manage_own_schedule: boolean;
         can_use_ad_hoc_timer: boolean;
     };
+    scheduleFinishWindow: {
+        can_finish_now: boolean;
+        opens_at_label: string;
+        closes_at_label: string;
+    };
     communicationGate: {
         has_unread: boolean;
         unread_mentor_chat: {
@@ -142,6 +147,11 @@ const canPauseForOwnTimer = computed(
         props.activeScheduleRun !== null &&
         props.activeScheduleRun.status === 'active' &&
         (props.activeTaskSession === null || props.activeTaskSession.source_type === 'schedule'),
+);
+const canFinishScheduleNow = computed(() =>
+    props.activeScheduleRun !== null &&
+    !activeScheduleTaskIsRunning.value &&
+    props.scheduleFinishWindow.can_finish_now,
 );
 const pauseOwnTimerFormOpen = ref(false);
 const hasTaskTemplates = computed(() => props.taskTemplates.length > 0);
@@ -492,6 +502,11 @@ const completeScheduleRun = () => {
         return;
     }
 
+    if (!props.scheduleFinishWindow.can_finish_now) {
+        window.alert(`Schedules can only be finished manually between ${props.scheduleFinishWindow.opens_at_label} and ${props.scheduleFinishWindow.closes_at_label}.`);
+        return;
+    }
+
     if (showBlockingViolationDialog()) {
         return;
     }
@@ -648,6 +663,9 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 v-if="activeScheduleRun && !activeScheduleTaskIsRunning"
                                 type="button"
                                 class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                :disabled="!canFinishScheduleNow"
+                                :title="!canFinishScheduleNow ? `Available between ${scheduleFinishWindow.opens_at_label} and ${scheduleFinishWindow.closes_at_label}` : undefined"
+                                :class="{ 'cursor-not-allowed opacity-50': !canFinishScheduleNow }"
                                 @click="completeScheduleRun"
                             >
                                 Finish schedule
@@ -684,6 +702,13 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                             class="mt-3 rounded-[1rem] bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200"
                         >
                             There are no tasks in the catalog for a custom timer yet.
+                        </div>
+
+                        <div
+                            v-if="activeScheduleRun && !activeScheduleTaskIsRunning && !scheduleFinishWindow.can_finish_now"
+                            class="mt-3 rounded-[1rem] bg-stone-200 px-3 py-2 text-sm text-stone-700"
+                        >
+                            Finish schedule unlocks at {{ scheduleFinishWindow.opens_at_label }} and closes again at {{ scheduleFinishWindow.closes_at_label }}.
                         </div>
 
                         <form

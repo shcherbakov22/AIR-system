@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Artisan;
+use App\Console\Commands\CompleteDailyScheduleRunsCommand;
 use App\Console\Commands\PurgeStudentMonitorCapturesCommand;
 use App\Console\Commands\SyncGatewayPoliciesCommand;
 use App\Enums\UserRole;
@@ -22,6 +23,7 @@ Artisan::command('inspire', function () {
 
 Schedule::command(PurgeStudentMonitorCapturesCommand::class)->dailyAt('23:59');
 Schedule::command(SyncGatewayPoliciesCommand::class)->everyMinute();
+Schedule::command(CompleteDailyScheduleRunsCommand::class)->dailyAt('20:00');
 
 Artisan::command('legacy:import-recent-users
     {--source-json=}

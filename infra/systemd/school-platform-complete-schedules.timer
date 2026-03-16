@@ -1,0 +1,10 @@
+[Unit]
+Description=Run end-of-day schedule completion at 20:00
+
+[Timer]
+OnCalendar=*-*-* 20:00:00
+Persistent=true
+Unit=school-platform-complete-schedules.service
+
+[Install]
+WantedBy=timers.target

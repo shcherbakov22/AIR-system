@@ -273,7 +273,7 @@ class ScheduleRunFlowTest extends TestCase
 
     public function test_student_can_finish_a_schedule_with_uncompleted_blocks(): void
     {
-        Carbon::setTestNow('2026-03-08 09:00:00');
+        Carbon::setTestNow('2026-03-08 19:00:00');
 
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
@@ -304,7 +304,7 @@ class ScheduleRunFlowTest extends TestCase
             ->where('status', 'active')
             ->sole();
 
-        Carbon::setTestNow('2026-03-08 09:20:00');
+        Carbon::setTestNow('2026-03-08 19:20:00');
 
         $this->actingAs($studentUser)
             ->patch(route('student.task-sessions.stop', $taskSession));
@@ -329,6 +329,47 @@ class ScheduleRunFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/Home')
                 ->where('activeScheduleRun', null)
+            );
+
+        Carbon::setTestNow();
+    }
+
+    public function test_student_can_not_finish_a_schedule_before_7_pm(): void
+    {
+        Carbon::setTestNow('2026-03-08 18:30:00');
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_finish_student',
+        ]);
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate));
+
+        $scheduleRun = ScheduleRun::query()
+            ->where('student_id', $student->id)
+            ->sole();
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.complete', $scheduleRun))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('error', 'Schedules can only be finished manually between 7:00 PM and 8:00 PM.');
+
+        $this->assertDatabaseHas('schedule_runs', [
+            'id' => $scheduleRun->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('scheduleFinishWindow.can_finish_now', false)
+                ->where('scheduleFinishWindow.opens_at_label', '7:00 PM')
+                ->where('scheduleFinishWindow.closes_at_label', '8:00 PM')
             );
 
         Carbon::setTestNow();
