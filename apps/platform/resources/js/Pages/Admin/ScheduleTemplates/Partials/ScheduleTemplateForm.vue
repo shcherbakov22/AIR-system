@@ -2,7 +2,7 @@
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 
 type StudentOption = {
@@ -103,6 +103,38 @@ const moveEntry = (index: number, direction: -1 | 1) => {
 
     const [entry] = form.entries.splice(index, 1);
     form.entries.splice(targetIndex, 0, entry);
+};
+
+const draggedEntryIndex = ref<number | null>(null);
+const dragOverEntryIndex = ref<number | null>(null);
+
+const startDraggingEntry = (index: number) => {
+    draggedEntryIndex.value = index;
+    dragOverEntryIndex.value = index;
+};
+
+const enterEntryDropTarget = (index: number) => {
+    if (draggedEntryIndex.value === null) {
+        return;
+    }
+
+    dragOverEntryIndex.value = index;
+};
+
+const finishDraggingEntry = () => {
+    draggedEntryIndex.value = null;
+    dragOverEntryIndex.value = null;
+};
+
+const dropEntryAt = (index: number) => {
+    if (draggedEntryIndex.value === null || draggedEntryIndex.value === index) {
+        finishDraggingEntry();
+        return;
+    }
+
+    const [entry] = form.entries.splice(draggedEntryIndex.value, 1);
+    form.entries.splice(index, 0, entry);
+    finishDraggingEntry();
 };
 
 const entryError = (index: number, field: string): string | undefined =>
@@ -234,10 +266,21 @@ const submit = () => {
                 <article
                     v-for="(entry, index) in form.entries"
                     :key="index"
-                    class="rounded-[1.25rem] bg-white p-3 shadow-sm ring-1 ring-stone-200"
+                    class="rounded-[1.25rem] bg-white p-3 shadow-sm ring-1 ring-stone-200 transition"
+                    :class="{
+                        'ring-amber-400 ring-2': dragOverEntryIndex === index,
+                        'opacity-70': draggedEntryIndex === index,
+                    }"
+                    draggable="true"
+                    @dragstart="startDraggingEntry(index)"
+                    @dragenter.prevent="enterEntryDropTarget(index)"
+                    @dragover.prevent="enterEntryDropTarget(index)"
+                    @dragend="finishDraggingEntry"
+                    @drop.prevent="dropEntryAt(index)"
                 >
                     <div class="grid gap-3 md:grid-cols-[auto_auto_minmax(0,1.4fr)_auto_minmax(0,0.9fr)_auto] md:items-center">
-                        <div class="text-sm font-semibold text-stone-500">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-stone-500">
+                            <span class="cursor-grab text-stone-400 active:cursor-grabbing" title="Drag to reorder">⋮⋮</span>
                             {{ index + 1 }}
                         </div>
 
