@@ -169,9 +169,12 @@ class AutomaticObserveTheTimeViolationService
     ): void {
         $anchor = TaskSession::query()
             ->where('student_id', $student->id)
-            ->where('schedule_run_id', $scheduleRun->id)
             ->whereIn('status', ['paused', 'completed'])
             ->whereNotNull('ended_at')
+            ->where(function ($query) use ($scheduleRun) {
+                $query->where('started_at', '>=', $scheduleRun->started_at)
+                    ->orWhere('ended_at', '>=', $scheduleRun->started_at);
+            })
             ->latest('ended_at')
             ->first(['ended_at']);
 

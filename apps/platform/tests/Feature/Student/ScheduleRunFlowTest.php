@@ -1137,6 +1137,97 @@ class ScheduleRunFlowTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_completed_ad_hoc_timer_resets_idle_anchor_for_an_active_schedule(): void
+    {
+        Carbon::setTestNow('2026-03-08 09:00:00');
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_run_student',
+        ]);
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_auto_violation',
+        ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+        $adHocTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Reading',
+            55,
+            'Read independently.',
+            'Stay on the selected text.',
+        );
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+        $this->createObserveTheTimeRule($mentor);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate));
+
+        $scheduleRun = ScheduleRun::query()
+            ->with('blocks')
+            ->where('student_id', $student->id)
+            ->sole();
+
+        $firstBlock = $scheduleRun->blocks->firstWhere('position', 1);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [
+                'scheduleRun' => $scheduleRun,
+                'scheduleRunBlock' => $firstBlock,
+            ]));
+
+        $firstTaskSession = TaskSession::query()
+            ->where('student_id', $student->id)
+            ->where('status', 'active')
+            ->sole();
+
+        Carbon::setTestNow('2026-03-08 09:40:00');
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $firstTaskSession));
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => null,
+            'schedule_run_id' => null,
+            'schedule_run_block_id' => null,
+            'task_template_id' => $adHocTemplate->id,
+            'status' => 'completed',
+            'task_title_snapshot' => $adHocTemplate->title,
+            'task_summary_snapshot' => $adHocTemplate->summary,
+            'task_instructions_snapshot' => $adHocTemplate->instructions,
+            'assignment_notes_snapshot' => null,
+            'planned_duration_minutes' => $adHocTemplate->default_duration_minutes,
+            'duration_seconds' => 576,
+            'started_at' => Carbon::parse('2026-03-08 09:40:20'),
+            'ended_at' => Carbon::parse('2026-03-08 09:49:56'),
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
+        Carbon::setTestNow('2026-03-08 09:53:00');
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $this->assertDatabaseCount('violations', 0);
+
+        Carbon::setTestNow('2026-03-08 09:56:00');
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $this->assertDatabaseCount('violations', 1);
+
+        Carbon::setTestNow();
+    }
+
     public function test_overdue_schedule_task_creates_observe_the_time_violation_once_and_blocks_pause_for_own_timer(): void
     {
         Carbon::setTestNow('2026-03-08 09:00:00');
