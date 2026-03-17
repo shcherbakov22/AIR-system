@@ -347,6 +347,73 @@ class DashboardRoutingTest extends TestCase
             );
     }
 
+    public function test_admin_dashboard_keeps_students_in_alphabetical_order(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_dashboard_alpha_order',
+        ]);
+
+        $zetaUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_dashboard_zeta',
+        ]);
+
+        $alphaUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_dashboard_alpha',
+        ]);
+
+        $zetaStudent = Student::create([
+            'user_id' => $zetaUser->id,
+            'display_name' => 'Zeta Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $alphaStudent = Student::create([
+            'user_id' => $alphaUser->id,
+            'display_name' => 'Alpha Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $zetaStudent->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(2),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $zetaUser->id,
+        ]);
+
+        StudentMonitorCapture::create([
+            'student_id' => $zetaStudent->id,
+            'capture_kind' => 'screen',
+            'disk' => 'local',
+            'path' => 'student-monitor-captures/dashboard/zeta.jpg',
+            'mime_type' => 'image/jpeg',
+            'size_bytes' => 512,
+            'captured_at' => now()->subSeconds(10),
+            'uploaded_at' => now()->subSeconds(10),
+            'task_title_snapshot' => 'Coding',
+            'source_label' => 'AIR Companion',
+            'source_version' => '1.0.0',
+            'meta' => [],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Dashboard')
+                ->has('monitorStudents', 2)
+                ->where('monitorStudents.0.display_name', 'Alpha Student')
+                ->where('monitorStudents.1.display_name', 'Zeta Student')
+            );
+    }
+
     public function test_student_users_are_sent_to_the_student_home(): void
     {
         $studentUser = User::factory()->create([

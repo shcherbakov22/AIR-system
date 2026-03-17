@@ -231,19 +231,11 @@ class DashboardController extends Controller
         $activeTaskSession = $student->taskSessions->first();
         $activeScheduleRun = $student->activeOrPausedScheduleRun;
         $scheduleBoard = $this->scheduleBoardPayload($student);
-        $latestCaptureAt = collect([
-            $student->latestScreenCapture?->captured_at?->getTimestamp(),
-            $student->latestCameraCapture?->captured_at?->getTimestamp(),
-        ])->filter()->max() ?? 0;
 
         return [
             'id' => $student->id,
             'display_name' => $student->display_name,
             'status' => $student->status,
-            'sort_key' => [
-                'has_active_task' => $activeTaskSession ? 1 : 0,
-                'latest_capture_at' => $latestCaptureAt,
-            ],
             'user' => [
                 'id' => $student->user->id,
                 'username' => $student->user->username,
@@ -318,27 +310,7 @@ class DashboardController extends Controller
             ->orderBy('display_name')
             ->get()
             ->map(fn (Student $student) => $this->studentPayload($student))
-            ->sort(function (array $left, array $right): int {
-                $activityComparison = $right['sort_key']['has_active_task'] <=> $left['sort_key']['has_active_task'];
-
-                if ($activityComparison !== 0) {
-                    return $activityComparison;
-                }
-
-                $captureComparison = $right['sort_key']['latest_capture_at'] <=> $left['sort_key']['latest_capture_at'];
-
-                if ($captureComparison !== 0) {
-                    return $captureComparison;
-                }
-
-                return strcasecmp($left['display_name'], $right['display_name']);
-            })
             ->values()
-            ->map(function (array $student) {
-                unset($student['sort_key']);
-
-                return $student;
-            })
             ->all();
 
         return Inertia::render('Admin/Dashboard', [
