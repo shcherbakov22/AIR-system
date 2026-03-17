@@ -14,6 +14,12 @@ class SyncGatewayPoliciesCommand extends Command
 
     public function handle(GatewayPolicyService $gatewayPolicyService): int
     {
+        if (! (bool) config('services.network_control.enabled', false)) {
+            $this->warn('Network control is disabled.');
+
+            return self::SUCCESS;
+        }
+
         if ((bool) $this->option('dry-run')) {
             $this->line($gatewayPolicyService->buildRuleset());
 

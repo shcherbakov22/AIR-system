@@ -20,6 +20,13 @@ class CompanionGatewayPolicyTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('services.network_control.enabled', true);
+    }
+
     public function test_gateway_ruleset_blocks_devices_but_keeps_air_and_dns_reachable(): void
     {
         config()->set('services.network_control.gateway_server_ipv4', '192.168.11.228');

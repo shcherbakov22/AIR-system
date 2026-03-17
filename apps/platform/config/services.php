@@ -40,6 +40,7 @@ return [
     ],
 
     'network_control' => [
+        'enabled' => env('NETWORK_CONTROL_ENABLED', false),
         'base_url' => env('NETWORK_CONTROL_BASE_URL'),
         'token' => env('NETWORK_CONTROL_TOKEN'),
         'local_gateway_enabled' => env('LOCAL_GATEWAY_ENABLED', false),

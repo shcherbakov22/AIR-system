@@ -116,6 +116,15 @@ class DevicePolicyService
         bool $hasUnreadCommunication,
         bool $hasOpenViolations,
     ): array {
+        if (! (bool) config('services.network_control.enabled', false)) {
+            return [
+                'mode' => 'allow_all',
+                'internet_allowed' => true,
+                'reason' => 'internet_control_disabled',
+                'allowed_domains' => [],
+            ];
+        }
+
         $blockedByState = $hasUnreadCommunication || $hasOpenViolations;
 
         if ($blockedByState) {

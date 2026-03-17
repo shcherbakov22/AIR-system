@@ -21,6 +21,13 @@ class CompanionApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('services.network_control.enabled', true);
+    }
+
     public function test_student_can_enroll_device_and_receive_token(): void
     {
         [$student, $studentUser] = $this->makeStudent('companion_student', 'secret-pass');
@@ -168,6 +175,41 @@ class CompanionApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('policy.internet_policy.internet_allowed', true)
             ->assertJsonPath('policy.internet_policy.reason', 'task_requires_internet');
+    }
+
+    public function test_policy_reports_internet_control_as_disabled_when_feature_is_paused(): void
+    {
+        config()->set('services.network_control.enabled', false);
+
+        [$student, $studentUser] = $this->makeStudent('disabled_internet_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Tennis',
+            'summary' => null,
+            'instructions' => 'Practice serves.',
+            'default_duration_minutes' => 30,
+            'requires_internet' => false,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Tennis',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(1),
+            'duration_seconds' => 60,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($device->issueToken()))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.internet_policy.mode', 'allow_all')
+            ->assertJsonPath('policy.internet_policy.internet_allowed', true)
+            ->assertJsonPath('policy.internet_policy.reason', 'internet_control_disabled');
     }
 
     public function test_device_can_post_heartbeat_activity_and_capture(): void

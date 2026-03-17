@@ -22,7 +22,9 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command(PurgeStudentMonitorCapturesCommand::class)->dailyAt('23:59');
-Schedule::command(SyncGatewayPoliciesCommand::class)->everyMinute();
+Schedule::command(SyncGatewayPoliciesCommand::class)
+    ->everyMinute()
+    ->when(fn () => (bool) config('services.network_control.enabled', false));
 Schedule::command(CompleteDailyScheduleRunsCommand::class)->dailyAt('20:00');
 
 Artisan::command('legacy:import-recent-users

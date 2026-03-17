@@ -9,6 +9,14 @@ class NetworkControlService
 {
     public function sync(StudentDevice $device, array $internetPolicy): array
     {
+        if (! (bool) config('services.network_control.enabled', false)) {
+            return [
+                'status' => 'disabled',
+                'reason' => 'network_control_disabled',
+                'policy' => $internetPolicy,
+            ];
+        }
+
         if ((bool) config('services.network_control.local_gateway_enabled', false)) {
             return [
                 'status' => 'pending_local_sync',
