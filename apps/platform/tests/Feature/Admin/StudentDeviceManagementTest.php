@@ -151,6 +151,7 @@ class StudentDeviceManagementTest extends TestCase
             'last_mac_address' => 'AA-BB-CC-DD-EE-FF',
             'last_gateway_ipv4' => '192.168.11.228',
             'network_adapter_name' => 'Ethernet',
+            'internet_access_mode' => 'allow_all',
             'last_network_state' => ['mode' => 'allow_all'],
             'meta' => ['build' => 'debug'],
         ]);
@@ -223,7 +224,51 @@ class StudentDeviceManagementTest extends TestCase
                 ->where('devices.0.commands.0.command_type', 'request_screenshot')
                 ->where('devices.0.commands.0.results.0.status', 'ok')
                 ->where('devices.0.captures.0.capture_kind', 'screen')
+                ->where('devices.0.internet_access_mode', 'allow_all')
             );
+    }
+
+    public function test_admin_can_change_device_internet_access_mode(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_update_device_internet',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_update_device_internet',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Internet Device Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'internet-device',
+            'label' => 'Internet Desk',
+            'platform' => 'windows',
+            'internet_access_mode' => 'allow_all',
+        ]);
+
+        config()->set('services.network_control.enabled', true);
+        config()->set('services.network_control.local_gateway_enabled', false);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.devices.internet.update', [$student, $device]), [
+                'internet_access_mode' => 'block_all',
+            ])
+            ->assertRedirect(route('admin.students.devices.debug', $student, absolute: false))
+            ->assertSessionHas('success', 'Internet blocked for Internet Desk.');
+
+        $this->assertDatabaseHas('student_devices', [
+            'id' => $device->id,
+            'internet_access_mode' => 'block_all',
+        ]);
     }
 
     public function test_admin_can_open_camera_capture_from_companion_debug(): void

@@ -63,109 +63,29 @@ class CompanionApiTest extends TestCase
         $this->assertNotEmpty($response->json('token'));
     }
 
-    public function test_policy_blocks_internet_for_non_internet_task_and_unread_messages_and_open_schedules(): void
+    public function test_policy_allows_internet_by_default_when_network_control_is_enabled(): void
     {
         [$student, $studentUser] = $this->makeStudent('policy_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
 
-        $taskTemplate = TaskTemplate::create([
-            'title' => 'Tennis',
-            'summary' => null,
-            'instructions' => 'Practice serves.',
-            'default_duration_minutes' => 30,
-            'requires_internet' => false,
-            'created_by_user_id' => $studentUser->id,
-        ]);
-
-        TaskSession::create([
-            'student_id' => $student->id,
-            'task_template_id' => $taskTemplate->id,
-            'status' => 'active',
-            'task_title_snapshot' => 'Tennis',
-            'planned_duration_minutes' => 30,
-            'started_at' => now()->subMinutes(2),
-            'duration_seconds' => 120,
-            'started_by_user_id' => $studentUser->id,
-        ]);
-
         $token = $device->issueToken();
 
-        $policyResponse = $this->withHeaders($this->authHeaders($token))
+        $this->withHeaders($this->authHeaders($token))
             ->getJson(route('api.companion.policy.show'));
-
-        $policyResponse
-            ->assertOk()
-            ->assertJsonPath('policy.task.requires_internet', false)
-            ->assertJsonPath('policy.internet_policy.internet_allowed', false)
-            ->assertJsonPath('policy.internet_policy.reason', 'task_blocks_internet');
-
-        TaskSession::query()->delete();
-
-        ScheduleRun::create([
-            'student_id' => $student->id,
-            'status' => 'active',
-            'schedule_name_snapshot' => 'Morning',
-            'schedule_weekday_snapshot' => 'monday',
-            'schedule_notes_snapshot' => null,
-            'started_at' => now()->subMinutes(5),
-            'started_by_user_id' => $studentUser->id,
-        ]);
-
         $this->withHeaders($this->authHeaders($token))
             ->getJson(route('api.companion.policy.show'))
             ->assertOk()
-            ->assertJsonPath('policy.internet_policy.internet_allowed', false)
-            ->assertJsonPath('policy.internet_policy.reason', 'open_schedule_without_active_task');
-
-        ScheduleRun::query()->delete();
-
-        $admin = User::factory()->create([
-            'role' => UserRole::Admin,
-            'username' => 'mentor_policy',
-        ]);
-
-        $student->forceFill([
-            'last_seen_mentor_chat_at' => null,
-            'last_seen_announcements_at' => null,
-        ])->save();
-
-        $student->chatMessages()->create([
-            'channel' => 'chat',
-            'sender_user_id' => $admin->id,
-            'body' => 'Read this before starting.',
-        ]);
-
-        $this->withHeaders($this->authHeaders($token))
-            ->getJson(route('api.companion.policy.show'))
-            ->assertOk()
-            ->assertJsonPath('policy.communication_gate.has_unread', true)
-            ->assertJsonPath('policy.internet_policy.reason', 'communication_gate')
-            ->assertJsonPath('policy.internet_policy.internet_allowed', false);
+            ->assertJsonPath('policy.internet_policy.mode', 'allow_all')
+            ->assertJsonPath('policy.internet_policy.internet_allowed', true)
+            ->assertJsonPath('policy.internet_policy.reason', 'admin_device_allow');
     }
 
-    public function test_policy_allows_internet_for_task_that_requires_it(): void
+    public function test_policy_blocks_internet_when_device_is_manually_blocked(): void
     {
         [$student, $studentUser] = $this->makeStudent('internet_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
-
-        $coding = TaskTemplate::create([
-            'title' => 'Coding',
-            'summary' => null,
-            'instructions' => 'Build features.',
-            'default_duration_minutes' => 60,
-            'requires_internet' => true,
-            'created_by_user_id' => $studentUser->id,
-        ]);
-
-        TaskSession::create([
-            'student_id' => $student->id,
-            'task_template_id' => $coding->id,
-            'status' => 'active',
-            'task_title_snapshot' => 'Coding',
-            'planned_duration_minutes' => 60,
-            'started_at' => now()->subMinutes(10),
-            'duration_seconds' => 600,
-            'started_by_user_id' => $studentUser->id,
+        $device->update([
+            'internet_access_mode' => 'block_all',
         ]);
 
         $response = $this->withHeaders($this->authHeaders($device->issueToken()))
@@ -173,8 +93,9 @@ class CompanionApiTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('policy.internet_policy.internet_allowed', true)
-            ->assertJsonPath('policy.internet_policy.reason', 'task_requires_internet');
+            ->assertJsonPath('policy.internet_policy.mode', 'block_all')
+            ->assertJsonPath('policy.internet_policy.internet_allowed', false)
+            ->assertJsonPath('policy.internet_policy.reason', 'admin_device_block');
     }
 
     public function test_policy_reports_internet_control_as_disabled_when_feature_is_paused(): void

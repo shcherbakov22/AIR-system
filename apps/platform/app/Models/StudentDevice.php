@@ -26,6 +26,7 @@ class StudentDevice extends Model
         'last_mac_address',
         'last_gateway_ipv4',
         'network_adapter_name',
+        'internet_access_mode',
         'last_policy_hash',
         'last_network_state',
         'revoked_at',

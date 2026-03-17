@@ -33,7 +33,7 @@ class DevicePolicyService
         $communicationGate = $this->communicationGateService->payload($student);
         $openViolations = $student->violations->where('status', 'open')->values();
 
-        $internetPolicy = $this->internetPolicy($student, $activeTaskSession, $activeScheduleRun, $communicationGate['has_unread'], $openViolations->isNotEmpty());
+        $internetPolicy = $this->internetPolicy($device);
 
         return [
             'device' => [
@@ -109,13 +109,8 @@ class DevicePolicyService
             ->firstWhere('status', 'active');
     }
 
-    protected function internetPolicy(
-        Student $student,
-        ?TaskSession $activeTaskSession,
-        mixed $activeScheduleRun,
-        bool $hasUnreadCommunication,
-        bool $hasOpenViolations,
-    ): array {
+    protected function internetPolicy(StudentDevice $device): array
+    {
         if (! (bool) config('services.network_control.enabled', false)) {
             return [
                 'mode' => 'allow_all',
@@ -125,41 +120,12 @@ class DevicePolicyService
             ];
         }
 
-        $blockedByState = $hasUnreadCommunication || $hasOpenViolations;
-
-        if ($blockedByState) {
-            return [
-                'mode' => 'block_all',
-                'internet_allowed' => false,
-                'reason' => $hasUnreadCommunication ? 'communication_gate' : 'open_violations',
-                'allowed_domains' => [],
-            ];
-        }
-
-        if ($activeTaskSession) {
-            $requiresInternet = $activeTaskSession->taskTemplate?->requires_internet ?? false;
-
-            return [
-                'mode' => $requiresInternet ? 'allow_all' : 'block_all',
-                'internet_allowed' => $requiresInternet,
-                'reason' => $requiresInternet ? 'task_requires_internet' : 'task_blocks_internet',
-                'allowed_domains' => [],
-            ];
-        }
-
-        if ($activeScheduleRun) {
-            return [
-                'mode' => 'block_all',
-                'internet_allowed' => false,
-                'reason' => 'open_schedule_without_active_task',
-                'allowed_domains' => [],
-            ];
-        }
+        $mode = $device->internet_access_mode === 'block_all' ? 'block_all' : 'allow_all';
 
         return [
-            'mode' => 'allow_all',
-            'internet_allowed' => true,
-            'reason' => 'no_open_schedule',
+            'mode' => $mode,
+            'internet_allowed' => $mode === 'allow_all',
+            'reason' => $mode === 'allow_all' ? 'admin_device_allow' : 'admin_device_block',
             'allowed_domains' => [],
         ];
     }

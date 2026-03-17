@@ -186,6 +186,53 @@ class StudentDeviceController extends Controller
             ->with('success', "Command queued for {$studentDevice->label}.");
     }
 
+    public function updateInternetAccess(
+        ManageStudentDeviceRequest $request,
+        Student $student,
+        StudentDevice $studentDevice,
+    ): RedirectResponse {
+        abort_unless($studentDevice->student_id === $student->id, 404);
+
+        $mode = $request->string('internet_access_mode')->toString();
+        $networkState = (bool) config('services.network_control.enabled', false)
+            ? [
+                'status' => (bool) config('services.network_control.local_gateway_enabled', false)
+                    ? 'pending_local_sync'
+                    : 'configured',
+                'reason' => $mode === 'block_all' ? 'admin_device_block' : 'admin_device_allow',
+                'policy' => [
+                    'mode' => $mode,
+                    'internet_allowed' => $mode === 'allow_all',
+                ],
+            ]
+            : [
+                'status' => 'disabled',
+                'reason' => 'network_control_disabled',
+                'policy' => [
+                    'mode' => 'allow_all',
+                    'internet_allowed' => true,
+                ],
+            ];
+
+        $studentDevice->update([
+            'internet_access_mode' => $mode,
+            'last_network_state' => $networkState,
+        ]);
+
+        $message = $mode === 'block_all'
+            ? "Internet blocked for {$studentDevice->label}."
+            : "Internet allowed for {$studentDevice->label}.";
+
+        if ((bool) config('services.network_control.enabled', false)
+            && (bool) config('services.network_control.local_gateway_enabled', false)) {
+            $message .= ' Gateway sync is queued through the server timer.';
+        }
+
+        return redirect()
+            ->route('admin.students.devices.debug', $student)
+            ->with('success', $message);
+    }
+
     protected function deviceCardPayload(StudentDevice $device, DevicePolicyService $devicePolicyService): array
     {
         return [
@@ -201,6 +248,7 @@ class StudentDeviceController extends Controller
             'last_mac_address' => $device->last_mac_address,
             'last_gateway_ipv4' => $device->last_gateway_ipv4,
             'network_adapter_name' => $device->network_adapter_name,
+            'internet_access_mode' => $device->internet_access_mode,
             'revoked_at' => $device->revoked_at?->toAtomString(),
             'last_network_state' => $device->last_network_state ?? [],
             'meta' => $device->meta ?? [],

@@ -27,7 +27,7 @@ class CompanionGatewayPolicyTest extends TestCase
         config()->set('services.network_control.enabled', true);
     }
 
-    public function test_gateway_ruleset_blocks_devices_but_keeps_air_and_dns_reachable(): void
+    public function test_gateway_ruleset_blocks_manually_blocked_devices_but_keeps_air_and_dns_reachable(): void
     {
         config()->set('services.network_control.gateway_server_ipv4', '192.168.11.228');
         config()->set('services.network_control.gateway_dns_ipv4', '192.168.11.228');
@@ -36,52 +36,13 @@ class CompanionGatewayPolicyTest extends TestCase
         [$blockedStudent, $blockedUser] = $this->makeStudent('blocked_student');
         [$allowedStudent, $allowedUser] = $this->makeStudent('allowed_student');
 
-        $blockedTask = TaskTemplate::create([
-            'title' => 'Tennis',
-            'summary' => null,
-            'instructions' => 'Practice serves.',
-            'default_duration_minutes' => 30,
-            'requires_internet' => false,
-            'created_by_user_id' => $blockedUser->id,
-        ]);
-
-        $allowedTask = TaskTemplate::create([
-            'title' => 'Coding',
-            'summary' => null,
-            'instructions' => 'Build features.',
-            'default_duration_minutes' => 60,
-            'requires_internet' => true,
-            'created_by_user_id' => $allowedUser->id,
-        ]);
-
-        TaskSession::create([
-            'student_id' => $blockedStudent->id,
-            'task_template_id' => $blockedTask->id,
-            'status' => 'active',
-            'task_title_snapshot' => 'Tennis',
-            'planned_duration_minutes' => 30,
-            'started_at' => now()->subMinutes(3),
-            'duration_seconds' => 180,
-            'started_by_user_id' => $blockedUser->id,
-        ]);
-
-        TaskSession::create([
-            'student_id' => $allowedStudent->id,
-            'task_template_id' => $allowedTask->id,
-            'status' => 'active',
-            'task_title_snapshot' => 'Coding',
-            'planned_duration_minutes' => 60,
-            'started_at' => now()->subMinutes(3),
-            'duration_seconds' => 180,
-            'started_by_user_id' => $allowedUser->id,
-        ]);
-
         StudentDevice::create([
             'student_id' => $blockedStudent->id,
             'device_key' => 'blocked-device',
             'label' => 'Blocked Device',
             'platform' => 'windows',
             'last_ipv4' => '192.168.11.50',
+            'internet_access_mode' => 'block_all',
         ]);
 
         StudentDevice::create([
@@ -90,6 +51,7 @@ class CompanionGatewayPolicyTest extends TestCase
             'label' => 'Allowed Device',
             'platform' => 'windows',
             'last_ipv4' => '192.168.11.51',
+            'internet_access_mode' => 'allow_all',
         ]);
 
         $ruleset = app(GatewayPolicyService::class)->buildRuleset();
@@ -106,27 +68,7 @@ class CompanionGatewayPolicyTest extends TestCase
         config()->set('services.network_control.gateway_nft_binary', 'nft');
         config()->set('services.network_control.gateway_table_name', 'air_companion');
 
-        [$student, $studentUser] = $this->makeStudent('command_gateway_student');
-
-        $task = TaskTemplate::create([
-            'title' => 'Tennis',
-            'summary' => null,
-            'instructions' => 'Practice serves.',
-            'default_duration_minutes' => 30,
-            'requires_internet' => false,
-            'created_by_user_id' => $studentUser->id,
-        ]);
-
-        TaskSession::create([
-            'student_id' => $student->id,
-            'task_template_id' => $task->id,
-            'status' => 'active',
-            'task_title_snapshot' => 'Tennis',
-            'planned_duration_minutes' => 30,
-            'started_at' => now()->subMinute(),
-            'duration_seconds' => 60,
-            'started_by_user_id' => $studentUser->id,
-        ]);
+        [$student] = $this->makeStudent('command_gateway_student');
 
         StudentDevice::create([
             'student_id' => $student->id,
@@ -134,6 +76,7 @@ class CompanionGatewayPolicyTest extends TestCase
             'label' => 'Command Device',
             'platform' => 'windows',
             'last_ipv4' => '192.168.11.60',
+            'internet_access_mode' => 'block_all',
         ]);
 
         Process::fake();
