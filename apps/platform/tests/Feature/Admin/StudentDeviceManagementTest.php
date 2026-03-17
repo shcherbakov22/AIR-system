@@ -12,6 +12,7 @@ use App\Models\StudentDevice;
 use App\Models\StudentMonitorCapture;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -118,6 +119,8 @@ class StudentDeviceManagementTest extends TestCase
 
     public function test_admin_can_view_companion_debug_for_one_student(): void
     {
+        Storage::fake('public');
+
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
             'username' => 'admin_companion_debug',
@@ -187,6 +190,8 @@ class StudentDeviceManagementTest extends TestCase
             'received_at' => now(),
         ]);
 
+        Storage::disk('public')->put('student-monitor-captures/debug/screen.png', 'debug-image');
+
         StudentMonitorCapture::create([
             'student_id' => $student->id,
             'student_device_id' => $device->id,
@@ -219,5 +224,60 @@ class StudentDeviceManagementTest extends TestCase
                 ->where('devices.0.commands.0.results.0.status', 'ok')
                 ->where('devices.0.captures.0.capture_kind', 'screen')
             );
+    }
+
+    public function test_admin_can_open_camera_capture_from_companion_debug(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_camera_capture_debug',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_camera_capture_debug',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Camera Capture Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'camera-device',
+            'label' => 'Camera Desk',
+            'platform' => 'windows',
+        ]);
+
+        Storage::disk('public')->put('student-monitor-captures/debug/camera.png', 'camera-image');
+
+        $capture = StudentMonitorCapture::create([
+            'student_id' => $student->id,
+            'student_device_id' => $device->id,
+            'capture_kind' => 'camera',
+            'disk' => 'public',
+            'path' => 'student-monitor-captures/debug/camera.png',
+            'mime_type' => 'image/png',
+            'size_bytes' => 2345,
+            'captured_at' => now(),
+            'uploaded_at' => now(),
+            'task_title_snapshot' => 'Reading',
+            'app_name_snapshot' => 'camera.exe',
+            'window_title_snapshot' => 'Camera',
+            'browser_domain_snapshot' => null,
+            'source_label' => 'AIR Companion',
+            'source_version' => '0.2.0',
+            'meta' => ['quality' => 'debug'],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.student-monitor-captures.show', $capture))
+            ->assertOk()
+            ->assertHeader('content-type', 'image/png');
     }
 }

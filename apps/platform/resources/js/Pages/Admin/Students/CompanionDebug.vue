@@ -231,7 +231,14 @@ const formatJson = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
                                 >
                                     <div class="flex flex-wrap items-center justify-between gap-3 text-sm text-stone-700">
                                         <span class="font-semibold text-stone-950">{{ capture.capture_kind }}</span>
-                                        <Link :href="capture.show_url" class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700 hover:text-amber-800">Open</Link>
+                                        <a
+                                            :href="capture.show_url"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700 hover:text-amber-800"
+                                        >
+                                            Open
+                                        </a>
                                     </div>
                                     <p class="mt-2 text-sm text-stone-700">
                                         {{ formatDateTime(capture.captured_at) }} · {{ capture.task_title_snapshot || 'No task snapshot' }}
