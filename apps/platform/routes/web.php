@@ -49,13 +49,6 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get($companionRootCertificateRoute, CompanionRootCertificateController::class)
-    ->withoutMiddleware([
-        EncryptCookies::class,
-        AddQueuedCookiesToResponse::class,
-        StartSession::class,
-        ShareErrorsFromSession::class,
-        VerifyCsrfToken::class,
-    ])
     ->name('companion.root-ca');
 
 Route::prefix('ss')
