@@ -33,13 +33,29 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+$companionRootCertificateRoute = trim(
+    trim((string) config('services.local_tls.root_ca_route', '/companion/root-ca.crt')),
+    '/',
+);
+
+if ($companionRootCertificateRoute === '') {
+    $companionRootCertificateRoute = 'companion/root-ca.crt';
+}
+
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
     ]);
 })->name('home');
 
-Route::get('/companion/root-ca.crt', CompanionRootCertificateController::class)
+Route::get($companionRootCertificateRoute, CompanionRootCertificateController::class)
+    ->withoutMiddleware([
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        VerifyCsrfToken::class,
+    ])
     ->name('companion.root-ca');
 
 Route::prefix('ss')

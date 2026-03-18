@@ -339,6 +339,6 @@ class StudentDeviceManagementTest extends TestCase
         $this->get(route('companion.root-ca'))
             ->assertOk()
             ->assertHeader('content-type', 'application/x-x509-ca-cert')
-            ->assertHeader('content-disposition', 'inline; filename="air-root-ca.crt"');
+            ->assertDownload('air-root-ca.crt');
     }
 }
