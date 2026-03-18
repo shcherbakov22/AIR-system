@@ -12,6 +12,7 @@ use App\Models\StudentDevice;
 use App\Models\StudentMonitorCapture;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -324,5 +325,20 @@ class StudentDeviceManagementTest extends TestCase
             ->get(route('admin.student-monitor-captures.show', $capture))
             ->assertOk()
             ->assertHeader('content-type', 'image/png');
+    }
+
+    public function test_companion_root_certificate_route_serves_configured_certificate(): void
+    {
+        $certificateDirectory = storage_path('framework/testing/root-ca');
+        File::ensureDirectoryExists($certificateDirectory);
+        $certificatePath = $certificateDirectory.'/root.crt';
+        File::put($certificatePath, "-----BEGIN CERTIFICATE-----\nTESTROOT\n-----END CERTIFICATE-----\n");
+
+        config()->set('services.local_tls.root_ca_path', $certificatePath);
+
+        $this->get(route('companion.root-ca'))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/x-x509-ca-cert')
+            ->assertHeader('content-disposition', 'inline; filename="air-root-ca.crt"');
     }
 }

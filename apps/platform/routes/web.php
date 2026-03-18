@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\StudentDeviceController as AdminStudentDeviceCont
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
 use App\Http\Controllers\ChatAttachmentController;
+use App\Http\Controllers\CompanionRootCertificateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LegacyCaptureController;
 use App\Http\Controllers\ProfileController;
@@ -37,6 +38,9 @@ Route::get('/', function () {
         'canLogin' => Route::has('login'),
     ]);
 })->name('home');
+
+Route::get('/companion/root-ca.crt', CompanionRootCertificateController::class)
+    ->name('companion.root-ca');
 
 Route::prefix('ss')
     ->withoutMiddleware([

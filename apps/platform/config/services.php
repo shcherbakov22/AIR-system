@@ -50,4 +50,12 @@ return [
         'gateway_table_name' => env('LOCAL_GATEWAY_TABLE_NAME', 'air_companion'),
     ],
 
+    'local_tls' => [
+        'root_ca_path' => env(
+            'LOCAL_TLS_ROOT_CA_PATH',
+            '/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt'
+        ),
+        'root_ca_route' => env('LOCAL_TLS_ROOT_CA_ROUTE', '/companion/root-ca.crt'),
+    ],
+
 ];
