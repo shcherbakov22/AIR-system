@@ -177,7 +177,7 @@ class ScheduleManagementTest extends TestCase
         );
     }
 
-    public function test_student_can_update_their_own_schedule(): void
+    public function test_student_can_not_edit_their_own_schedule_after_creation(): void
     {
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
@@ -225,7 +225,11 @@ class ScheduleManagementTest extends TestCase
             'notes' => 'Original block.',
         ]);
 
-        $response = $this->actingAs($studentUser)
+        $this->actingAs($studentUser)
+            ->get(route('student.schedules.edit', $scheduleTemplate))
+            ->assertForbidden();
+
+        $this->actingAs($studentUser)
             ->put(route('student.schedules.update', $scheduleTemplate), [
                 'name' => 'Tuesday Plan',
                 'notes' => 'Updated note.',
@@ -239,83 +243,20 @@ class ScheduleManagementTest extends TestCase
                         'notes' => 'Reading follow-up.',
                     ],
                 ],
-            ]);
+            ])
+            ->assertForbidden();
 
-        $response
-            ->assertRedirect(route('student.schedules.index', absolute: false))
-            ->assertSessionHas('success', 'Schedule Tuesday Plan updated.');
+        $this->actingAs($studentUser)
+            ->delete(route('student.schedules.destroy', $scheduleTemplate))
+            ->assertForbidden();
 
         $scheduleTemplate->refresh();
         $scheduleTemplate->load('entries.taskTemplate');
 
-        $this->assertSame('Tuesday Plan', $scheduleTemplate->name);
-        $this->assertSame('monday', $scheduleTemplate->weekday);
-        $this->assertSame('Updated note.', $scheduleTemplate->notes);
-        $this->assertCount(2, $scheduleTemplate->entries);
-        $this->assertSame(
-            [$writingTemplate->id, $readingTemplate->id],
-            $scheduleTemplate->entries->pluck('task_template_id')->all(),
-        );
-        $this->assertSame(
-            ['Writing Sprint', 'Reading Review'],
-            $scheduleTemplate->entries->map(fn ($entry) => $entry->resolvedTaskTitle())->all(),
-        );
-        $this->assertSame([25, 35], $scheduleTemplate->entries->pluck('duration_minutes')->all());
-        $this->assertSame(
-            ['09:00', '09:25'],
-            $scheduleTemplate->entries->pluck('start_time')->map(fn ($time) => (string) $time)->all(),
-        );
-    }
-
-    public function test_student_can_delete_their_own_schedule(): void
-    {
-        $studentUser = User::factory()->create([
-            'role' => UserRole::Student,
-            'username' => 'schedule_student',
-        ]);
-        $catalogOwner = User::factory()->create([
-            'role' => UserRole::Admin,
-        ]);
-
-        $student = Student::create([
-            'user_id' => $studentUser->id,
-            'display_name' => 'Schedule Student',
-            'status' => 'active',
-            'notes' => null,
-        ]);
-
-        $readingTemplate = $this->createTaskTemplate(
-            $catalogOwner,
-            'Reading Review',
-            35,
-            'Read the selected chapter.',
-            'Take notes while you read.',
-        );
-
-        $scheduleTemplate = ScheduleTemplate::create([
-            'student_id' => $student->id,
-            'name' => 'Monday Plan',
-            'weekday' => 'monday',
-            'notes' => 'Original note.',
-            'created_by_user_id' => $studentUser->id,
-        ]);
-
-        $scheduleTemplate->entries()->create([
-            'task_template_id' => $readingTemplate->id,
-            'position' => 1,
-            'start_time' => '09:00',
-            'duration_minutes' => $readingTemplate->default_duration_minutes,
-            'notes' => 'Reading block.',
-        ]);
-
-        $this->actingAs($studentUser)
-            ->delete(route('student.schedules.destroy', $scheduleTemplate))
-            ->assertRedirect(route('student.schedules.index', absolute: false))
-            ->assertSessionHas('success', 'Schedule Monday Plan deleted.');
-
-        $this->assertDatabaseMissing('schedule_templates', [
-            'id' => $scheduleTemplate->id,
-        ]);
+        $this->assertSame('Monday Plan', $scheduleTemplate->name);
+        $this->assertSame('Original note.', $scheduleTemplate->notes);
+        $this->assertCount(1, $scheduleTemplate->entries);
+        $this->assertSame([$readingTemplate->id], $scheduleTemplate->entries->pluck('task_template_id')->all());
     }
 
     public function test_student_can_not_open_update_or_delete_another_students_schedule(): void
@@ -393,7 +334,7 @@ class ScheduleManagementTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_student_can_view_their_schedule_index_create_and_edit_screens(): void
+    public function test_student_can_view_their_schedule_index_and_create_screens_but_not_edit_screen(): void
     {
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
@@ -457,13 +398,6 @@ class ScheduleManagementTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.schedules.edit', $scheduleTemplate))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Student/Schedules/Edit')
-                ->where('scheduleTemplate.name', 'Monday Plan')
-                ->has('taskTemplates', 1)
-                ->where('taskTemplates.0.id', $taskTemplate->id)
-                ->where('scheduleTemplate.entries.0.task_template_id', fn ($value) => (string) $value === (string) $taskTemplate->id)
-            );
+            ->assertForbidden();
     }
 }

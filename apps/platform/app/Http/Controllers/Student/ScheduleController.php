@@ -228,14 +228,9 @@ class ScheduleController extends Controller
             abort(403);
         }
 
-        $scheduleTemplate = $this->loadOwnedSchedule($student, $scheduleTemplate);
+        $this->loadOwnedSchedule($student, $scheduleTemplate);
 
-        return Inertia::render('Student/Schedules/Edit', [
-            'scheduleTemplate' => $this->toFormPayload($scheduleTemplate),
-            'taskTemplates' => $this->taskTemplateOptions(
-                $scheduleTemplate->entries->pluck('task_template_id')->all(),
-            ),
-        ]);
+        abort(403);
     }
 
     public function update(UpdateScheduleRequest $request, ScheduleTemplate $scheduleTemplate): RedirectResponse
@@ -246,45 +241,9 @@ class ScheduleController extends Controller
             abort(403);
         }
 
-        $scheduleTemplate = $this->loadOwnedSchedule($student, $scheduleTemplate);
+        $this->loadOwnedSchedule($student, $scheduleTemplate);
 
-        DB::transaction(function () use ($request, $scheduleTemplate) {
-            $entries = collect((array) $request->input('entries', []))->values();
-            $taskTemplates = $this->selectedTaskTemplates($entries->all());
-
-            $scheduleTemplate->update([
-                'name' => $request->string('name')->toString(),
-                'notes' => $request->input('notes'),
-            ]);
-
-            $scheduleTemplate->entries()->delete();
-            $currentMinutes = 9 * 60;
-
-            foreach ($entries as $index => $entry) {
-                $taskTemplate = $taskTemplates->get((int) data_get($entry, 'task_template_id'));
-
-                if (! $taskTemplate) {
-                    continue;
-                }
-
-                $scheduleTemplate->entries()->create([
-                    'task_template_id' => $taskTemplate->id,
-                    'task_title' => null,
-                    'task_summary' => null,
-                    'task_instructions' => null,
-                    'position' => $index + 1,
-                    'start_time' => sprintf('%02d:%02d', intdiv($currentMinutes, 60), $currentMinutes % 60),
-                    'duration_minutes' => $taskTemplate->default_duration_minutes,
-                    'notes' => data_get($entry, 'notes'),
-                ]);
-
-                $currentMinutes = min(23 * 60 + 55, $currentMinutes + $taskTemplate->default_duration_minutes);
-            }
-        });
-
-        return redirect()
-            ->route('student.schedules.index')
-            ->with('success', "Schedule {$scheduleTemplate->name} updated.");
+        abort(403);
     }
 
     public function destroy(Request $request, ScheduleTemplate $scheduleTemplate): RedirectResponse
@@ -295,13 +254,8 @@ class ScheduleController extends Controller
             abort(403);
         }
 
-        $scheduleTemplate = $this->loadOwnedSchedule($student, $scheduleTemplate);
-        $scheduleTemplateName = $scheduleTemplate->name;
+        $this->loadOwnedSchedule($student, $scheduleTemplate);
 
-        $scheduleTemplate->delete();
-
-        return redirect()
-            ->route('student.schedules.index')
-            ->with('success', "Schedule {$scheduleTemplateName} deleted.");
+        abort(403);
     }
 }

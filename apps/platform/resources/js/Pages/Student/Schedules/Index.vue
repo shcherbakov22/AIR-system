@@ -2,7 +2,7 @@
 import type { PageProps } from '@/types';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { computed } from 'vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 
 defineProps<{
     scheduleTemplates: Array<{
@@ -27,16 +27,6 @@ defineProps<{
 const page = usePage<PageProps>();
 const flashSuccess = computed(() => page.props.flash?.success ?? null);
 const flashError = computed(() => page.props.flash?.error ?? null);
-
-const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
-    if (!window.confirm(`Delete schedule "${scheduleName}"? All of its blocks will be removed.`)) {
-        return;
-    }
-
-    router.delete(route('student.schedules.destroy', scheduleTemplateId), {
-        preserveScroll: true,
-    });
-};
 </script>
 
 <template>
@@ -100,22 +90,9 @@ const deleteSchedule = (scheduleTemplateId: number, scheduleName: string) => {
                                 </p>
                             </div>
 
-                            <div class="flex flex-wrap items-center gap-3">
-                                <Link
-                                    :href="route('student.schedules.edit', scheduleTemplate.id)"
-                                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                                >
-                                    Edit
-                                </Link>
-
-                                <button
-                                    type="button"
-                                    class="inline-flex rounded-full border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:text-rose-800"
-                                    @click="deleteSchedule(scheduleTemplate.id, scheduleTemplate.name)"
-                                >
-                                    Delete
-                                </button>
-                            </div>
+                            <p class="text-sm text-stone-500">
+                                Locked after creation
+                            </p>
                         </div>
 
                         <div class="mt-4 space-y-2">
