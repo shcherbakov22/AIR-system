@@ -13,6 +13,7 @@ use App\Models\StudentMonitorCapture;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -257,19 +258,28 @@ class StudentDeviceManagementTest extends TestCase
         ]);
 
         config()->set('services.network_control.enabled', true);
-        config()->set('services.network_control.local_gateway_enabled', false);
+        config()->set('services.network_control.local_gateway_enabled', true);
+        config()->set('services.network_control.gateway_nft_binary', 'nft');
+        config()->set('services.network_control.gateway_table_name', 'air_companion');
+
+        Process::fake();
 
         $this->actingAs($admin)
             ->patch(route('admin.students.devices.internet.update', [$student, $device]), [
                 'internet_access_mode' => 'block_all',
             ])
             ->assertRedirect(route('admin.students.devices.debug', $student, absolute: false))
-            ->assertSessionHas('success', 'Internet blocked for Internet Desk.');
+            ->assertSessionHas('success', 'Internet blocked for Internet Desk. Gateway sync applied immediately.');
 
         $this->assertDatabaseHas('student_devices', [
             'id' => $device->id,
             'internet_access_mode' => 'block_all',
         ]);
+
+        Process::assertRan(function ($process) {
+            return $process->command === ['nft', '-f', '-']
+                && str_contains($process->input, 'table inet air_companion');
+        });
     }
 
     public function test_admin_can_open_camera_capture_from_companion_debug(): void

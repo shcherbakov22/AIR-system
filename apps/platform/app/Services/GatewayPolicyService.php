@@ -28,7 +28,6 @@ class GatewayPolicyService
     {
         $tableName = (string) config('services.network_control.gateway_table_name', 'air_companion');
         $serverIp = (string) config('services.network_control.gateway_server_ipv4', '192.168.11.228');
-        $dnsIp = (string) config('services.network_control.gateway_dns_ipv4', $serverIp);
 
         $lines = [
             "table inet {$tableName} {",
@@ -47,8 +46,6 @@ class GatewayPolicyService
             if (($policy['internet_policy']['internet_allowed'] ?? false) === false) {
                 $commentBase = $this->nftComment("device {$device->device_key}");
                 $lines[] = "        ip saddr {$ip} ip daddr {$serverIp} tcp dport { 80, 443 } accept comment \"{$commentBase} air\"";
-                $lines[] = "        ip saddr {$ip} ip daddr {$dnsIp} udp dport 53 accept comment \"{$commentBase} dns-udp\"";
-                $lines[] = "        ip saddr {$ip} ip daddr {$dnsIp} tcp dport 53 accept comment \"{$commentBase} dns-tcp\"";
                 $lines[] = "        ip saddr {$ip} drop comment \"{$commentBase} block\"";
             }
         }

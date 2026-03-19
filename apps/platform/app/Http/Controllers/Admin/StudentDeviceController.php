@@ -11,10 +11,12 @@ use App\Models\Student;
 use App\Models\StudentMonitorCapture;
 use App\Models\StudentDevice;
 use App\Services\DevicePolicyService;
+use App\Services\GatewayPolicyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class StudentDeviceController extends Controller
 {
@@ -190,6 +192,7 @@ class StudentDeviceController extends Controller
         ManageStudentDeviceRequest $request,
         Student $student,
         StudentDevice $studentDevice,
+        GatewayPolicyService $gatewayPolicyService,
     ): RedirectResponse {
         abort_unless($studentDevice->student_id === $student->id, 404);
 
@@ -225,7 +228,14 @@ class StudentDeviceController extends Controller
 
         if ((bool) config('services.network_control.enabled', false)
             && (bool) config('services.network_control.local_gateway_enabled', false)) {
-            $message .= ' Gateway sync is queued through the server timer.';
+            try {
+                $gatewayPolicyService->applyRuleset();
+                $message .= ' Gateway sync applied immediately.';
+            } catch (Throwable $exception) {
+                return redirect()
+                    ->route('admin.students.devices.debug', $student)
+                    ->with('error', 'Gateway sync failed: '.$exception->getMessage());
+            }
         }
 
         return redirect()

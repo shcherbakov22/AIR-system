@@ -27,10 +27,9 @@ class CompanionGatewayPolicyTest extends TestCase
         config()->set('services.network_control.enabled', true);
     }
 
-    public function test_gateway_ruleset_blocks_manually_blocked_devices_but_keeps_air_and_dns_reachable(): void
+    public function test_gateway_ruleset_blocks_manually_blocked_devices_but_keeps_air_reachable(): void
     {
         config()->set('services.network_control.gateway_server_ipv4', '192.168.11.228');
-        config()->set('services.network_control.gateway_dns_ipv4', '192.168.11.228');
         config()->set('services.network_control.gateway_table_name', 'air_companion');
 
         [$blockedStudent, $blockedUser] = $this->makeStudent('blocked_student');
@@ -58,7 +57,8 @@ class CompanionGatewayPolicyTest extends TestCase
 
         $this->assertStringContainsString('table inet air_companion', $ruleset);
         $this->assertStringContainsString('ip saddr 192.168.11.50 ip daddr 192.168.11.228 tcp dport { 80, 443 } accept', $ruleset);
-        $this->assertStringContainsString('ip saddr 192.168.11.50 ip daddr 192.168.11.228 udp dport 53 accept', $ruleset);
+        $this->assertStringNotContainsString('udp dport 53', $ruleset);
+        $this->assertStringNotContainsString('tcp dport 53', $ruleset);
         $this->assertStringContainsString('ip saddr 192.168.11.50 drop', $ruleset);
         $this->assertStringNotContainsString('192.168.11.51 drop', $ruleset);
     }
