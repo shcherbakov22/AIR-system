@@ -23,6 +23,7 @@ const props = defineProps<{
         last_mac_address?: string | null;
         last_gateway_ipv4?: string | null;
         network_adapter_name?: string | null;
+        internet_access_mode: 'allow_all' | 'block_all';
         revoked_at?: string | null;
         policy: {
             mode: string;
@@ -78,6 +79,14 @@ const revokeDevice = (deviceId: number, label: string) => {
 const queueCommand = (deviceId: number, commandType: string) => {
     router.post(route('admin.students.devices.command', [props.student.id, deviceId]), {
         command_type: commandType,
+    }, {
+        preserveScroll: true,
+    });
+};
+
+const setInternetAccessMode = (deviceId: number, mode: 'allow_all' | 'block_all') => {
+    router.patch(route('admin.students.devices.internet.update', [props.student.id, deviceId]), {
+        internet_access_mode: mode,
     }, {
         preserveScroll: true,
     });
@@ -199,8 +208,22 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                                     <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'refresh_policy')">Refresh policy</button>
                                     <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'request_screenshot')">Request screenshot</button>
                                     <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'request_camera_capture')">Request camera</button>
-                                    <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'lock_internet')">Lock internet</button>
-                                    <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'unlock_internet')">Unlock internet</button>
+                                    <button
+                                        type="button"
+                                        class="inline-flex rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition"
+                                        :class="device.internet_access_mode === 'block_all' ? 'border-rose-600 bg-rose-600 text-white' : 'border-stone-300 text-stone-700 hover:border-stone-950 hover:text-stone-950'"
+                                        @click="setInternetAccessMode(device.id, 'block_all')"
+                                    >
+                                        Lock internet
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="inline-flex rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition"
+                                        :class="device.internet_access_mode === 'allow_all' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-stone-300 text-stone-700 hover:border-stone-950 hover:text-stone-950'"
+                                        @click="setInternetAccessMode(device.id, 'allow_all')"
+                                    >
+                                        Unlock internet
+                                    </button>
                                 </div>
                             </div>
 
