@@ -84,6 +84,19 @@ type DashboardStudent = {
         source_label?: string | null;
         image_url: string;
     } | null;
+    latest_device_activity?: {
+        device_label: string;
+        focused_app?: {
+            app_name?: string | null;
+            window_title?: string | null;
+            browser_domain?: string | null;
+            observed_at?: string | null;
+        } | null;
+        open_apps: Array<{
+            app_name?: string | null;
+            window_title?: string | null;
+        }>;
+    } | null;
     open_violations: Array<{
         id: number;
         rule_title: string;
@@ -111,6 +124,7 @@ const selectedCapture = ref<(DashboardCapture & { studentName: string }) | null>
 const selectedCaptureHistory = ref<Array<DashboardCapture & { studentName: string }>>([]);
 const selectedCaptureHistoryIndex = ref(0);
 const captureHistoryLoading = ref(false);
+const selectedAppsStudent = ref<DashboardStudent | null>(null);
 const selectedViolationRuleIds = ref<Record<number, string>>({});
 const serverSpeechEnabled = ref(props.serverSpeech.enabled);
 const serverSpeechPendingCount = ref(props.serverSpeech.pending_count);
@@ -449,6 +463,14 @@ const closeCapture = () => {
     captureHistoryLoading.value = false;
 };
 
+const openAppsPanel = (student: DashboardStudent) => {
+    selectedAppsStudent.value = student;
+};
+
+const closeAppsPanel = () => {
+    selectedAppsStudent.value = null;
+};
+
 const openCapturePlaceholder = (
     studentName: string,
     captureKind: 'screen' | 'camera',
@@ -657,6 +679,13 @@ const blockTooltip = (block: DashboardBlock): string => {
                             >
                                 Chat
                             </Link>
+                            <button
+                                type="button"
+                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                @click="openAppsPanel(student)"
+                            >
+                                Apps
+                            </button>
                         </div>
                     </div>
 
@@ -834,6 +863,75 @@ const blockTooltip = (block: DashboardBlock): string => {
                         No schedule available.
                     </div>
                 </article>
+            </div>
+
+            <div
+                v-if="selectedAppsStudent"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/70 p-4"
+                @click.self="closeAppsPanel"
+            >
+                <div class="w-full max-w-2xl overflow-hidden rounded-[1.25rem] bg-white shadow-2xl">
+                    <div class="flex items-start justify-between gap-4 border-b border-stone-200 px-5 py-4">
+                        <div class="min-w-0">
+                            <p class="truncate text-base font-semibold text-stone-950">
+                                {{ selectedAppsStudent.display_name }}
+                            </p>
+                            <p class="mt-1 text-xs uppercase tracking-[0.16em] text-stone-500">
+                                {{ selectedAppsStudent.latest_device_activity?.device_label ?? 'No active companion device' }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700"
+                            @click="closeAppsPanel"
+                        >
+                            Close
+                        </button>
+                    </div>
+
+                    <div class="space-y-4 px-5 py-5">
+                        <div class="rounded-[1rem] bg-stone-50 p-4 ring-1 ring-stone-200">
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                Focused app
+                            </p>
+                            <p class="mt-2 text-sm font-semibold text-stone-950">
+                                {{ selectedAppsStudent.latest_device_activity?.focused_app?.app_name || 'No focused app reported yet' }}
+                            </p>
+                            <p v-if="selectedAppsStudent.latest_device_activity?.focused_app?.window_title" class="mt-1 text-sm text-stone-600">
+                                {{ selectedAppsStudent.latest_device_activity.focused_app.window_title }}
+                            </p>
+                            <p v-if="selectedAppsStudent.latest_device_activity?.focused_app?.browser_domain" class="mt-2 text-xs uppercase tracking-[0.16em] text-stone-500">
+                                {{ selectedAppsStudent.latest_device_activity.focused_app.browser_domain }}
+                            </p>
+                        </div>
+
+                        <div class="rounded-[1rem] bg-stone-50 p-4 ring-1 ring-stone-200">
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                Open apps
+                            </p>
+                            <div
+                                v-if="(selectedAppsStudent.latest_device_activity?.open_apps.length ?? 0) > 0"
+                                class="mt-3 space-y-2"
+                            >
+                                <div
+                                    v-for="(app, index) in selectedAppsStudent.latest_device_activity?.open_apps ?? []"
+                                    :key="`${selectedAppsStudent.id}-${index}`"
+                                    class="rounded-[0.9rem] bg-white px-3 py-2 ring-1 ring-stone-200"
+                                >
+                                    <p class="text-sm font-medium text-stone-950">
+                                        {{ app.app_name || 'Unknown app' }}
+                                    </p>
+                                    <p v-if="app.window_title" class="mt-1 text-sm text-stone-600">
+                                        {{ app.window_title }}
+                                    </p>
+                                </div>
+                            </div>
+                            <p v-else class="mt-3 text-sm text-stone-500">
+                                No open app snapshot yet.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div

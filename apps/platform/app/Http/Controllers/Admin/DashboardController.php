@@ -12,6 +12,8 @@ use App\Models\StudentMonitorCapture;
 use App\Models\ScheduleTemplate;
 use App\Models\TaskSession;
 use App\Models\SpeechAnnouncement;
+use App\Models\StudentDevice;
+use App\Services\DevicePolicyService;
 use App\Services\SpeechAnnouncementPlaybackService;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,6 +22,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         protected SpeechAnnouncementPlaybackService $speechPlaybackService,
+        protected DevicePolicyService $devicePolicyService,
     ) {}
 
     protected function actualDurationSeconds(TaskSession $taskSession): int
@@ -229,6 +232,16 @@ class DashboardController extends Controller
 
     protected function studentPayload(Student $student): array
     {
+        $latestDevice = $student->devices
+            ->whereNull('revoked_at')
+            ->sortByDesc(fn (StudentDevice $device) => [
+                optional($device->last_seen_at)?->timestamp ?? 0,
+                $device->id,
+            ])
+            ->first();
+        $latestDeviceActivity = $latestDevice
+            ? $this->devicePolicyService->latestActivitySummary($latestDevice)
+            : null;
         $activeTaskSession = $student->taskSessions->first();
         $activeScheduleRun = $student->activeOrPausedScheduleRun;
         $scheduleBoard = $this->scheduleBoardPayload($student);
@@ -264,6 +277,11 @@ class DashboardController extends Controller
             'active_task_session' => $this->activeTaskSessionPayload($activeTaskSession),
             'latest_screen_capture' => $this->capturePayload($student->latestScreenCapture),
             'latest_camera_capture' => $this->capturePayload($student->latestCameraCapture),
+            'latest_device_activity' => $latestDevice ? [
+                'device_label' => $latestDevice->label,
+                'focused_app' => $latestDeviceActivity['focused_app'],
+                'open_apps' => $latestDeviceActivity['open_apps'],
+            ] : null,
             'open_violations' => $student->violations
                 ->map(fn ($violation) => [
                     'id' => $violation->id,
@@ -324,6 +342,16 @@ class DashboardController extends Controller
                     ->latest('started_at'),
                 'latestScreenCapture',
                 'latestCameraCapture',
+                'devices' => fn ($query) => $query
+                    ->whereNull('revoked_at')
+                    ->with([
+                        'activityEvents' => fn ($activityQuery) => $activityQuery
+                            ->latest('observed_at')
+                            ->latest('id')
+                            ->limit(8),
+                    ])
+                    ->latest('last_seen_at')
+                    ->latest('id'),
                 'violations' => fn ($query) => $query
                     ->where('status', 'open')
                     ->latest('occurred_at'),

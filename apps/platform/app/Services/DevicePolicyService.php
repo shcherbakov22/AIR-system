@@ -139,21 +139,39 @@ class DevicePolicyService
 
     public function latestActivitySummary(StudentDevice $device): array
     {
-        $latestFocused = $device->activityEvents()
-            ->where('event_type', 'focused_app')
-            ->latest('observed_at')
-            ->latest('id')
-            ->first();
+        if ($device->relationLoaded('activityEvents')) {
+            $latestFocused = $device->activityEvents
+                ->where('event_type', 'focused_app')
+                ->sortByDesc(fn (DeviceActivityEvent $event) => [
+                    optional($event->observed_at)?->timestamp ?? 0,
+                    $event->id,
+                ])
+                ->first();
 
-        $latestOpenApps = $device->activityEvents()
-            ->where('event_type', 'open_apps')
-            ->latest('observed_at')
-            ->latest('id')
-            ->first();
+            $latestOpenApps = $device->activityEvents
+                ->where('event_type', 'open_apps')
+                ->sortByDesc(fn (DeviceActivityEvent $event) => [
+                    optional($event->observed_at)?->timestamp ?? 0,
+                    $event->id,
+                ])
+                ->first();
+        } else {
+            $latestFocused = $device->activityEvents()
+                ->where('event_type', 'focused_app')
+                ->latest('observed_at')
+                ->latest('id')
+                ->first();
+
+            $latestOpenApps = $device->activityEvents()
+                ->where('event_type', 'open_apps')
+                ->latest('observed_at')
+                ->latest('id')
+                ->first();
+        }
 
         return [
             'focused_app' => $this->eventPayload($latestFocused),
-            'open_apps' => $latestOpenApps?->payload['apps'] ?? [],
+            'open_apps' => $this->normalizeOpenApps($latestOpenApps?->payload['apps'] ?? []),
         ];
     }
 
@@ -170,5 +188,37 @@ class DevicePolicyService
             'observed_at' => $event->observed_at?->toAtomString(),
             'payload' => Arr::except($event->payload ?? [], []),
         ];
+    }
+
+    public function normalizeOpenApps(array $apps): array
+    {
+        return collect($apps)
+            ->map(function ($app) {
+                if (is_string($app)) {
+                    return [
+                        'app_name' => $app,
+                        'window_title' => null,
+                    ];
+                }
+
+                if (! is_array($app)) {
+                    return null;
+                }
+
+                $appName = trim((string) ($app['app_name'] ?? $app['name'] ?? ''));
+                $windowTitle = trim((string) ($app['window_title'] ?? $app['title'] ?? ''));
+
+                if ($appName === '' && $windowTitle === '') {
+                    return null;
+                }
+
+                return [
+                    'app_name' => $appName !== '' ? $appName : null,
+                    'window_title' => $windowTitle !== '' ? $windowTitle : null,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 }

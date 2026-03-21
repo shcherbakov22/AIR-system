@@ -9,10 +9,12 @@ use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\ScheduleTemplate;
 use App\Models\Student;
+use App\Models\StudentDevice;
 use App\Models\StudentMonitorCapture;
 use App\Models\TaskSession;
 use App\Models\Violation;
 use App\Models\User;
+use App\Models\DeviceActivityEvent;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -297,6 +299,45 @@ class DashboardRoutingTest extends TestCase
             'meta' => [],
         ]);
 
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'dashboard-device',
+            'label' => 'Desk PC',
+            'platform' => 'windows',
+            'last_seen_at' => now(),
+        ]);
+
+        DeviceActivityEvent::create([
+            'student_device_id' => $device->id,
+            'event_type' => 'focused_app',
+            'app_name' => 'Code.exe',
+            'window_title' => 'AIR System - Dashboard',
+            'browser_domain' => 'github.com',
+            'payload' => [],
+            'observed_at' => now()->subSeconds(15),
+        ]);
+
+        DeviceActivityEvent::create([
+            'student_device_id' => $device->id,
+            'event_type' => 'open_apps',
+            'app_name' => 'Code.exe',
+            'window_title' => 'AIR System - Dashboard',
+            'browser_domain' => 'github.com',
+            'payload' => [
+                'apps' => [
+                    [
+                        'app_name' => 'Code.exe',
+                        'window_title' => 'AIR System - Dashboard',
+                    ],
+                    [
+                        'app_name' => 'chrome.exe',
+                        'window_title' => 'GitHub',
+                    ],
+                ],
+            ],
+            'observed_at' => now()->subSeconds(10),
+        ]);
+
         StudentMonitorCapture::create([
             'student_id' => $student->id,
             'task_session_id' => $taskSession->id,
@@ -343,6 +384,9 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.display_name', 'Monitor Student')
                 ->where('monitorStudents.0.latest_screen_capture.task_title', 'Coding')
                 ->where('monitorStudents.0.latest_camera_capture.source_label', 'Hardware Bridge')
+                ->where('monitorStudents.0.latest_device_activity.device_label', 'Desk PC')
+                ->where('monitorStudents.0.latest_device_activity.focused_app.app_name', 'Code.exe')
+                ->where('monitorStudents.0.latest_device_activity.open_apps.1.app_name', 'chrome.exe')
                 ->where('monitorStudents.0.open_violations.0.rule_title', 'Observe the time')
                 ->where('monitorStudents.0.open_violations.0.push_up_count', 10)
                 ->where('monitorStudents.0.current_push_up_count', 10)
