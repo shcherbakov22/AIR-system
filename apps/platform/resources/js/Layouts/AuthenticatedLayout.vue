@@ -48,6 +48,11 @@ const navItems = computed(() => {
             active: route().current('admin.announcements.*'),
         });
         items.push({
+            label: 'Assignments',
+            href: route('admin.assignments.index'),
+            active: route().current('admin.assignments.*') || route().current('admin.students.assignments.*'),
+        });
+        items.push({
             label: 'Tasks',
             href: route('admin.task-templates.index'),
             active: route().current('admin.task-templates.*'),
@@ -77,6 +82,11 @@ const navItems = computed(() => {
             label: 'Announcements',
             href: route('student.announcements.show'),
             active: route().current('student.announcements.*'),
+        });
+        items.push({
+            label: 'Assignments',
+            href: route('student.assignments.index'),
+            active: route().current('student.assignments.*'),
         });
         items.push({
             label: 'Rules',

@@ -37,6 +37,11 @@ class Student extends Model
         return $this->hasMany(TaskAssignment::class);
     }
 
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(StudentAssignment::class);
+    }
+
     public function chatMessages(): HasMany
     {
         return $this->hasMany(ChatMessage::class);

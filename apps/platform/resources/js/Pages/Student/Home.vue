@@ -38,6 +38,16 @@ const props = defineProps<{
             has_attachment: boolean;
         } | null;
     };
+    assignmentGate: {
+        has_unread: boolean;
+        unread_count: number;
+        latest_unread_assignment: {
+            id: number;
+            title: string;
+            created_at_label?: string | null;
+            creator_name?: string | null;
+        } | null;
+    };
     violationSummary: {
         open_violations: number;
     };
@@ -157,6 +167,7 @@ const pauseOwnTimerFormOpen = ref(false);
 const hasTaskTemplates = computed(() => props.taskTemplates.length > 0);
 const hasBlockingViolations = computed(() => props.openViolations.length > 0);
 const hasBlockingCommunication = computed(() => props.communicationGate.has_unread);
+const hasBlockingAssignments = computed(() => props.assignmentGate.has_unread);
 const hasUnreadMentorChat = computed(() => props.communicationGate.unread_mentor_chat !== null);
 const hasUnreadAnnouncement = computed(() => props.communicationGate.unread_announcement !== null);
 
@@ -399,8 +410,38 @@ const showBlockingCommunicationDialog = () => {
     return true;
 };
 
+const showBlockingAssignmentDialog = () => {
+    if (!hasBlockingAssignments.value) {
+        return false;
+    }
+
+    const count = props.assignmentGate.unread_count;
+    const latest = props.assignmentGate.latest_unread_assignment;
+    const lines = [
+        count === 1
+            ? 'There is an unread assignment.'
+            : `There are ${count} unread assignments.`,
+    ];
+
+    if (latest) {
+        lines.push(
+            `- ${latest.title}${latest.created_at_label ? ` (${latest.created_at_label})` : ''}`,
+        );
+    }
+
+    lines.push('', 'Open Assignments from the sidebar, review them, then come back.');
+
+    window.alert(lines.join('\n'));
+
+    return true;
+};
+
 const startScheduleRun = (scheduleTemplateId: number) => {
     if (showBlockingViolationDialog()) {
+        return;
+    }
+
+    if (showBlockingAssignmentDialog()) {
         return;
     }
 
@@ -428,6 +469,10 @@ const startScheduleBlock = (scheduleRunBlockId: number) => {
         return;
     }
 
+    if (showBlockingAssignmentDialog()) {
+        return;
+    }
+
     if (showBlockingCommunicationDialog()) {
         return;
     }
@@ -444,6 +489,10 @@ const startScheduleBlock = (scheduleRunBlockId: number) => {
 
 const togglePauseOwnTimerForm = () => {
     if (!pauseOwnTimerFormOpen.value && showBlockingViolationDialog()) {
+        return;
+    }
+
+    if (!pauseOwnTimerFormOpen.value && showBlockingAssignmentDialog()) {
         return;
     }
 
@@ -465,6 +514,10 @@ const pauseScheduleForOwnTimer = () => {
     }
 
     if (showBlockingViolationDialog()) {
+        return;
+    }
+
+    if (showBlockingAssignmentDialog()) {
         return;
     }
 
@@ -490,6 +543,10 @@ const resumeScheduleRun = () => {
         return;
     }
 
+    if (showBlockingAssignmentDialog()) {
+        return;
+    }
+
     if (showBlockingCommunicationDialog()) {
         return;
     }
@@ -508,6 +565,10 @@ const completeScheduleRun = () => {
     }
 
     if (showBlockingViolationDialog()) {
+        return;
+    }
+
+    if (showBlockingAssignmentDialog()) {
         return;
     }
 
@@ -767,6 +828,26 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                     Start
                                 </span>
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    v-if="hasBlockingAssignments"
+                    class="mt-3 rounded-[1.25rem] bg-sky-50 px-4 py-3 text-sm text-sky-950 ring-1 ring-sky-200"
+                >
+                    <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <p class="font-medium">
+                            {{
+                                assignmentGate.unread_count === 1
+                                    ? 'An unread assignment is waiting. Open Assignments before continuing the schedule.'
+                                    : `${assignmentGate.unread_count} unread assignments are waiting. Open Assignments before continuing the schedule.`
+                            }}
+                        </p>
+                        <div class="min-w-0 space-y-1 text-sm">
+                            <p v-if="assignmentGate.latest_unread_assignment" class="truncate">
+                                {{ assignmentGate.latest_unread_assignment.title }}<span v-if="assignmentGate.latest_unread_assignment.created_at_label">, {{ assignmentGate.latest_unread_assignment.created_at_label }}</span>
+                            </p>
                         </div>
                     </div>
                 </div>

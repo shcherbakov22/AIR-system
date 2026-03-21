@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\AnnouncementController as AdminAnnouncementController;
+use App\Http\Controllers\Admin\AssignmentController as AdminAssignmentController;
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\LegacyCaptureController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Student\ChatController as StudentChatController;
 use App\Http\Controllers\Student\AnnouncementController as StudentAnnouncementController;
+use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\HomeController as StudentHomeController;
 use App\Http\Controllers\Student\RuleController as StudentRuleController;
 use App\Http\Controllers\Student\ScheduleRunController as StudentScheduleRunController;
@@ -78,6 +80,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/announcements', [AdminAnnouncementController::class, 'index'])->name('announcements.index');
         Route::post('/announcements', [AdminAnnouncementController::class, 'store'])->name('announcements.store');
         Route::delete('/announcements/{chatMessage}', [AdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
+        Route::get('/assignments', [AdminAssignmentController::class, 'index'])->name('assignments.index');
+        Route::post('/assignments', [AdminAssignmentController::class, 'store'])->name('assignments.store');
+        Route::delete('/assignments/{studentAssignment}', [AdminAssignmentController::class, 'destroy'])->name('assignments.destroy');
         Route::get('/chats', [AdminChatController::class, 'index'])->name('chats.index');
         Route::get('/chats/{student}', [AdminChatController::class, 'show'])->name('chats.show');
         Route::post('/chats/{student}', [AdminChatController::class, 'store'])->name('chats.store');
@@ -109,6 +114,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/students/create', [AdminStudentController::class, 'create'])->name('students.create');
         Route::post('/students', [AdminStudentController::class, 'store'])->name('students.store');
         Route::get('/students/{student}/progress', [AdminStudentProgressController::class, 'show'])->name('students.progress');
+        Route::get('/students/{student}/assignments', [AdminAssignmentController::class, 'show'])->name('students.assignments.show');
         Route::get('/students/{student}/devices', [AdminStudentDeviceController::class, 'index'])->name('students.devices.index');
         Route::get('/students/{student}/companion-debug', [AdminStudentDeviceController::class, 'debug'])->name('students.devices.debug');
         Route::patch('/students/{student}/devices/{studentDevice}', [AdminStudentDeviceController::class, 'update'])->name('students.devices.update');
@@ -133,6 +139,9 @@ Route::middleware('auth')->group(function () {
     Route::prefix('student')->name('student.')->middleware('student')->group(function () {
         Route::get('/home', StudentHomeController::class)->name('home');
         Route::get('/announcements', [StudentAnnouncementController::class, 'show'])->name('announcements.show');
+        Route::get('/assignments', [StudentAssignmentController::class, 'index'])->name('assignments.index');
+        Route::patch('/assignments/{studentAssignment}/start', [StudentAssignmentController::class, 'start'])->name('assignments.start');
+        Route::patch('/assignments/{studentAssignment}/complete', [StudentAssignmentController::class, 'complete'])->name('assignments.complete');
         Route::get('/chat', [StudentChatController::class, 'show'])->name('chat.show');
         Route::post('/chat', [StudentChatController::class, 'store'])->name('chat.store');
         Route::get('/rules', StudentRuleController::class)->name('rules.index');

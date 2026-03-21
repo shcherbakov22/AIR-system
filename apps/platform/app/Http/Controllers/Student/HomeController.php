@@ -10,6 +10,7 @@ use App\Models\ScheduleTemplate;
 use App\Models\TaskTemplate;
 use App\Services\AutomaticObserveTheTimeViolationService;
 use App\Services\ScheduleRunFinishWindowService;
+use App\Services\StudentAssignmentGateService;
 use App\Services\StudentCommunicationGateService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -59,6 +60,7 @@ class HomeController extends Controller
         Request $request,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
         ScheduleRunFinishWindowService $scheduleRunFinishWindowService,
+        StudentAssignmentGateService $assignmentGateService,
         StudentCommunicationGateService $communicationGateService,
     ): Response
     {
@@ -136,6 +138,13 @@ class HomeController extends Controller
                     'has_unread' => false,
                     'unread_mentor_chat' => null,
                     'unread_announcement' => null,
+                ],
+            'assignmentGate' => $student
+                ? $assignmentGateService->payload($student)
+                : [
+                    'has_unread' => false,
+                    'unread_count' => 0,
+                    'latest_unread_assignment' => null,
                 ],
             'openViolations' => $openViolations
                 ->map(fn (Violation $violation) => [
