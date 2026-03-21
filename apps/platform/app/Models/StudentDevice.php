@@ -27,9 +27,9 @@ class StudentDevice extends Model
         'last_gateway_ipv4',
         'network_adapter_name',
         'internet_access_mode',
-        'remote_access_username',
-        'remote_access_password',
         'remote_control_ready',
+        'remote_control_active',
+        'remote_control_port',
         'remote_control_last_checked_at',
         'remote_control_failure_reason',
         'last_policy_hash',
@@ -41,15 +41,15 @@ class StudentDevice extends Model
 
     protected $hidden = [
         'token_hash',
-        'remote_access_password',
     ];
 
     protected function casts(): array
     {
         return [
             'last_seen_at' => 'datetime',
-            'remote_access_password' => 'encrypted',
             'remote_control_ready' => 'boolean',
+            'remote_control_active' => 'boolean',
+            'remote_control_port' => 'integer',
             'remote_control_last_checked_at' => 'datetime',
             'last_network_state' => 'array',
             'revoked_at' => 'datetime',

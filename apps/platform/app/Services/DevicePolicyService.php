@@ -91,6 +91,8 @@ class DevicePolicyService
             ],
             'remote_control' => [
                 'ready' => (bool) $device->remote_control_ready,
+                'active' => (bool) $device->remote_control_active,
+                'port' => $device->remote_control_port,
                 'last_checked_at' => $device->remote_control_last_checked_at?->toAtomString(),
                 'failure_reason' => $device->remote_control_failure_reason,
             ],

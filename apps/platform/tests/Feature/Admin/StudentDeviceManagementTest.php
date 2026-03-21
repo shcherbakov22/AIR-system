@@ -467,9 +467,9 @@ class StudentDeviceManagementTest extends TestCase
             'platform' => 'windows',
             'last_seen_at' => now(),
             'last_ipv4' => '192.168.11.77',
-            'remote_access_username' => 'airremote_1',
-            'remote_access_password' => 'secret-pass',
             'remote_control_ready' => true,
+            'remote_control_active' => true,
+            'remote_control_port' => 5905,
             'remote_control_last_checked_at' => now(),
         ]);
 
@@ -524,11 +524,11 @@ class StudentDeviceManagementTest extends TestCase
         $this->actingAs($admin)
             ->post(route('admin.students.devices.remote-control.store', [$student, $device]))
             ->assertRedirect(route('admin.students.devices.index', $student, absolute: false))
-            ->assertSessionHas('error', 'Device is not remote-control ready yet. Provisioning was queued.');
+            ->assertSessionHas('error', 'Device is not remote-control ready yet. Verification was queued.');
 
         $this->assertDatabaseHas('device_commands', [
             'student_device_id' => $device->id,
-            'command_type' => 'refresh_remote_credentials',
+            'command_type' => 'verify_remote_control',
             'status' => 'pending',
         ]);
     }

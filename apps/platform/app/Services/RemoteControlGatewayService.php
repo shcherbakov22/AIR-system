@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\RemoteControlSession;
 use App\Models\StudentDevice;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Arr;
 use RuntimeException;
 
 class RemoteControlGatewayService
@@ -16,8 +17,7 @@ class RemoteControlGatewayService
             [
                 'session_token' => $session->session_token,
                 'target_host' => $device->last_ipv4,
-                'username' => $device->remote_access_username,
-                'password' => $device->remote_access_password,
+                'target_port' => $device->remote_control_port,
                 'label' => $device->label,
             ],
         );
@@ -26,7 +26,7 @@ class RemoteControlGatewayService
             throw new RuntimeException('Gateway start failed with status '.$response->status().'.');
         }
 
-        return $response->json();
+        return Arr::only($response->json(), ['session_id', 'viewer_path']);
     }
 
     public function stopSession(RemoteControlSession $session): void

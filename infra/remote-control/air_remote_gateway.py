@@ -1,22 +1,18 @@
 #!/usr/bin/env python3
 import json
-import os
-import signal
 import socket
-import subprocess
-import sys
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, quote, urlparse
+from urllib.parse import quote, urlparse
 
-STATE_DIR = Path(os.environ.get("AIR_REMOTE_STATE_DIR", "/var/lib/air-remote-control"))
+STATE_DIR = Path("/var/lib/air-remote-control")
 SESSION_DIR = STATE_DIR / "sessions"
 TOKEN_FILE = STATE_DIR / "tokens.txt"
-NOVNC_DIR = Path(os.environ.get("AIR_REMOTE_NOVNC_DIR", "/usr/share/novnc"))
-LISTEN_HOST = os.environ.get("AIR_REMOTE_GATEWAY_HOST", "127.0.0.1")
-LISTEN_PORT = int(os.environ.get("AIR_REMOTE_GATEWAY_PORT", "9821"))
+NOVNC_DIR = Path("/usr/share/novnc")
+LISTEN_HOST = "127.0.0.1"
+LISTEN_PORT = 9821
 
 
 def ensure_dirs():
@@ -40,49 +36,29 @@ def save_session(data: dict):
     session_path(data["session_token"]).write_text(json.dumps(data), encoding="utf-8")
 
 
-def remove_session(session_token: str):
-    path = session_path(session_token)
-    if path.exists():
-        path.unlink()
-
-
-def allocate_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
-
-
-def allocate_display() -> int:
-    for display in range(110, 300):
-        if not Path(f"/tmp/.X11-unix/X{display}").exists():
-            return display
-    raise RuntimeError("no free X display")
-
-
 def update_token_file():
     lines = []
     for path in SESSION_DIR.glob("*.json"):
         data = json.loads(path.read_text(encoding="utf-8"))
         if data.get("status") == "active":
-            lines.append(f'{data["session_token"]}: 127.0.0.1:{data["rfb_port"]}')
+            lines.append(f'{data["session_token"]}: {data["target_host"]}:{data["target_port"]}')
     TOKEN_FILE.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
 
-def terminate_pid(pid):
-    if not pid:
-        return
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        return
+def reachable(host: str, port: int, timeout: float = 2.0) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(timeout)
+        try:
+            sock.connect((host, port))
+        except OSError:
+            return False
+    return True
 
 
 def stop_session(session_token: str):
     data = load_session(session_token)
     if not data:
         return False
-    for key in ("x11vnc_pid", "xfreerdp_pid", "xvfb_pid"):
-        terminate_pid(data.get(key))
     data["status"] = "ended"
     data["ended_at"] = int(time.time())
     save_session(data)
@@ -90,96 +66,27 @@ def stop_session(session_token: str):
     return True
 
 
-def run_process(command, env=None, log_path: Path | None = None):
-    stdout = subprocess.DEVNULL
-    stderr = subprocess.DEVNULL
-    if log_path is not None:
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        handle = open(log_path, "ab")
-        stdout = handle
-        stderr = handle
-    return subprocess.Popen(
-        command,
-        stdout=stdout,
-        stderr=stderr,
-        env=env,
-    )
-
-
 def start_session(payload: dict):
     session_token = payload["session_token"]
-    stop_session(session_token)
+    target_host = payload["target_host"]
+    target_port = int(payload["target_port"])
 
-    display = allocate_display()
-    rfb_port = allocate_port()
-    display_name = f":{display}"
-    env = os.environ.copy()
-    env["DISPLAY"] = display_name
-    env["HOME"] = "/root"
-    env["USER"] = "root"
-    env["LOGNAME"] = "root"
-    env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    env["XDG_CACHE_HOME"] = "/root/.cache"
-    env["XDG_CONFIG_HOME"] = "/root/.config"
-    xvfb_log = SESSION_DIR / f"{session_token}.xvfb.log"
-    rdp_log = SESSION_DIR / f"{session_token}.xfreerdp.log"
-    x11vnc_log = SESSION_DIR / f"{session_token}.x11vnc.log"
+    if target_port <= 0 or target_port > 65535:
+        raise RuntimeError("invalid target_port")
 
-    xvfb = run_process([
-        "Xvfb",
-        display_name,
-        "-screen",
-        "0",
-        "1366x768x24",
-        "-ac",
-    ], log_path=xvfb_log)
+    if not reachable(target_host, target_port):
+        raise RuntimeError("companion VNC endpoint is unreachable")
 
-    time.sleep(2)
-
-    xfreerdp = run_process([
-        "xfreerdp3",
-        f"/v:{payload['target_host']}",
-        f"/u:{payload['username']}",
-        f"/p:{payload['password']}",
-        "/cert:ignore",
-        "/size:1366x768",
-        "/auto-reconnect",
-        "/log-level:OFF",
-    ], env=env, log_path=rdp_log)
-
-    time.sleep(2)
-    if xfreerdp.poll() is not None:
-        terminate_pid(xvfb.pid)
-        error_tail = ""
-        if rdp_log.exists():
-            error_tail = rdp_log.read_text(encoding="utf-8", errors="ignore")[-400:]
-        raise RuntimeError(f"xfreerdp exited immediately: {error_tail}".strip())
-
-    x11vnc = run_process([
-        "x11vnc",
-        "-display",
-        display_name,
-        "-localhost",
-        "-forever",
-        "-shared",
-        "-nopw",
-        "-rfbport",
-        str(rfb_port),
-    ], log_path=x11vnc_log)
-
-    data = {
-        "session_token": session_token,
-        "status": "active",
-        "target_host": payload["target_host"],
-        "username": payload["username"],
-        "display": display_name,
-        "rfb_port": rfb_port,
-        "xvfb_pid": xvfb.pid,
-        "xfreerdp_pid": xfreerdp.pid,
-        "x11vnc_pid": x11vnc.pid,
-        "started_at": int(time.time()),
-    }
-    save_session(data)
+    save_session(
+        {
+            "session_token": session_token,
+            "status": "active",
+            "target_host": target_host,
+            "target_port": target_port,
+            "label": payload.get("label", ""),
+            "started_at": int(time.time()),
+        }
+    )
     update_token_file()
     return {
         "session_id": session_token,
@@ -206,7 +113,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/sessions/start":
             try:
                 payload = self._body_json()
-                for key in ("session_token", "target_host", "username", "password"):
+                for key in ("session_token", "target_host", "target_port"):
                     if not payload.get(key):
                         raise RuntimeError(f"missing {key}")
                 result = start_session(payload)

@@ -7,7 +7,6 @@ use App\Http\Requests\Admin\ManageStudentDeviceRequest;
 use App\Models\RemoteControlSession;
 use App\Models\Student;
 use App\Models\StudentDevice;
-use App\Services\RemoteControlCredentialService;
 use App\Services\RemoteControlGatewayService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
@@ -21,7 +20,6 @@ class RemoteControlSessionController extends Controller
         ManageStudentDeviceRequest $request,
         Student $student,
         StudentDevice $studentDevice,
-        RemoteControlCredentialService $credentialService,
         RemoteControlGatewayService $gatewayService,
     ): RedirectResponse {
         abort_unless($studentDevice->student_id === $student->id, 404);
@@ -33,23 +31,35 @@ class RemoteControlSessionController extends Controller
                 ->with('error', 'Remote control is disabled.');
         }
 
-        $credentials = $credentialService->ensureCredentials($studentDevice);
         $heartbeatMaxAgeSeconds = (int) config('services.remote_control.ready_heartbeat_max_age_seconds', 120);
         $recentHeartbeat = $studentDevice->last_seen_at !== null
             && $studentDevice->last_seen_at->greaterThanOrEqualTo(now()->subSeconds($heartbeatMaxAgeSeconds));
+        $activeSession = $studentDevice->remoteControlSessions()
+            ->whereIn('status', ['starting', 'active'])
+            ->latest('started_at')
+            ->latest('id')
+            ->first();
 
-        if (! $studentDevice->remote_control_ready || ! $studentDevice->last_ipv4 || ! $recentHeartbeat) {
+        if ($activeSession !== null) {
+            return redirect()->route('admin.remote-control-sessions.show', $activeSession);
+        }
+
+        if (! $studentDevice->remote_control_ready
+            || ! $studentDevice->remote_control_active
+            || ! $studentDevice->last_ipv4
+            || ! $studentDevice->remote_control_port
+            || ! $recentHeartbeat) {
             $studentDevice->commands()->create([
                 'requested_by_user_id' => $request->user()->id,
-                'command_type' => 'refresh_remote_credentials',
+                'command_type' => 'verify_remote_control',
                 'status' => 'pending',
-                'payload' => $credentials,
+                'payload' => [],
                 'requested_at' => now(),
             ]);
 
             return redirect()
                 ->route('admin.students.devices.index', $student)
-                ->with('error', 'Device is not remote-control ready yet. Provisioning was queued.');
+                ->with('error', 'Device is not remote-control ready yet. Verification was queued.');
         }
 
         $session = RemoteControlSession::create([

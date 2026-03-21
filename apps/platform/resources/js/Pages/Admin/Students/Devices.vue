@@ -25,6 +25,8 @@ const props = defineProps<{
         network_adapter_name?: string | null;
         internet_access_mode: 'allow_all' | 'block_all';
         remote_control_ready: boolean;
+        remote_control_active: boolean;
+        remote_control_port?: number | null;
         remote_control_last_checked_at?: string | null;
         remote_control_failure_reason?: string | null;
         revoked_at?: string | null;
@@ -102,9 +104,9 @@ const setInternetAccessMode = (deviceId: number, mode: 'allow_all' | 'block_all'
     });
 };
 
-const prepareRemoteControl = (deviceId: number) => {
+const verifyRemoteControl = (deviceId: number) => {
     router.post(route('admin.students.devices.command', [props.student.id, deviceId]), {
-        command_type: 'refresh_remote_credentials',
+        command_type: 'verify_remote_control',
     }, {
         preserveScroll: true,
     });
@@ -205,6 +207,9 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                                     <p class="mt-1 text-xs text-stone-500">
                                         {{ device.remote_control_failure_reason || formatDateTime(device.remote_control_last_checked_at) }}
                                     </p>
+                                    <p class="mt-1 text-xs text-stone-500">
+                                        {{ device.remote_control_active ? `Helper active on port ${device.remote_control_port ?? 'unknown'}` : 'Helper inactive' }}
+                                    </p>
                                 </div>
                             </div>
 
@@ -239,11 +244,11 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                             <div class="rounded-[1.25rem] bg-stone-100 p-4">
                                 <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Remote actions</p>
                                 <div class="mt-3 flex flex-wrap gap-2">
-                                    <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="prepareRemoteControl(device.id)">Prepare remote</button>
+                                    <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="verifyRemoteControl(device.id)">Verify remote</button>
                                     <button
                                         type="button"
                                         class="inline-flex rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition"
-                                        :class="device.remote_control_ready ? 'border-sky-600 bg-sky-600 text-white' : 'border-stone-300 text-stone-700 hover:border-stone-950 hover:text-stone-950'"
+                                        :class="device.remote_control_ready && device.remote_control_active ? 'border-sky-600 bg-sky-600 text-white' : 'border-stone-300 text-stone-700 hover:border-stone-950 hover:text-stone-950'"
                                         @click="startRemoteControl(device.id)"
                                     >
                                         Remote control

@@ -12,7 +12,6 @@ use App\Models\StudentMonitorCapture;
 use App\Models\StudentDevice;
 use App\Services\DevicePolicyService;
 use App\Services\GatewayPolicyService;
-use App\Services\RemoteControlCredentialService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
 use Inertia\Inertia;
@@ -195,18 +194,12 @@ class StudentDeviceController extends Controller
         ManageStudentDeviceRequest $request,
         Student $student,
         StudentDevice $studentDevice,
-        RemoteControlCredentialService $remoteControlCredentialService,
     ): RedirectResponse
     {
         abort_unless($studentDevice->student_id === $student->id, 404);
 
         $commandType = $request->string('command_type')->toString();
         $payload = $request->input('payload', []);
-
-        if (in_array($commandType, ['enable_remote_access', 'refresh_remote_credentials'], true)
-            && empty($payload)) {
-            $payload = $remoteControlCredentialService->ensureCredentials($studentDevice);
-        }
 
         $studentDevice->commands()->create([
             'requested_by_user_id' => $request->user()->id,
@@ -294,6 +287,8 @@ class StudentDeviceController extends Controller
             'network_adapter_name' => $device->network_adapter_name,
             'internet_access_mode' => $device->internet_access_mode,
             'remote_control_ready' => $device->remote_control_ready,
+            'remote_control_active' => $device->remote_control_active,
+            'remote_control_port' => $device->remote_control_port,
             'remote_control_last_checked_at' => $device->remote_control_last_checked_at?->toAtomString(),
             'remote_control_failure_reason' => $device->remote_control_failure_reason,
             'revoked_at' => $device->revoked_at?->toAtomString(),

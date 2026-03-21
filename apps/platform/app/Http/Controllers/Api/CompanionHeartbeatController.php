@@ -14,6 +14,12 @@ class CompanionHeartbeatController extends Controller
         $remoteControlReady = $request->has('remote_control_ready')
             ? (bool) $request->boolean('remote_control_ready')
             : $device->remote_control_ready;
+        $remoteControlActive = $request->has('remote_control_active')
+            ? (bool) $request->boolean('remote_control_active')
+            : $device->remote_control_active;
+        $remoteControlPort = $request->filled('remote_control_port')
+            ? (int) $request->integer('remote_control_port')
+            : $device->remote_control_port;
         $remoteControlFailureReason = $request->has('remote_control_failure_reason')
             ? $request->input('remote_control_failure_reason')
             : $device->remote_control_failure_reason;
@@ -33,6 +39,8 @@ class CompanionHeartbeatController extends Controller
             'last_gateway_ipv4' => $request->input('gateway_ipv4') ?: $device->last_gateway_ipv4,
             'network_adapter_name' => $request->input('network_adapter_name') ?: $device->network_adapter_name,
             'remote_control_ready' => $remoteControlReady,
+            'remote_control_active' => $remoteControlActive,
+            'remote_control_port' => $remoteControlPort,
             'remote_control_last_checked_at' => $request->has('remote_control_ready') || $request->filled('remote_control_failure_reason')
                 ? now()
                 : $device->remote_control_last_checked_at,
