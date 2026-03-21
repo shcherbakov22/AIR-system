@@ -229,4 +229,49 @@ class ChatFlowTest extends TestCase
 
         $this->assertNotNull($student->last_seen_mentor_chat_at);
     }
+
+    public function test_mentor_can_delete_chat_messages(): void
+    {
+        Storage::fake('local');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $path = UploadedFile::fake()->create('proof.png', 120, 'image/png')->store("chat/{$student->id}", 'local');
+
+        $message = ChatMessage::create([
+            'student_id' => $student->id,
+            'sender_user_id' => $mentor->id,
+            'channel' => 'chat',
+            'body' => 'Delete me',
+            'attachment_disk' => 'local',
+            'attachment_path' => $path,
+            'attachment_name' => 'proof.png',
+            'attachment_mime' => 'image/png',
+            'attachment_size' => 1234,
+        ]);
+
+        $this->actingAs($mentor)
+            ->delete(route('admin.chats.destroy', [$student, $message]))
+            ->assertRedirect(route('admin.chats.show', $student, absolute: false))
+            ->assertSessionHas('success', 'Message deleted.');
+
+        $this->assertDatabaseMissing('chat_messages', [
+            'id' => $message->id,
+        ]);
+        Storage::disk('local')->assertMissing($path);
+    }
 }

@@ -9,6 +9,7 @@ type ChatMessage = {
     created_at_label?: string | null;
     sent_by_role: 'mentor' | 'student';
     sent_by_name: string;
+    delete_url?: string | null;
     attachment?: {
         name?: string | null;
         mime?: string | null;
@@ -112,6 +113,16 @@ const reloadThread = () => {
     });
 };
 
+const deleteMessage = (deleteUrl?: string | null) => {
+    if (!deleteUrl || !window.confirm('Delete this message?')) {
+        return;
+    }
+
+    router.delete(deleteUrl, {
+        preserveScroll: true,
+    });
+};
+
 onMounted(() => {
     refreshInterval = window.setInterval(reloadThread, 5000);
 });
@@ -195,12 +206,24 @@ onBeforeUnmount(() => {
                         "
                     >
                         <div class="flex items-center justify-between gap-3">
-                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
-                                {{ message.sent_by_name }}
-                            </p>
-                            <p class="text-xs text-stone-500">
-                                {{ message.created_at_label }}
-                            </p>
+                            <div class="min-w-0">
+                                <p class="truncate text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                    {{ message.sent_by_name }}
+                                </p>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <p class="text-xs text-stone-500">
+                                    {{ message.created_at_label }}
+                                </p>
+                                <button
+                                    v-if="message.delete_url"
+                                    type="button"
+                                    class="rounded-full border border-stone-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    @click="deleteMessage(message.delete_url)"
+                                >
+                                    Delete
+                                </button>
+                            </div>
                         </div>
 
                         <div

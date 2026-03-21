@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreChatMessageRequest;
 use App\Models\ChatMessage;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -40,6 +41,21 @@ class AnnouncementController extends Controller
             ->with('success', 'Announcement sent.');
     }
 
+    public function destroy(ChatMessage $chatMessage): RedirectResponse
+    {
+        abort_unless($chatMessage->channel === 'announcement', 404);
+
+        if ($chatMessage->hasAttachment()) {
+            Storage::disk($chatMessage->attachment_disk ?? 'local')->delete($chatMessage->attachment_path);
+        }
+
+        $chatMessage->delete();
+
+        return redirect()
+            ->route('admin.announcements.index')
+            ->with('success', 'Announcement deleted.');
+    }
+
     private function threadPayload(): array
     {
         $messages = ChatMessage::query()
@@ -63,6 +79,7 @@ class AnnouncementController extends Controller
                         'is_image' => $message->isImage(),
                         'url' => route('chat-messages.attachment.show', $message),
                     ] : null,
+                    'delete_url' => route('admin.announcements.destroy', $message),
                 ]),
         ];
     }

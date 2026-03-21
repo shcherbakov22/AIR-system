@@ -198,4 +198,37 @@ class AnnouncementFlowTest extends TestCase
 
         $this->assertNotNull($student->last_seen_announcements_at);
     }
+
+    public function test_mentor_can_delete_announcement_messages(): void
+    {
+        Storage::fake('local');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $path = UploadedFile::fake()->create('notice.png', 120, 'image/png')->store('announcements/global', 'local');
+
+        $message = ChatMessage::create([
+            'student_id' => null,
+            'sender_user_id' => $mentor->id,
+            'channel' => 'announcement',
+            'body' => 'Delete announcement',
+            'attachment_disk' => 'local',
+            'attachment_path' => $path,
+            'attachment_name' => 'notice.png',
+            'attachment_mime' => 'image/png',
+            'attachment_size' => 1234,
+        ]);
+
+        $this->actingAs($mentor)
+            ->delete(route('admin.announcements.destroy', $message))
+            ->assertRedirect(route('admin.announcements.index', absolute: false))
+            ->assertSessionHas('success', 'Announcement deleted.');
+
+        $this->assertDatabaseMissing('chat_messages', [
+            'id' => $message->id,
+        ]);
+        Storage::disk('local')->assertMissing($path);
+    }
 }

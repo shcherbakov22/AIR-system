@@ -11,6 +11,7 @@ defineProps<{
             created_at_label?: string | null;
             sent_by_role: 'mentor' | 'student';
             sent_by_name: string;
+            delete_url?: string | null;
             attachment?: {
                 name?: string | null;
                 mime?: string | null;
