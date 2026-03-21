@@ -170,6 +170,8 @@ class CompanionApiTest extends TestCase
                 'mac_address' => 'aa:bb:cc:dd:ee:ff',
                 'gateway_ipv4' => '192.168.11.228',
                 'network_adapter_name' => 'Ethernet 1',
+                'remote_control_ready' => true,
+                'remote_control_failure_reason' => '',
                 'meta' => ['health' => 'ok'],
             ])
             ->assertOk()
@@ -206,6 +208,7 @@ class CompanionApiTest extends TestCase
             'last_mac_address' => 'aa:bb:cc:dd:ee:ff',
             'last_gateway_ipv4' => '192.168.11.228',
             'network_adapter_name' => 'Ethernet 1',
+            'remote_control_ready' => true,
         ]);
         $this->assertDatabaseHas('device_activity_events', [
             'student_device_id' => $device->id,
@@ -221,6 +224,33 @@ class CompanionApiTest extends TestCase
             'app_name_snapshot' => 'Code.exe',
             'browser_domain_snapshot' => 'github.com',
         ]);
+    }
+
+    public function test_ready_heartbeat_clears_stale_remote_control_failure_reason(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('remote_ready_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $device->update([
+            'remote_control_ready' => false,
+            'remote_control_failure_reason' => 'old failure',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.heartbeat'), [
+                'label' => 'Desk PC',
+                'remote_control_ready' => true,
+                'meta' => [],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $device->refresh();
+
+        $this->assertTrue($device->remote_control_ready);
+        $this->assertNull($device->remote_control_failure_reason);
+        $this->assertNotNull($device->remote_control_last_checked_at);
     }
 
     public function test_device_command_flow_is_scoped_and_result_submission_is_idempotent(): void

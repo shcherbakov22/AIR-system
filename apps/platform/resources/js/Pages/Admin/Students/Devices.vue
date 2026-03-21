@@ -24,6 +24,9 @@ const props = defineProps<{
         last_gateway_ipv4?: string | null;
         network_adapter_name?: string | null;
         internet_access_mode: 'allow_all' | 'block_all';
+        remote_control_ready: boolean;
+        remote_control_last_checked_at?: string | null;
+        remote_control_failure_reason?: string | null;
         revoked_at?: string | null;
         policy: {
             mode: string;
@@ -51,11 +54,18 @@ const props = defineProps<{
             requested_at?: string | null;
             completed_at?: string | null;
         }>;
+        latest_remote_session?: {
+            id: number;
+            status: string;
+            started_at?: string | null;
+            show_url: string;
+        } | null;
     }>;
 }>();
 
 const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
+const errorMessage = computed(() => page.props.flash?.error ?? null);
 const labels = reactive(Object.fromEntries(props.devices.map((device) => [device.id, device.label])));
 
 const saveLabel = (deviceId: number) => {
@@ -92,6 +102,20 @@ const setInternetAccessMode = (deviceId: number, mode: 'allow_all' | 'block_all'
     });
 };
 
+const prepareRemoteControl = (deviceId: number) => {
+    router.post(route('admin.students.devices.command', [props.student.id, deviceId]), {
+        command_type: 'refresh_remote_credentials',
+    }, {
+        preserveScroll: true,
+    });
+};
+
+const startRemoteControl = (deviceId: number) => {
+    router.post(route('admin.students.devices.remote-control.store', [props.student.id, deviceId]), {}, {
+        preserveScroll: true,
+    });
+};
+
 const formatDateTime = (value?: string | null) => value ? new Date(value).toLocaleString() : 'Never';
 const prettyCommand = (value: string) => value.replaceAll('_', ' ');
 </script>
@@ -103,6 +127,9 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
         <div class="mx-auto max-w-7xl px-6 py-10">
             <div v-if="successMessage" class="mb-5 rounded-[1.5rem] bg-emerald-50 px-6 py-4 text-sm text-emerald-800 ring-1 ring-emerald-200">
                 {{ successMessage }}
+            </div>
+            <div v-if="errorMessage" class="mb-5 rounded-[1.5rem] bg-rose-50 px-6 py-4 text-sm text-rose-800 ring-1 ring-rose-200">
+                {{ errorMessage }}
             </div>
 
             <div class="mb-6 flex flex-wrap items-center gap-3">
@@ -172,6 +199,13 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                                     <p class="mt-2 font-semibold text-stone-950">{{ device.last_gateway_ipv4 || 'Unknown gateway' }}</p>
                                     <p v-if="device.network_adapter_name" class="mt-1 text-xs text-stone-500">{{ device.network_adapter_name }}</p>
                                 </div>
+                                <div class="rounded-[1.25rem] bg-stone-100 p-4 text-sm text-stone-700 sm:col-span-2">
+                                    <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Remote control readiness</p>
+                                    <p class="mt-2 font-semibold text-stone-950">{{ device.remote_control_ready ? 'Ready' : 'Not ready' }}</p>
+                                    <p class="mt-1 text-xs text-stone-500">
+                                        {{ device.remote_control_failure_reason || formatDateTime(device.remote_control_last_checked_at) }}
+                                    </p>
+                                </div>
                             </div>
 
                             <div class="rounded-[1.25rem] bg-stone-100 p-4">
@@ -205,6 +239,15 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                             <div class="rounded-[1.25rem] bg-stone-100 p-4">
                                 <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Remote actions</p>
                                 <div class="mt-3 flex flex-wrap gap-2">
+                                    <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="prepareRemoteControl(device.id)">Prepare remote</button>
+                                    <button
+                                        type="button"
+                                        class="inline-flex rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition"
+                                        :class="device.remote_control_ready ? 'border-sky-600 bg-sky-600 text-white' : 'border-stone-300 text-stone-700 hover:border-stone-950 hover:text-stone-950'"
+                                        @click="startRemoteControl(device.id)"
+                                    >
+                                        Remote control
+                                    </button>
                                     <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'refresh_policy')">Refresh policy</button>
                                     <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'request_screenshot')">Request screenshot</button>
                                     <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'request_camera_capture')">Request camera</button>
@@ -259,6 +302,18 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                                     </li>
                                     <li v-if="device.commands.length === 0" class="text-sm text-stone-500">No commands queued yet.</li>
                                 </ul>
+                            </div>
+
+                            <div class="rounded-[1.25rem] bg-stone-100 p-4">
+                                <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Last remote session</p>
+                                <div v-if="device.latest_remote_session" class="mt-3 rounded-xl bg-white px-3 py-3 ring-1 ring-stone-200">
+                                    <p class="text-sm font-semibold text-stone-950">{{ device.latest_remote_session.status }}</p>
+                                    <p class="mt-1 text-xs text-stone-500">{{ formatDateTime(device.latest_remote_session.started_at) }}</p>
+                                    <Link :href="device.latest_remote_session.show_url" class="mt-3 inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950">
+                                        Open session
+                                    </Link>
+                                </div>
+                                <p v-else class="mt-3 text-sm text-stone-500">No remote session yet.</p>
                             </div>
                         </div>
                     </div>

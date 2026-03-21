@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AnnouncementController as AdminAnnouncementContro
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
+use App\Http\Controllers\Admin\RemoteControlSessionController as AdminRemoteControlSessionController;
 use App\Http\Controllers\Admin\SpeechAnnouncementController as AdminSpeechAnnouncementController;
 use App\Http\Controllers\Admin\StudentMonitorCaptureController as AdminStudentMonitorCaptureController;
 use App\Http\Controllers\Admin\StudentProgressController as AdminStudentProgressController;
@@ -111,7 +112,10 @@ Route::middleware('auth')->group(function () {
         Route::patch('/students/{student}/devices/{studentDevice}', [AdminStudentDeviceController::class, 'update'])->name('students.devices.update');
         Route::patch('/students/{student}/devices/{studentDevice}/internet-access', [AdminStudentDeviceController::class, 'updateInternetAccess'])->name('students.devices.internet.update');
         Route::post('/students/{student}/devices/{studentDevice}/commands', [AdminStudentDeviceController::class, 'command'])->name('students.devices.command');
+        Route::post('/students/{student}/devices/{studentDevice}/remote-control', [AdminRemoteControlSessionController::class, 'store'])->name('students.devices.remote-control.store');
         Route::patch('/students/{student}/devices/{studentDevice}/revoke', [AdminStudentDeviceController::class, 'revoke'])->name('students.devices.revoke');
+        Route::get('/remote-control-sessions/{remoteControlSession}', [AdminRemoteControlSessionController::class, 'show'])->name('remote-control-sessions.show');
+        Route::delete('/remote-control-sessions/{remoteControlSession}', [AdminRemoteControlSessionController::class, 'destroy'])->name('remote-control-sessions.destroy');
         Route::get('/students/{student}/edit', [AdminStudentController::class, 'edit'])->name('students.edit');
         Route::put('/students/{student}', [AdminStudentController::class, 'update'])->name('students.update');
         Route::delete('/students/{student}', [AdminStudentController::class, 'destroy'])->name('students.destroy');

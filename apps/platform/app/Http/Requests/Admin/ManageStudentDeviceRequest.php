@@ -26,7 +26,16 @@ class ManageStudentDeviceRequest extends FormRequest
     {
         return [
             'label' => ['nullable', 'string', 'max:160'],
-            'command_type' => ['nullable', Rule::in(['refresh_policy', 'request_screenshot', 'request_camera_capture', 'lock_internet', 'unlock_internet'])],
+            'command_type' => ['nullable', Rule::in([
+                'refresh_policy',
+                'request_screenshot',
+                'request_camera_capture',
+                'lock_internet',
+                'unlock_internet',
+                'verify_remote_control',
+                'enable_remote_access',
+                'refresh_remote_credentials',
+            ])],
             'internet_access_mode' => ['nullable', Rule::in(['allow_all', 'block_all'])],
             'payload' => ['nullable', 'array'],
         ];

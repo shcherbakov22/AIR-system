@@ -12,6 +12,7 @@ use App\Models\StudentMonitorCapture;
 use App\Models\StudentDevice;
 use App\Services\DevicePolicyService;
 use App\Services\GatewayPolicyService;
+use App\Services\RemoteControlCredentialService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
 use Inertia\Inertia;
@@ -25,6 +26,7 @@ class StudentDeviceController extends Controller
         $student->load([
             'user',
             'devices.commands.results',
+            'devices.remoteControlSessions' => fn ($query) => $query->latest('started_at')->latest('id')->limit(1),
             'devices.monitorCaptures' => fn ($query) => $query->latest('captured_at')->limit(2),
         ]);
 
@@ -35,6 +37,7 @@ class StudentDeviceController extends Controller
                 'username' => $student->user?->username,
             ],
             'devices' => $student->devices
+                ->whereNull('revoked_at')
                 ->sortBy('label')
                 ->values()
                 ->map(fn (StudentDevice $device) => $this->deviceCardPayload($device, $devicePolicyService))
@@ -49,6 +52,7 @@ class StudentDeviceController extends Controller
             'devices.heartbeats' => fn ($query) => $query->latest('received_at')->latest('id')->limit(20),
             'devices.activityEvents' => fn ($query) => $query->latest('observed_at')->latest('id')->limit(40),
             'devices.commands.results',
+            'devices.remoteControlSessions' => fn ($query) => $query->latest('started_at')->latest('id')->limit(5),
             'devices.monitorCaptures' => fn ($query) => $query->latest('captured_at')->latest('id')->limit(20),
         ]);
 
@@ -59,6 +63,7 @@ class StudentDeviceController extends Controller
                 'username' => $student->user?->username,
             ],
             'devices' => $student->devices
+                ->whereNull('revoked_at')
                 ->sortBy('label')
                 ->values()
                 ->map(fn (StudentDevice $device) => [
@@ -139,6 +144,21 @@ class StudentDeviceController extends Controller
                                     'received_at' => $result->received_at?->toAtomString(),
                                     'payload' => $result->payload ?? [],
                                 ])->all(),
+                                ])->all(),
+                    'remote_control_sessions' => $device->remoteControlSessions
+                        ->sortByDesc(fn ($session) => [
+                            optional($session->started_at)?->timestamp ?? 0,
+                            $session->id,
+                        ])
+                        ->values()
+                        ->map(fn ($session) => [
+                            'id' => $session->id,
+                            'status' => $session->status,
+                            'started_at' => $session->started_at?->toAtomString(),
+                            'ended_at' => $session->ended_at?->toAtomString(),
+                            'failure_reason' => $session->failure_reason,
+                            'viewer_url' => $session->viewer_path,
+                            'show_url' => route('admin.remote-control-sessions.show', $session),
                         ])->all(),
                 ])->all(),
         ]);
@@ -171,15 +191,28 @@ class StudentDeviceController extends Controller
             ->with('success', "Device {$studentDevice->label} revoked.");
     }
 
-    public function command(ManageStudentDeviceRequest $request, Student $student, StudentDevice $studentDevice): RedirectResponse
+    public function command(
+        ManageStudentDeviceRequest $request,
+        Student $student,
+        StudentDevice $studentDevice,
+        RemoteControlCredentialService $remoteControlCredentialService,
+    ): RedirectResponse
     {
         abort_unless($studentDevice->student_id === $student->id, 404);
 
+        $commandType = $request->string('command_type')->toString();
+        $payload = $request->input('payload', []);
+
+        if (in_array($commandType, ['enable_remote_access', 'refresh_remote_credentials'], true)
+            && empty($payload)) {
+            $payload = $remoteControlCredentialService->ensureCredentials($studentDevice);
+        }
+
         $studentDevice->commands()->create([
             'requested_by_user_id' => $request->user()->id,
-            'command_type' => $request->string('command_type')->toString(),
+            'command_type' => $commandType,
             'status' => 'pending',
-            'payload' => $request->input('payload', []),
+            'payload' => $payload,
             'requested_at' => now(),
         ]);
 
@@ -195,6 +228,7 @@ class StudentDeviceController extends Controller
         GatewayPolicyService $gatewayPolicyService,
     ): RedirectResponse {
         abort_unless($studentDevice->student_id === $student->id, 404);
+        abort_if($studentDevice->revoked_at !== null, 404);
 
         $mode = $request->string('internet_access_mode')->toString();
         $networkState = (bool) config('services.network_control.enabled', false)
@@ -259,6 +293,9 @@ class StudentDeviceController extends Controller
             'last_gateway_ipv4' => $device->last_gateway_ipv4,
             'network_adapter_name' => $device->network_adapter_name,
             'internet_access_mode' => $device->internet_access_mode,
+            'remote_control_ready' => $device->remote_control_ready,
+            'remote_control_last_checked_at' => $device->remote_control_last_checked_at?->toAtomString(),
+            'remote_control_failure_reason' => $device->remote_control_failure_reason,
             'revoked_at' => $device->revoked_at?->toAtomString(),
             'last_network_state' => $device->last_network_state ?? [],
             'meta' => $device->meta ?? [],
@@ -285,6 +322,14 @@ class StudentDeviceController extends Controller
                     'requested_at' => $command->requested_at?->toAtomString(),
                     'completed_at' => $command->completed_at?->toAtomString(),
                 ])->all(),
+            'latest_remote_session' => optional($device->remoteControlSessions->sortByDesc('started_at')->first(), function ($session) {
+                return [
+                    'id' => $session->id,
+                    'status' => $session->status,
+                    'started_at' => $session->started_at?->toAtomString(),
+                    'show_url' => route('admin.remote-control-sessions.show', $session),
+                ];
+            }),
         ];
     }
 }

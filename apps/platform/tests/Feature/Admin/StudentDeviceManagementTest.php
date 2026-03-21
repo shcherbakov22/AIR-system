@@ -13,6 +13,7 @@ use App\Models\StudentMonitorCapture;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -73,6 +74,59 @@ class StudentDeviceManagementTest extends TestCase
             'command_type' => 'request_screenshot',
             'status' => 'pending',
         ]);
+    }
+
+    public function test_revoked_devices_are_hidden_from_admin_device_pages(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_hidden_revoked_devices',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_hidden_revoked_devices',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Hidden Revoked Device Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'active-device',
+            'label' => 'Active Desk',
+            'platform' => 'windows',
+        ]);
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'revoked-device',
+            'label' => 'Revoked Desk',
+            'platform' => 'windows',
+            'revoked_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.students.devices.index', $student))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Students/Devices')
+                ->has('devices', 1)
+                ->where('devices.0.label', 'Active Desk')
+            );
+
+        $this->actingAs($admin)
+            ->get(route('admin.students.devices.debug', $student))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Students/CompanionDebug')
+                ->has('devices', 1)
+                ->where('devices.0.label', 'Active Desk')
+            );
     }
 
     public function test_admin_can_rename_and_revoke_student_device(): void
@@ -282,6 +336,41 @@ class StudentDeviceManagementTest extends TestCase
         });
     }
 
+    public function test_admin_cannot_change_internet_mode_for_revoked_device(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_revoked_device_internet',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_revoked_device_internet',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Revoked Internet Device Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'revoked-internet-device',
+            'label' => 'Revoked Internet Desk',
+            'platform' => 'windows',
+            'internet_access_mode' => 'allow_all',
+            'revoked_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.devices.internet.update', [$student, $device]), [
+                'internet_access_mode' => 'block_all',
+            ])
+            ->assertNotFound();
+    }
+
     public function test_admin_can_open_camera_capture_from_companion_debug(): void
     {
         Storage::fake('public');
@@ -350,5 +439,97 @@ class StudentDeviceManagementTest extends TestCase
             ->assertOk()
             ->assertHeader('content-type', 'application/x-x509-ca-cert')
             ->assertDownload('air-root-ca.crt');
+    }
+
+    public function test_admin_can_start_remote_control_session_for_ready_device(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_remote_control',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_remote_control',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Remote Control Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'remote-device',
+            'label' => 'Remote Desk',
+            'platform' => 'windows',
+            'last_seen_at' => now(),
+            'last_ipv4' => '192.168.11.77',
+            'remote_access_username' => 'airremote_1',
+            'remote_access_password' => 'secret-pass',
+            'remote_control_ready' => true,
+            'remote_control_last_checked_at' => now(),
+        ]);
+
+        config()->set('services.remote_control.enabled', true);
+        config()->set('services.remote_control.gateway_url', 'http://127.0.0.1:9821');
+
+        Http::fake([
+            'http://127.0.0.1:9821/api/sessions/start' => Http::response([
+                'session_id' => 'sess-1',
+                'viewer_path' => '/remote-control/view/sess-1',
+            ]),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.students.devices.remote-control.store', [$student, $device]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('remote_control_sessions', [
+            'student_device_id' => $device->id,
+            'status' => 'active',
+            'viewer_path' => '/remote-control/view/sess-1',
+        ]);
+    }
+
+    public function test_admin_remote_control_start_queues_provisioning_for_unready_device(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_remote_queue',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_remote_queue',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Queued Remote Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'remote-device-queue',
+            'label' => 'Queued Desk',
+            'platform' => 'windows',
+            'remote_control_ready' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.students.devices.remote-control.store', [$student, $device]))
+            ->assertRedirect(route('admin.students.devices.index', $student, absolute: false))
+            ->assertSessionHas('error', 'Device is not remote-control ready yet. Provisioning was queued.');
+
+        $this->assertDatabaseHas('device_commands', [
+            'student_device_id' => $device->id,
+            'command_type' => 'refresh_remote_credentials',
+            'status' => 'pending',
+        ]);
     }
 }

@@ -14,6 +14,8 @@ class StoreCompanionHeartbeatRequest extends CompanionDeviceRequest
             'mac_address' => ($mac = trim((string) $this->input('mac_address'))) === '' ? null : strtolower($mac),
             'gateway_ipv4' => ($gateway = trim((string) $this->input('gateway_ipv4'))) === '' ? null : $gateway,
             'network_adapter_name' => ($adapter = trim((string) $this->input('network_adapter_name'))) === '' ? null : $adapter,
+            'remote_control_ready' => filter_var($this->input('remote_control_ready'), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE),
+            'remote_control_failure_reason' => ($reason = trim((string) $this->input('remote_control_failure_reason'))) === '' ? null : $reason,
             'meta' => $this->input('meta', []),
         ]);
     }
@@ -28,6 +30,8 @@ class StoreCompanionHeartbeatRequest extends CompanionDeviceRequest
             'mac_address' => ['nullable', 'string', 'max:64'],
             'gateway_ipv4' => ['nullable', 'ip'],
             'network_adapter_name' => ['nullable', 'string', 'max:160'],
+            'remote_control_ready' => ['nullable', 'boolean'],
+            'remote_control_failure_reason' => ['nullable', 'string', 'max:2000'],
             'meta' => ['nullable', 'array'],
         ];
     }

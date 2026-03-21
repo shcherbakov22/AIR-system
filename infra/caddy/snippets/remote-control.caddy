@@ -1,0 +1,8 @@
+@remoteControlView path /remote-control/view/*
+reverse_proxy @remoteControlView 127.0.0.1:9821
+
+@remoteControlStatic path /remote-control/static/*
+reverse_proxy @remoteControlStatic 127.0.0.1:9821
+
+@remoteControlWs path /remote-control/ws*
+reverse_proxy @remoteControlWs 127.0.0.1:9822

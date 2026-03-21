@@ -89,6 +89,11 @@ class DevicePolicyService
             'commands' => [
                 'pending_count' => $device->commands()->where('status', 'pending')->count(),
             ],
+            'remote_control' => [
+                'ready' => (bool) $device->remote_control_ready,
+                'last_checked_at' => $device->remote_control_last_checked_at?->toAtomString(),
+                'failure_reason' => $device->remote_control_failure_reason,
+            ],
             'server_now' => now()->toAtomString(),
         ];
     }
