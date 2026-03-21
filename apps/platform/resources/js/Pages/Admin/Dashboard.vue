@@ -693,7 +693,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 :href="route('admin.students.progress', student.id)"
                                 class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
                             >
-                                Progress
+                                Prog
                             </Link>
                             <Link
                                 :href="route('admin.chats.show', student.id)"
