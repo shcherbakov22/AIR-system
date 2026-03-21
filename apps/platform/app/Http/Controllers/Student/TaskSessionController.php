@@ -45,9 +45,10 @@ class TaskSessionController extends Controller
             }
 
             $endedAt = now();
+            $baseDurationSeconds = max(0, (int) ($lockedTaskSession->duration_seconds ?? 0));
             $durationSeconds = (int) max(
                 0,
-                (int) ($lockedTaskSession->duration_seconds ?? 0) + ($lockedTaskSession->started_at?->diffInSeconds($endedAt) ?? 0),
+                $baseDurationSeconds + ($lockedTaskSession->started_at?->diffInSeconds($endedAt) ?? 0),
             );
 
             $lockedTaskSession->update([
@@ -63,6 +64,7 @@ class TaskSessionController extends Controller
                 $lockedTaskSession,
                 $endedAt,
                 $durationSeconds,
+                $baseDurationSeconds,
             );
 
             $speechAnnouncementService->queueTaskSessionFinished($lockedTaskSession, $durationSeconds);

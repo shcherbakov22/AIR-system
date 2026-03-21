@@ -60,6 +60,7 @@ class AutomaticObserveTheTimeViolationService
         TaskSession $taskSession,
         CarbonInterface $endedAt,
         int $finalDurationSeconds,
+        ?int $baseDurationSeconds = null,
     ): void {
         $ruleDefinition = $this->observeTheTimeRule();
 
@@ -73,6 +74,7 @@ class AutomaticObserveTheTimeViolationService
             $taskSession,
             max(0, $finalDurationSeconds),
             $endedAt,
+            $baseDurationSeconds,
         );
     }
 
@@ -131,12 +133,13 @@ class AutomaticObserveTheTimeViolationService
         TaskSession $taskSession,
         int $finalDurationSeconds,
         CarbonInterface $endedAt,
+        ?int $baseDurationSeconds = null,
     ): void {
         if (! $taskSession->started_at || ! $taskSession->planned_duration_minutes || $taskSession->planned_duration_minutes <= 0) {
             return;
         }
 
-        $baseDurationSeconds = max(0, (int) ($taskSession->duration_seconds ?? 0));
+        $baseDurationSeconds = max(0, (int) ($baseDurationSeconds ?? $taskSession->duration_seconds ?? 0));
         $plannedSeconds = $taskSession->planned_duration_minutes * 60;
         $thresholdSeconds = $plannedSeconds + (self::GRACE_MINUTES * 60);
 

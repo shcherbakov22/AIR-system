@@ -447,4 +447,56 @@ class TaskSessionFlowTest extends TestCase
 
         Carbon::setTestNow();
     }
+
+    public function test_stopping_an_overdue_task_after_home_created_observe_the_time_does_not_duplicate_the_violation(): void
+    {
+        Carbon::setTestNow('2026-03-07 10:00:00');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_auto_violation_stop_after_home',
+        ]);
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_sessions_stop_after_home',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Sessions Stop After Home',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskAssignment = $this->createAssignedTask($mentor, $student);
+        $this->createObserveTheTimeRule($mentor);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 09:24:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $this->assertDatabaseCount('violations', 1);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $taskSession))
+            ->assertRedirect(route('student.home', absolute: false));
+
+        $this->assertDatabaseCount('violations', 1);
+
+        Carbon::setTestNow();
+    }
 }
