@@ -35,7 +35,8 @@ class RemoteControlSessionController extends Controller
         $recentHeartbeat = $studentDevice->last_seen_at !== null
             && $studentDevice->last_seen_at->greaterThanOrEqualTo(now()->subSeconds($heartbeatMaxAgeSeconds));
         $activeSession = $studentDevice->remoteControlSessions()
-            ->whereIn('status', ['starting', 'active'])
+            ->where('status', 'active')
+            ->whereNotNull('viewer_path')
             ->latest('started_at')
             ->latest('id')
             ->first();

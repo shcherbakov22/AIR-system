@@ -39,9 +39,21 @@ def save_session(data: dict):
 def update_token_file():
     lines = []
     for path in SESSION_DIR.glob("*.json"):
-        data = json.loads(path.read_text(encoding="utf-8"))
-        if data.get("status") == "active":
-            lines.append(f'{data["session_token"]}: {data["target_host"]}:{data["target_port"]}')
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+
+        if data.get("status") != "active":
+            continue
+
+        target_host = data.get("target_host")
+        target_port = data.get("target_port")
+        session_token = data.get("session_token")
+        if not target_host or not target_port or not session_token:
+            continue
+
+        lines.append(f"{session_token}: {target_host}:{target_port}")
     TOKEN_FILE.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
 
