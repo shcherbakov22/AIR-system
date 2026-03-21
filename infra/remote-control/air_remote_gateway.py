@@ -90,11 +90,18 @@ def stop_session(session_token: str):
     return True
 
 
-def run_process(command, env=None):
+def run_process(command, env=None, log_path: Path | None = None):
+    stdout = subprocess.DEVNULL
+    stderr = subprocess.DEVNULL
+    if log_path is not None:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        handle = open(log_path, "ab")
+        stdout = handle
+        stderr = handle
     return subprocess.Popen(
         command,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=stdout,
+        stderr=stderr,
         env=env,
     )
 
@@ -108,6 +115,15 @@ def start_session(payload: dict):
     display_name = f":{display}"
     env = os.environ.copy()
     env["DISPLAY"] = display_name
+    env["HOME"] = "/root"
+    env["USER"] = "root"
+    env["LOGNAME"] = "root"
+    env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    env["XDG_CACHE_HOME"] = "/root/.cache"
+    env["XDG_CONFIG_HOME"] = "/root/.config"
+    xvfb_log = SESSION_DIR / f"{session_token}.xvfb.log"
+    rdp_log = SESSION_DIR / f"{session_token}.xfreerdp.log"
+    x11vnc_log = SESSION_DIR / f"{session_token}.x11vnc.log"
 
     xvfb = run_process([
         "Xvfb",
@@ -116,12 +132,12 @@ def start_session(payload: dict):
         "0",
         "1366x768x24",
         "-ac",
-    ])
+    ], log_path=xvfb_log)
 
-    time.sleep(1)
+    time.sleep(2)
 
     xfreerdp = run_process([
-        "xfreerdp",
+        "xfreerdp3",
         f"/v:{payload['target_host']}",
         f"/u:{payload['username']}",
         f"/p:{payload['password']}",
@@ -129,12 +145,15 @@ def start_session(payload: dict):
         "/size:1366x768",
         "/auto-reconnect",
         "/log-level:OFF",
-    ], env=env)
+    ], env=env, log_path=rdp_log)
 
     time.sleep(2)
     if xfreerdp.poll() is not None:
         terminate_pid(xvfb.pid)
-        raise RuntimeError("xfreerdp exited immediately")
+        error_tail = ""
+        if rdp_log.exists():
+            error_tail = rdp_log.read_text(encoding="utf-8", errors="ignore")[-400:]
+        raise RuntimeError(f"xfreerdp exited immediately: {error_tail}".strip())
 
     x11vnc = run_process([
         "x11vnc",
@@ -146,7 +165,7 @@ def start_session(payload: dict):
         "-nopw",
         "-rfbport",
         str(rfb_port),
-    ])
+    ], log_path=x11vnc_log)
 
     data = {
         "session_token": session_token,
