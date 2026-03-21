@@ -152,7 +152,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
             query = quote(f"remote-control/ws?token={session_token}", safe="/?=&")
-            location = f"/remote-control/static/vnc_lite.html?autoconnect=1&resize=remote&reconnect=1&path={query}"
+            location = f"/remote-control/static/vnc_lite.html?autoconnect=1&resize=scale&reconnect=1&path={query}"
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", location)
             self.end_headers()
