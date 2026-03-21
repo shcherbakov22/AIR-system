@@ -344,6 +344,7 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.latest_screen_capture.task_title', 'Coding')
                 ->where('monitorStudents.0.latest_camera_capture.source_label', 'Hardware Bridge')
                 ->where('monitorStudents.0.open_violations.0.rule_title', 'Observe the time')
+                ->where('monitorStudents.0.violation_rule_options.0.title', 'Observe the time')
             );
     }
 

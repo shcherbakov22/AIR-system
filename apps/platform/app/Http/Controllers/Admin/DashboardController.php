@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\RuleDefinition;
 use App\Models\ScheduleEntry;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
@@ -231,6 +232,22 @@ class DashboardController extends Controller
         $activeTaskSession = $student->taskSessions->first();
         $activeScheduleRun = $student->activeOrPausedScheduleRun;
         $scheduleBoard = $this->scheduleBoardPayload($student);
+        $violationRuleOptions = RuleDefinition::query()
+            ->where('is_active', true)
+            ->where(function ($query) use ($student) {
+                $query->where('scope', 'global')
+                    ->orWhere(function ($studentQuery) use ($student) {
+                        $studentQuery->where('scope', 'student')
+                            ->where('student_id', $student->id);
+                    });
+            })
+            ->orderBy('title')
+            ->get(['id', 'title'])
+            ->map(fn (RuleDefinition $ruleDefinition) => [
+                'id' => $ruleDefinition->id,
+                'title' => $ruleDefinition->title,
+            ])
+            ->all();
 
         return [
             'id' => $student->id,
@@ -253,6 +270,7 @@ class DashboardController extends Controller
                     'occurred_at_label' => $violation->occurred_at?->format('d M, H:i'),
                 ])
                 ->all(),
+            'violation_rule_options' => $violationRuleOptions,
         ];
     }
 

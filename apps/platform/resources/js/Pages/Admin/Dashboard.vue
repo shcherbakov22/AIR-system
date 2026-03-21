@@ -88,6 +88,10 @@ type DashboardStudent = {
         rule_title: string;
         occurred_at_label?: string | null;
     }>;
+    violation_rule_options: Array<{
+        id: number;
+        title: string;
+    }>;
 };
 
 const props = defineProps<{
@@ -105,6 +109,7 @@ const selectedCapture = ref<(DashboardCapture & { studentName: string }) | null>
 const selectedCaptureHistory = ref<Array<DashboardCapture & { studentName: string }>>([]);
 const selectedCaptureHistoryIndex = ref(0);
 const captureHistoryLoading = ref(false);
+const selectedViolationRuleIds = ref<Record<number, string>>({});
 const serverSpeechEnabled = ref(props.serverSpeech.enabled);
 const serverSpeechPendingCount = ref(props.serverSpeech.pending_count);
 const speechStateSaving = ref(false);
@@ -399,6 +404,26 @@ const deleteViolation = (violationId: number) => {
         },
         preserveScroll: true,
         preserveState: true,
+    });
+};
+
+const applyViolation = (studentId: number) => {
+    const selectedRuleDefinitionId = selectedViolationRuleIds.value[studentId];
+    if (!selectedRuleDefinitionId) {
+        return;
+    }
+
+    router.post(route('admin.violations.store'), {
+        student_id: studentId,
+        rule_definition_id: Number(selectedRuleDefinitionId),
+        occurred_at: new Date(liveNowMs.value).toISOString(),
+        return_to_dashboard: true,
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => {
+            selectedViolationRuleIds.value[studentId] = '';
+        },
     });
 };
 
@@ -713,6 +738,32 @@ const blockTooltip = (block: DashboardBlock): string => {
                                     Remove
                                 </button>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-1 rounded-[0.75rem] bg-stone-50 px-1.5 py-1">
+                        <div class="flex items-center gap-1">
+                            <select
+                                v-model="selectedViolationRuleIds[student.id]"
+                                class="min-w-0 flex-1 rounded-[0.55rem] border border-stone-300 bg-white px-2 py-1 text-[11px] font-medium text-stone-800"
+                            >
+                                <option value="">Add violation</option>
+                                <option
+                                    v-for="ruleDefinition in student.violation_rule_options"
+                                    :key="ruleDefinition.id"
+                                    :value="String(ruleDefinition.id)"
+                                >
+                                    {{ ruleDefinition.title }}
+                                </option>
+                            </select>
+                            <button
+                                type="button"
+                                class="shrink-0 rounded-[0.55rem] border border-stone-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-40"
+                                :disabled="!selectedViolationRuleIds[student.id]"
+                                @click="applyViolation(student.id)"
+                            >
+                                Apply
+                            </button>
                         </div>
                     </div>
 
