@@ -5,7 +5,7 @@ import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import quote, urlparse
+from urllib.parse import urlparse
 
 STATE_DIR = Path("/var/lib/air-remote-control")
 SESSION_DIR = STATE_DIR / "sessions"
@@ -13,6 +13,119 @@ TOKEN_FILE = STATE_DIR / "tokens.txt"
 NOVNC_DIR = Path("/usr/share/novnc")
 LISTEN_HOST = "127.0.0.1"
 LISTEN_PORT = 9821
+
+VIEWER_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AIR Remote Control</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0c0a09;
+      color: #f5f5f4;
+      font-family: system-ui, sans-serif;
+    }
+    #app {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+    #statusbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      background: #1c1917;
+      border-bottom: 1px solid #292524;
+      font-size: 13px;
+    }
+    #screen {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    #screen canvas {
+      outline: none;
+    }
+    .muted {
+      color: #a8a29e;
+    }
+    button {
+      border: 1px solid #57534e;
+      background: #292524;
+      color: #fafaf9;
+      border-radius: 999px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="statusbar">
+      <div id="status">Connecting…</div>
+      <div>
+        <button id="fullscreen" type="button">Full screen</button>
+      </div>
+    </div>
+    <div id="screen" tabindex="0"></div>
+  </div>
+  <script type="module">
+    import RFB from '/remote-control/static/core/rfb.js';
+
+    const status = document.getElementById('status');
+    const screen = document.getElementById('screen');
+    const fullscreenButton = document.getElementById('fullscreen');
+    const socketUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/remote-control/ws?token=__TOKEN__`;
+
+    const rfb = new RFB(screen, socketUrl, {});
+    rfb.viewOnly = false;
+    rfb.scaleViewport = true;
+    rfb.clipViewport = false;
+    rfb.dragViewport = false;
+    rfb.resizeSession = false;
+    rfb.showDotCursor = true;
+    rfb.focusOnClick = true;
+    rfb.background = '#000000';
+
+    const syncScale = () => {
+      rfb.scaleViewport = true;
+      rfb.clipViewport = false;
+    };
+
+    rfb.addEventListener('connect', () => {
+      status.textContent = 'Connected';
+      screen.focus();
+      syncScale();
+    });
+
+    rfb.addEventListener('disconnect', (event) => {
+      status.textContent = event.detail.clean ? 'Disconnected' : 'Connection closed';
+    });
+
+    window.addEventListener('resize', syncScale);
+
+    fullscreenButton.addEventListener('click', async () => {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+      syncScale();
+    });
+  </script>
+</body>
+</html>
+"""
 
 
 def ensure_dirs():
@@ -151,14 +264,12 @@ class Handler(BaseHTTPRequestHandler):
             if not load_session(session_token):
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
-            query = quote(f"remote-control/ws?token={session_token}", safe="/?=&")
-            location = (
-                f"/remote-control/static/vnc_lite.html"
-                f"?autoconnect=1&resize=scale&view_clip=0&reconnect=1&path={query}"
-            )
-            self.send_response(HTTPStatus.FOUND)
-            self.send_header("Location", location)
+            content = VIEWER_TEMPLATE.replace("__TOKEN__", session_token).encode("utf-8")
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(content)))
             self.end_headers()
+            self.wfile.write(content)
             return
 
         if parsed.path.startswith("/remote-control/static/"):
