@@ -642,12 +642,20 @@ const blockTooltip = (block: DashboardBlock): string => {
                             </p>
                         </div>
 
-                        <Link
-                            :href="route('admin.students.progress', student.id)"
-                            class="shrink-0 rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
-                        >
-                            Progress
-                        </Link>
+                        <div class="flex shrink-0 items-center gap-1">
+                            <Link
+                                :href="route('admin.students.progress', student.id)"
+                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                            >
+                                Progress
+                            </Link>
+                            <Link
+                                :href="route('admin.chats.show', student.id)"
+                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                            >
+                                Chat
+                            </Link>
+                        </div>
                     </div>
 
                     <div class="mt-1 flex flex-col gap-1">
