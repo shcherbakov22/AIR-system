@@ -7,20 +7,24 @@ defineProps<{
         id: number;
         title: string;
         body?: string | null;
-        status: 'unread' | 'viewed' | 'in_progress' | 'completed';
+        status: 'unread' | 'viewed' | 'in_progress' | 'handed_in' | 'completed';
         created_at_label?: string | null;
         viewed_at_label?: string | null;
         started_at_label?: string | null;
         completed_at_label?: string | null;
         creator_name: string;
         start_url?: string | null;
-        complete_url?: string | null;
+        hand_in_url?: string | null;
     }>;
 }>();
 
 const statusLabel = (status: string): string => {
     if (status === 'in_progress') {
         return 'In progress';
+    }
+
+    if (status === 'handed_in') {
+        return 'Handed in';
     }
 
     return status.charAt(0).toUpperCase() + status.slice(1);
@@ -39,6 +43,10 @@ const statusClasses = (status: string): string => {
         return 'bg-amber-100 text-amber-900';
     }
 
+    if (status === 'handed_in') {
+        return 'bg-indigo-100 text-indigo-900';
+    }
+
     return 'bg-emerald-100 text-emerald-900';
 };
 
@@ -50,7 +58,7 @@ const startAssignment = (url?: string | null) => {
     router.patch(url, {}, { preserveScroll: true });
 };
 
-const completeAssignment = (url?: string | null) => {
+const handInAssignment = (url?: string | null) => {
     if (!url) {
         return;
     }
@@ -117,12 +125,12 @@ const completeAssignment = (url?: string | null) => {
                                 Start
                             </button>
                             <button
-                                v-if="assignment.complete_url"
+                                v-if="assignment.hand_in_url"
                                 type="button"
-                                class="rounded-full bg-emerald-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-emerald-600"
-                                @click="completeAssignment(assignment.complete_url)"
+                                class="rounded-full bg-indigo-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-indigo-600"
+                                @click="handInAssignment(assignment.hand_in_url)"
                             >
-                                Complete
+                                Hand in
                             </button>
                         </div>
                     </article>

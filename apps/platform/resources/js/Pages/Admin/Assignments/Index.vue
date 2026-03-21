@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 
 const props = defineProps<{
     students: Array<{
@@ -24,6 +24,7 @@ const props = defineProps<{
             display_name: string;
             username: string;
         };
+        complete_url?: string | null;
         delete_url: string;
         student_view_url: string;
     }>;
@@ -47,7 +48,19 @@ const statusClasses = (status: string): string => {
     if (status === 'unread') return 'bg-sky-100 text-sky-900';
     if (status === 'viewed') return 'bg-stone-200 text-stone-800';
     if (status === 'in_progress') return 'bg-amber-100 text-amber-900';
+    if (status === 'handed_in') return 'bg-indigo-100 text-indigo-900';
     return 'bg-emerald-100 text-emerald-900';
+};
+
+const completeAssignment = (url?: string | null) => {
+    if (!url) {
+        return;
+    }
+
+    router.patch(url, {}, {
+        preserveScroll: true,
+        preserveState: true,
+    });
 };
 </script>
 
@@ -128,6 +141,14 @@ const statusClasses = (status: string): string => {
                                     <span class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]" :class="statusClasses(assignment.status)">
                                         {{ assignment.status }}
                                     </span>
+                                    <button
+                                        v-if="assignment.complete_url"
+                                        type="button"
+                                        class="rounded-full bg-emerald-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-emerald-600"
+                                        @click="completeAssignment(assignment.complete_url)"
+                                    >
+                                        Mark complete
+                                    </button>
                                     <Link
                                         :href="assignment.delete_url"
                                         method="delete"

@@ -66,13 +66,24 @@ class StudentAssignment extends Model
 
     public function markCompleted(): void
     {
-        if ($this->status !== 'in_progress') {
+        if ($this->status !== 'handed_in') {
             return;
         }
 
         $this->forceFill([
             'status' => 'completed',
             'completed_at' => now(),
+        ])->save();
+    }
+
+    public function markHandedIn(): void
+    {
+        if ($this->status !== 'in_progress') {
+            return;
+        }
+
+        $this->forceFill([
+            'status' => 'handed_in',
         ])->save();
     }
 }

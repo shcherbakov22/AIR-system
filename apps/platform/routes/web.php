@@ -82,6 +82,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/announcements/{chatMessage}', [AdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
         Route::get('/assignments', [AdminAssignmentController::class, 'index'])->name('assignments.index');
         Route::post('/assignments', [AdminAssignmentController::class, 'store'])->name('assignments.store');
+        Route::patch('/assignments/{studentAssignment}/complete', [AdminAssignmentController::class, 'complete'])->name('assignments.complete');
         Route::delete('/assignments/{studentAssignment}', [AdminAssignmentController::class, 'destroy'])->name('assignments.destroy');
         Route::get('/chats', [AdminChatController::class, 'index'])->name('chats.index');
         Route::get('/chats/{student}', [AdminChatController::class, 'show'])->name('chats.show');
@@ -142,7 +143,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/announcements', [StudentAnnouncementController::class, 'show'])->name('announcements.show');
         Route::get('/assignments', [StudentAssignmentController::class, 'index'])->name('assignments.index');
         Route::patch('/assignments/{studentAssignment}/start', [StudentAssignmentController::class, 'start'])->name('assignments.start');
-        Route::patch('/assignments/{studentAssignment}/complete', [StudentAssignmentController::class, 'complete'])->name('assignments.complete');
+        Route::patch('/assignments/{studentAssignment}/hand-in', [StudentAssignmentController::class, 'handIn'])->name('assignments.hand-in');
         Route::get('/chat', [StudentChatController::class, 'show'])->name('chat.show');
         Route::post('/chat', [StudentChatController::class, 'store'])->name('chat.store');
         Route::get('/rules', StudentRuleController::class)->name('rules.index');

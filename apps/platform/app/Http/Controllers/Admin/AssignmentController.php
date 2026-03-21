@@ -30,7 +30,7 @@ class AssignmentController extends Controller
             'assignments' => StudentAssignment::query()
                 ->with(['student.user', 'creator'])
                 ->when($selectedStudentId, fn ($query) => $query->where('student_id', $selectedStudentId))
-                ->orderByRaw("case status when 'unread' then 0 when 'viewed' then 1 when 'in_progress' then 2 when 'completed' then 3 else 4 end")
+                ->orderByRaw("case status when 'unread' then 0 when 'viewed' then 1 when 'in_progress' then 2 when 'handed_in' then 3 when 'completed' then 4 else 5 end")
                 ->orderByDesc('created_at')
                 ->orderByDesc('id')
                 ->get()
@@ -51,7 +51,7 @@ class AssignmentController extends Controller
             'assignments' => StudentAssignment::query()
                 ->with('creator')
                 ->where('student_id', $student->id)
-                ->orderByRaw("case status when 'unread' then 0 when 'viewed' then 1 when 'in_progress' then 2 when 'completed' then 3 else 4 end")
+                ->orderByRaw("case status when 'unread' then 0 when 'viewed' then 1 when 'in_progress' then 2 when 'handed_in' then 3 when 'completed' then 4 else 5 end")
                 ->orderByDesc('created_at')
                 ->orderByDesc('id')
                 ->get()
@@ -96,6 +96,15 @@ class AssignmentController extends Controller
             ->with('success', 'Assignment deleted.');
     }
 
+    public function complete(StudentAssignment $studentAssignment): RedirectResponse
+    {
+        $studentAssignment->markCompleted();
+
+        return redirect()
+            ->back()
+            ->with('success', 'Assignment marked completed.');
+    }
+
     private function payload(StudentAssignment $assignment): array
     {
         $assignment->loadMissing(['student.user', 'creator']);
@@ -116,6 +125,9 @@ class AssignmentController extends Controller
                 'username' => $assignment->student->user->username,
             ],
             'delete_url' => route('admin.assignments.destroy', $assignment),
+            'complete_url' => $assignment->status === 'handed_in'
+                ? route('admin.assignments.complete', $assignment)
+                : null,
             'student_view_url' => route('admin.students.assignments.show', $assignment->student),
         ];
     }

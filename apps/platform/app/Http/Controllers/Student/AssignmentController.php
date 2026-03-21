@@ -23,7 +23,7 @@ class AssignmentController extends Controller
         $assignments = StudentAssignment::query()
             ->with('creator')
             ->where('student_id', $student->id)
-            ->orderByRaw("case status when 'unread' then 0 when 'viewed' then 1 when 'in_progress' then 2 when 'completed' then 3 else 4 end")
+            ->orderByRaw("case status when 'unread' then 0 when 'viewed' then 1 when 'in_progress' then 2 when 'handed_in' then 3 when 'completed' then 4 else 5 end")
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get();
@@ -48,17 +48,17 @@ class AssignmentController extends Controller
             ->with('success', 'Assignment marked in progress.');
     }
 
-    public function complete(Request $request, StudentAssignment $studentAssignment): RedirectResponse
+    public function handIn(Request $request, StudentAssignment $studentAssignment): RedirectResponse
     {
         $student = $request->user()->student;
 
         abort_unless($student && $studentAssignment->student_id === $student->id, 404);
 
-        $studentAssignment->markCompleted();
+        $studentAssignment->markHandedIn();
 
         return redirect()
             ->route('student.assignments.index')
-            ->with('success', 'Assignment completed.');
+            ->with('success', 'Assignment handed in.');
     }
 
     private function payload(StudentAssignment $assignment): array
@@ -78,8 +78,8 @@ class AssignmentController extends Controller
             'start_url' => $assignment->status === 'viewed'
                 ? route('student.assignments.start', $assignment)
                 : null,
-            'complete_url' => $assignment->status === 'in_progress'
-                ? route('student.assignments.complete', $assignment)
+            'hand_in_url' => $assignment->status === 'in_progress'
+                ? route('student.assignments.hand-in', $assignment)
                 : null,
         ];
     }
