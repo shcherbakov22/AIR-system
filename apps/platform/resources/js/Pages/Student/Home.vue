@@ -54,6 +54,7 @@ const props = defineProps<{
     openViolations: Array<{
         id: number;
         rule_title: string;
+        push_up_count: number;
         occurred_at_label?: string | null;
     }>;
     activeScheduleRun: {
@@ -365,7 +366,7 @@ const showBlockingViolationDialog = () => {
     const lines = [
         'There are open violations:',
         ...props.openViolations.map((violation) =>
-            `- ${violation.rule_title}${violation.occurred_at_label ? ` (${violation.occurred_at_label})` : ''}`,
+            `- ${violation.rule_title} - ${violation.push_up_count} push-ups${violation.occurred_at_label ? ` (${violation.occurred_at_label})` : ''}`,
         ),
         '',
         'Until a mentor closes them, you cannot continue the schedule or start your custom timer.',
@@ -891,7 +892,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 :key="violation.id"
                                 class="truncate"
                             >
-                                {{ violation.rule_title }}<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
+                                {{ violation.rule_title }} - {{ violation.push_up_count }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
                             </p>
                         </div>
                     </div>

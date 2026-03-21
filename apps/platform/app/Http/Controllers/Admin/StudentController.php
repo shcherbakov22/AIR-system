@@ -11,6 +11,7 @@ use App\Models\Student;
 use App\Models\StudentConsequenceProfile;
 use App\Models\StudentSetting;
 use App\Models\User;
+use App\Services\StudentPushUpCounterService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -33,6 +34,7 @@ class StudentController extends Controller
             ],
             'consequence_profile' => [
                 'default_push_up_count' => $student->consequenceProfile?->default_push_up_count ?? 0,
+                'current_push_up_count' => $student->consequenceProfile?->current_push_up_count ?? 10,
                 'rest_duration_seconds' => $student->consequenceProfile?->rest_duration_seconds ?? 0,
                 'legacy_owner_user_id' => $student->consequenceProfile?->legacy_owner_user_id,
             ],
@@ -79,6 +81,7 @@ class StudentController extends Controller
             StudentConsequenceProfile::create([
                 'student_id' => $student->id,
                 'default_push_up_count' => (int) $request->input('default_push_up_count'),
+                'current_push_up_count' => 10,
                 'rest_duration_seconds' => (int) $request->input('rest_duration_seconds'),
                 'legacy_owner_user_id' => null,
                 'notes' => null,
@@ -127,6 +130,7 @@ class StudentController extends Controller
                 ['student_id' => $student->id],
                 [
                     'default_push_up_count' => (int) $request->input('default_push_up_count'),
+                    'current_push_up_count' => $student->consequenceProfile?->current_push_up_count ?? 10,
                     'rest_duration_seconds' => (int) $request->input('rest_duration_seconds'),
                     'notes' => $student->consequenceProfile?->notes,
                 ],
@@ -175,5 +179,28 @@ class StudentController extends Controller
                 ->get()
                 ->map(fn (Student $student) => $this->toPayload($student)),
         ]);
+    }
+
+    public function updatePushUpCounter(\Illuminate\Http\Request $request, Student $student, StudentPushUpCounterService $pushUpCounterService): RedirectResponse
+    {
+        $action = $request->validate([
+            'action' => ['required', 'in:increment,decrement,reset'],
+        ])['action'];
+
+        DB::transaction(function () use ($action, $student, $pushUpCounterService) {
+            if ($action === 'increment') {
+                $pushUpCounterService->increment($student);
+                return;
+            }
+
+            if ($action === 'decrement') {
+                $pushUpCounterService->decrement($student);
+                return;
+            }
+
+            $pushUpCounterService->reset($student);
+        });
+
+        return redirect()->back()->with('success', 'Push-up counter updated.');
     }
 }

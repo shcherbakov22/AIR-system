@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\Violation;
 use App\Models\ViolationResolution;
 use App\Services\SpeechAnnouncementService;
+use App\Services\StudentPushUpCounterService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -73,6 +74,7 @@ class ViolationController extends Controller
             'rule_title' => $violation->rule_title_snapshot,
             'occurred_at_label' => $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
             'notes' => $violation->notes,
+            'push_up_count' => $violation->penalty_units,
             'student' => [
                 'id' => $violation->student->id,
                 'display_name' => $violation->student->display_name,
@@ -105,7 +107,7 @@ class ViolationController extends Controller
     public function index(): Response
     {
         $students = Student::query()
-            ->with('user')
+            ->with(['user', 'consequenceProfile'])
             ->orderBy('display_name')
             ->get();
 
@@ -129,6 +131,7 @@ class ViolationController extends Controller
                 'id' => $student->id,
                 'display_name' => $student->display_name,
                 'username' => $student->user->username,
+                'current_push_up_count' => $student->consequenceProfile?->current_push_up_count ?? StudentPushUpCounterService::DEFAULT_COUNT,
             ])->all(),
             'ruleDefinitions' => $ruleDefinitions->map(fn (RuleDefinition $ruleDefinition) => [
                 'id' => $ruleDefinition->id,
@@ -149,11 +152,16 @@ class ViolationController extends Controller
         ]);
     }
 
-    public function store(StoreViolationRequest $request, SpeechAnnouncementService $speechAnnouncementService): RedirectResponse
+    public function store(
+        StoreViolationRequest $request,
+        SpeechAnnouncementService $speechAnnouncementService,
+        StudentPushUpCounterService $pushUpCounterService,
+    ): RedirectResponse
     {
         $ruleDefinition = RuleDefinition::query()->findOrFail((int) $request->input('rule_definition_id'));
         $studentId = (int) $request->input('student_id');
         $toggle = $request->boolean('toggle');
+        $student = Student::query()->findOrFail($studentId);
 
         $existingViolation = Violation::query()
             ->where('student_id', $studentId)
@@ -185,13 +193,15 @@ class ViolationController extends Controller
                 ->with('error', "Violation {$ruleDefinition->title} is already open for this student.");
         }
 
-        $violation = DB::transaction(function () use ($request, $ruleDefinition) {
+        $violation = DB::transaction(function () use ($request, $ruleDefinition, $student, $pushUpCounterService) {
+            $pushUpCount = $pushUpCounterService->allocateForViolation($student);
+
             return Violation::create([
-                'student_id' => (int) $request->input('student_id'),
+                'student_id' => $student->id,
                 'rule_definition_id' => $ruleDefinition->id,
                 'status' => 'open',
                 'rule_title_snapshot' => $ruleDefinition->title,
-                'penalty_units' => 0,
+                'penalty_units' => $pushUpCount,
                 'occurred_at' => $request->date('occurred_at'),
                 'notes' => $request->input('notes'),
                 'reported_by_user_id' => $request->user()->id,

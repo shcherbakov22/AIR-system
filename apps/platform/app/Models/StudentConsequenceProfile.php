@@ -13,6 +13,7 @@ class StudentConsequenceProfile extends Model
     protected $fillable = [
         'student_id',
         'default_push_up_count',
+        'current_push_up_count',
         'rest_duration_seconds',
         'legacy_owner_user_id',
         'notes',
@@ -22,6 +23,7 @@ class StudentConsequenceProfile extends Model
     {
         return [
             'default_push_up_count' => 'integer',
+            'current_push_up_count' => 'integer',
             'rest_duration_seconds' => 'integer',
             'legacy_owner_user_id' => 'integer',
         ];

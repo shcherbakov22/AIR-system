@@ -48,6 +48,7 @@ class StudentUpdateTest extends TestCase
                 ->where('student.user.last_login_at', null)
                 ->where('student.settings.can_manage_own_schedule', true)
                 ->where('student.consequence_profile.default_push_up_count', 0)
+                ->where('student.consequence_profile.current_push_up_count', 10)
             );
     }
 
@@ -111,6 +112,7 @@ class StudentUpdateTest extends TestCase
         $this->assertDatabaseHas('student_consequence_profiles', [
             'student_id' => $student->id,
             'default_push_up_count' => 8,
+            'current_push_up_count' => 10,
             'rest_duration_seconds' => 120,
             'notes' => null,
         ]);

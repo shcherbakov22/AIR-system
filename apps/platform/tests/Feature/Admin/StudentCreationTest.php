@@ -76,6 +76,7 @@ class StudentCreationTest extends TestCase
         $this->assertDatabaseHas('student_consequence_profiles', [
             'student_id' => $student->id,
             'default_push_up_count' => 12,
+            'current_push_up_count' => 10,
             'rest_duration_seconds' => 90,
             'notes' => null,
         ]);

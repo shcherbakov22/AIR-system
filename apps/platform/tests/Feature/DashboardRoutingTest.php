@@ -328,7 +328,7 @@ class DashboardRoutingTest extends TestCase
             'rule_definition_id' => $ruleDefinition->id,
             'status' => 'open',
             'rule_title_snapshot' => $ruleDefinition->title,
-            'penalty_units' => 0,
+            'penalty_units' => 10,
             'occurred_at' => now()->subMinute(),
             'notes' => null,
             'reported_by_user_id' => $admin->id,
@@ -344,6 +344,8 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.latest_screen_capture.task_title', 'Coding')
                 ->where('monitorStudents.0.latest_camera_capture.source_label', 'Hardware Bridge')
                 ->where('monitorStudents.0.open_violations.0.rule_title', 'Observe the time')
+                ->where('monitorStudents.0.open_violations.0.push_up_count', 10)
+                ->where('monitorStudents.0.current_push_up_count', 10)
                 ->where('monitorStudents.0.violation_rule_options.0.title', 'Observe the time')
             );
     }

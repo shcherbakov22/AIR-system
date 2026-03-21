@@ -126,9 +126,13 @@ class ViolationManagementTest extends TestCase
             'rule_definition_id' => $ruleDefinition->id,
             'status' => 'open',
             'rule_title_snapshot' => 'Stay on assigned work',
-            'penalty_units' => 0,
+            'penalty_units' => 10,
             'notes' => 'Observed switching away from the assigned work tab.',
             'reported_by_user_id' => $admin->id,
+        ]);
+        $this->assertDatabaseHas('student_consequence_profiles', [
+            'student_id' => $student->id,
+            'current_push_up_count' => 11,
         ]);
     }
 
@@ -194,7 +198,7 @@ class ViolationManagementTest extends TestCase
             'rule_definition_id' => $ruleDefinition->id,
             'status' => 'open',
             'rule_title_snapshot' => 'Stay on assigned work',
-            'penalty_units' => 0,
+            'penalty_units' => 10,
             'occurred_at' => '2026-03-08 09:00:00',
             'notes' => 'Left the assigned work page.',
             'reported_by_user_id' => $admin->id,
@@ -211,8 +215,50 @@ class ViolationManagementTest extends TestCase
                 ->has('openViolations', 1)
                 ->where('openViolations.0.student.display_name', 'Student Violations')
                 ->where('openViolations.0.rule_title', 'Stay on assigned work')
+                ->where('openViolations.0.push_up_count', 10)
                 ->where('openViolations.0.status', 'open')
             );
+    }
+
+    public function test_admin_can_adjust_student_push_up_counter(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_push_up_counter',
+        ]);
+
+        $student = $this->createStudent('student_push_up_counter', 'Student Push Up Counter');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.push-up-counter.update', $student), [
+                'action' => 'increment',
+            ])
+            ->assertSessionHas('success', 'Push-up counter updated.');
+
+        $this->assertDatabaseHas('student_consequence_profiles', [
+            'student_id' => $student->id,
+            'current_push_up_count' => 11,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.push-up-counter.update', $student), [
+                'action' => 'decrement',
+            ]);
+
+        $this->assertDatabaseHas('student_consequence_profiles', [
+            'student_id' => $student->id,
+            'current_push_up_count' => 10,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.push-up-counter.update', $student), [
+                'action' => 'reset',
+            ]);
+
+        $this->assertDatabaseHas('student_consequence_profiles', [
+            'student_id' => $student->id,
+            'current_push_up_count' => 10,
+        ]);
     }
 
     public function test_admin_can_not_create_a_second_open_violation_for_the_same_student_and_rule(): void

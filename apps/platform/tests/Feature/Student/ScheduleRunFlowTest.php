@@ -1064,7 +1064,7 @@ class ScheduleRunFlowTest extends TestCase
 
         $this->assertSame('Observe the time', $violation->rule_title_snapshot);
         $this->assertSame('open', $violation->status);
-        $this->assertSame(0, $violation->penalty_units);
+        $this->assertSame(10, $violation->penalty_units);
         $this->assertSame(
             'observe-time:idle:run:'.$scheduleRun->id.':anchor:2026-03-08T09:40:00+00:00',
             $violation->auto_generated_key,
@@ -1329,7 +1329,7 @@ class ScheduleRunFlowTest extends TestCase
 
         $this->assertSame('Observe the time', $violation->rule_title_snapshot);
         $this->assertSame('open', $violation->status);
-        $this->assertSame(0, $violation->penalty_units);
+        $this->assertSame(10, $violation->penalty_units);
         $this->assertSame(
             'observe-time:overtime:session:'.$activeTaskSession->id.':threshold:2026-03-08T09:45:00+00:00',
             $violation->auto_generated_key,

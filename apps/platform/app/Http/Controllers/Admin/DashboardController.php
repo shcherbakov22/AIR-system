@@ -253,6 +253,7 @@ class DashboardController extends Controller
             'id' => $student->id,
             'display_name' => $student->display_name,
             'status' => $student->status,
+            'current_push_up_count' => $student->consequenceProfile?->current_push_up_count ?? \App\Services\StudentPushUpCounterService::DEFAULT_COUNT,
             'user' => [
                 'id' => $student->user->id,
                 'username' => $student->user->username,
@@ -267,6 +268,7 @@ class DashboardController extends Controller
                 ->map(fn ($violation) => [
                     'id' => $violation->id,
                     'rule_title' => $violation->rule_title_snapshot,
+                    'push_up_count' => $violation->penalty_units,
                     'occurred_at_label' => $violation->occurred_at?->format('d M, H:i'),
                 ])
                 ->all(),
@@ -282,6 +284,7 @@ class DashboardController extends Controller
         $monitorStudents = Student::query()
             ->with([
                 'user',
+                'consequenceProfile',
                 'activeOrPausedScheduleRun' => fn ($query) => $query
                     ->with([
                         'blocks' => fn ($blockQuery) => $blockQuery

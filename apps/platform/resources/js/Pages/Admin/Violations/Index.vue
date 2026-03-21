@@ -10,6 +10,7 @@ const props = defineProps<{
         id: number;
         display_name: string;
         username: string;
+        current_push_up_count: number;
     }>;
     ruleDefinitions: Array<{
         id: number;
@@ -20,6 +21,7 @@ const props = defineProps<{
         id: number;
         status: string;
         rule_title: string;
+        push_up_count: number;
         occurred_at_label?: string | null;
         notes?: string | null;
         student: {
@@ -61,6 +63,15 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
 
     router.delete(route('admin.violations.destroy', violationId), {
         preserveScroll: true,
+    });
+};
+
+const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement' | 'reset') => {
+    router.patch(route('admin.students.push-up-counter.update', studentId), {
+        action,
+    }, {
+        preserveScroll: true,
+        preserveState: true,
     });
 };
 </script>
@@ -114,6 +125,32 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
                                     </div>
                                     <div class="text-xs text-stone-500">
                                         {{ student.display_name }}
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap items-center gap-1">
+                                        <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700">
+                                            Next {{ student.current_push_up_count }}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            class="rounded-full border border-stone-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                            @click="updatePushUpCounter(student.id, 'decrement')"
+                                        >
+                                            -
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-full border border-stone-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                            @click="updatePushUpCounter(student.id, 'increment')"
+                                        >
+                                            +
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-full border border-stone-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                            @click="updatePushUpCounter(student.id, 'reset')"
+                                        >
+                                            Reset
+                                        </button>
                                     </div>
                                 </th>
                                 <td
@@ -170,6 +207,10 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
                                 <span class="text-sm text-stone-400">·</span>
                                 <p class="text-sm text-stone-700">
                                     {{ violation.rule_title }}
+                                </p>
+                                <span class="text-sm text-stone-400">·</span>
+                                <p class="text-sm text-stone-700">
+                                    {{ violation.push_up_count }} push-ups
                                 </p>
                                 <span class="text-sm text-stone-400">·</span>
                                 <p class="text-sm text-stone-500">

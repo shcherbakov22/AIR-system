@@ -25,6 +25,7 @@ type DashboardStudent = {
     id: number;
     display_name: string;
     status: string;
+    current_push_up_count: number;
     user: {
         id: number;
         username: string;
@@ -86,6 +87,7 @@ type DashboardStudent = {
     open_violations: Array<{
         id: number;
         rule_title: string;
+        push_up_count: number;
         occurred_at_label?: string | null;
     }>;
     violation_rule_options: Array<{
@@ -427,6 +429,15 @@ const applyViolation = (studentId: number) => {
     });
 };
 
+const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement' | 'reset') => {
+    router.patch(route('admin.students.push-up-counter.update', studentId), {
+        action,
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
 const openCapture = (studentName: string, capture: DashboardCapture) => {
     selectedCapture.value = {
         ...capture,
@@ -640,6 +651,32 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <p class="truncate text-sm font-semibold text-stone-950">
                                 {{ student.display_name }}
                             </p>
+                            <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700">
+                                    Next {{ student.current_push_up_count }} push-ups
+                                </span>
+                                <button
+                                    type="button"
+                                    class="rounded-full border border-stone-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                    @click="updatePushUpCounter(student.id, 'decrement')"
+                                >
+                                    -
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-full border border-stone-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                    @click="updatePushUpCounter(student.id, 'increment')"
+                                >
+                                    +
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-full border border-stone-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                    @click="updatePushUpCounter(student.id, 'reset')"
+                                >
+                                    Reset
+                                </button>
+                            </div>
                         </div>
 
                         <div class="flex shrink-0 items-center gap-1">
@@ -734,7 +771,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                         {{ violation.rule_title }}
                                     </p>
                                     <p class="text-[10px] text-stone-500">
-                                        {{ violation.occurred_at_label }}
+                                        {{ violation.push_up_count }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
                                     </p>
                                 </div>
 
