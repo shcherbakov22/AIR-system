@@ -12,6 +12,7 @@ use App\Models\Student;
 use App\Models\StudentDevice;
 use App\Models\StudentMonitorCapture;
 use App\Models\TaskSession;
+use App\Models\RemoteControlSession;
 use App\Models\Violation;
 use App\Models\User;
 use App\Models\DeviceActivityEvent;
@@ -338,6 +339,17 @@ class DashboardRoutingTest extends TestCase
             'observed_at' => now()->subSeconds(10),
         ]);
 
+        $remoteControlSession = RemoteControlSession::create([
+            'student_device_id' => $device->id,
+            'student_id' => $student->id,
+            'requested_by_user_id' => $admin->id,
+            'session_token' => 'dashboard-session-token',
+            'target_host' => '192.168.11.44',
+            'status' => 'active',
+            'viewer_path' => '/remote-control/view/dashboard-session-token',
+            'started_at' => now()->subSeconds(20),
+        ]);
+
         StudentMonitorCapture::create([
             'student_id' => $student->id,
             'task_session_id' => $taskSession->id,
@@ -384,6 +396,9 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.display_name', 'Monitor Student')
                 ->where('monitorStudents.0.latest_screen_capture.task_title', 'Coding')
                 ->where('monitorStudents.0.latest_camera_capture.source_label', 'Hardware Bridge')
+                ->where('monitorStudents.0.remote_control.device_id', $device->id)
+                ->where('monitorStudents.0.remote_control.start_url', route('admin.students.devices.remote-control.store', [$student, $device]))
+                ->where('monitorStudents.0.remote_control.active_session_show_url', route('admin.remote-control-sessions.show', $remoteControlSession))
                 ->where('monitorStudents.0.latest_device_activity.device_label', 'Desk PC')
                 ->where('monitorStudents.0.latest_device_activity.focused_app.app_name', 'Code.exe')
                 ->where('monitorStudents.0.latest_device_activity.open_apps.1.app_name', 'chrome.exe')

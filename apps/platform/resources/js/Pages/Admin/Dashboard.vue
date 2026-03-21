@@ -84,6 +84,12 @@ type DashboardStudent = {
         source_label?: string | null;
         image_url: string;
     } | null;
+    remote_control?: {
+        device_id: number;
+        device_label: string;
+        start_url: string;
+        active_session_show_url?: string | null;
+    } | null;
     latest_device_activity?: {
         device_label: string;
         focused_app?: {
@@ -471,6 +477,22 @@ const closeAppsPanel = () => {
     selectedAppsStudent.value = null;
 };
 
+const openRemoteSession = (student: DashboardStudent) => {
+    const remoteControl = student.remote_control;
+    if (!remoteControl) {
+        return;
+    }
+
+    if (remoteControl.active_session_show_url) {
+        router.visit(remoteControl.active_session_show_url);
+        return;
+    }
+
+    router.post(remoteControl.start_url, {}, {
+        preserveScroll: true,
+    });
+};
+
 const openCapturePlaceholder = (
     studentName: string,
     captureKind: 'screen' | 'camera',
@@ -685,6 +707,15 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 @click="openAppsPanel(student)"
                             >
                                 Apps
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
+                                :class="student.remote_control ? 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950' : 'border-stone-200 text-stone-400'"
+                                :disabled="!student.remote_control"
+                                @click="openRemoteSession(student)"
+                            >
+                                Remote
                             </button>
                         </div>
                     </div>

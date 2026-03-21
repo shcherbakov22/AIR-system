@@ -277,6 +277,19 @@ class DashboardController extends Controller
             'active_task_session' => $this->activeTaskSessionPayload($activeTaskSession),
             'latest_screen_capture' => $this->capturePayload($student->latestScreenCapture),
             'latest_camera_capture' => $this->capturePayload($student->latestCameraCapture),
+            'remote_control' => $latestDevice ? [
+                'device_id' => $latestDevice->id,
+                'device_label' => $latestDevice->label,
+                'start_url' => route('admin.students.devices.remote-control.store', [$student, $latestDevice]),
+                'active_session_show_url' => optional(
+                    $latestDevice->remoteControlSessions
+                        ->where('status', 'active')
+                        ->whereNotNull('viewer_path')
+                        ->sortByDesc('started_at')
+                        ->first(),
+                    fn ($session) => route('admin.remote-control-sessions.show', $session),
+                ),
+            ] : null,
             'latest_device_activity' => $latestDevice ? [
                 'device_label' => $latestDevice->label,
                 'focused_app' => $latestDeviceActivity['focused_app'],
@@ -345,6 +358,10 @@ class DashboardController extends Controller
                 'devices' => fn ($query) => $query
                     ->whereNull('revoked_at')
                     ->with([
+                        'remoteControlSessions' => fn ($sessionQuery) => $sessionQuery
+                            ->latest('started_at')
+                            ->latest('id')
+                            ->limit(5),
                         'activityEvents' => fn ($activityQuery) => $activityQuery
                             ->latest('observed_at')
                             ->latest('id')
