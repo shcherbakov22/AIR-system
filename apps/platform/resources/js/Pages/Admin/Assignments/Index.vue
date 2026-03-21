@@ -58,14 +58,7 @@ const statusClasses = (status: string): string => {
         <div class="mx-auto max-w-6xl px-5 py-6">
             <div class="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.45fr)]">
                 <section class="rounded-[1.75rem] bg-white p-5 shadow-sm ring-1 ring-stone-200">
-                    <h1 class="text-3xl font-semibold text-stone-950">
-                        Assignments
-                    </h1>
-                    <p class="mt-2 text-sm text-stone-600">
-                        Create assignments for students and track their status.
-                    </p>
-
-                    <form class="mt-5 space-y-3" @submit.prevent="submit">
+                    <form class="space-y-3" @submit.prevent="submit">
                         <select
                             v-model="form.student_id"
                             class="w-full rounded-[1rem] border-stone-300 px-4 py-3 text-sm shadow-sm focus:border-stone-950 focus:ring-stone-950"
