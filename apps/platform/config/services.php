@@ -61,7 +61,6 @@ return [
     'remote_control' => [
         'enabled' => env('REMOTE_CONTROL_ENABLED', true),
         'gateway_url' => env('REMOTE_CONTROL_GATEWAY_URL', 'http://127.0.0.1:9821'),
-        'viewer_base_path' => env('REMOTE_CONTROL_VIEWER_BASE_PATH', '/remote-control/view'),
         'ready_heartbeat_max_age_seconds' => (int) env('REMOTE_CONTROL_READY_HEARTBEAT_MAX_AGE_SECONDS', 120),
     ],
 
