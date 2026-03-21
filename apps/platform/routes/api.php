@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CompanionCommandController;
 use App\Http\Controllers\Api\CompanionEnrollmentController;
 use App\Http\Controllers\Api\CompanionHeartbeatController;
 use App\Http\Controllers\Api\CompanionPolicyController;
+use App\Http\Controllers\Api\CompanionUpdateController;
 use App\Http\Controllers\Api\EdgeClientHeartbeatController;
 use App\Http\Controllers\Api\StudentMonitorCaptureController;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,8 @@ Route::post('/student-monitor-captures/camera', [StudentMonitorCaptureController
     ->name('api.student-monitor-captures.camera');
 
 Route::prefix('companion')->name('api.companion.')->group(function () {
+    Route::get('/update-manifest', [CompanionUpdateController::class, 'manifest'])->name('update.manifest');
+    Route::get('/downloads/windows/latest', [CompanionUpdateController::class, 'download'])->name('update.download');
     Route::post('/enroll', [CompanionEnrollmentController::class, 'store'])->name('enroll');
     Route::post('/token/renew', [CompanionEnrollmentController::class, 'renew'])->name('token.renew');
     Route::post('/revoke', [CompanionEnrollmentController::class, 'revoke'])->name('revoke');
