@@ -146,50 +146,6 @@ onBeforeUnmount(() => {
                 </h2>
             </div>
 
-            <div class="border-b border-stone-200 px-5 py-4">
-                <form v-if="!readOnly" class="space-y-3" @submit.prevent="submit">
-                    <textarea
-                        v-model="form.body"
-                        rows="3"
-                        class="w-full rounded-[1.1rem] border-stone-300 px-4 py-3 text-sm shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                        placeholder="Write a message..."
-                    />
-
-                    <div class="flex flex-wrap items-center gap-3">
-                        <label class="inline-flex cursor-pointer rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950">
-                            <input
-                                type="file"
-                                class="hidden"
-                                @change="setAttachment"
-                            >
-                            Attach file
-                        </label>
-
-                        <p v-if="form.attachment" class="text-sm text-stone-600">
-                            {{ form.attachment.name }}
-                        </p>
-
-                        <button
-                            type="submit"
-                            class="inline-flex rounded-full bg-stone-950 px-5 py-2 text-sm font-semibold text-white transition hover:bg-stone-800"
-                            :disabled="form.processing"
-                        >
-                            Send
-                        </button>
-                    </div>
-
-                    <p v-if="flashSuccess" class="text-sm text-emerald-700">
-                        {{ flashSuccess }}
-                    </p>
-                    <p v-if="flashError || form.errors.body || form.errors.attachment" class="text-sm text-rose-700">
-                        {{ flashError || form.errors.body || form.errors.attachment }}
-                    </p>
-                </form>
-                <div v-else class="text-sm text-stone-600">
-                    Announcements are read-only for students.
-                </div>
-            </div>
-
             <div class="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-5">
                 <div
                     v-for="message in messages"
@@ -264,6 +220,50 @@ onBeforeUnmount(() => {
 
                 <div v-if="messages.length === 0" class="rounded-[1.25rem] bg-stone-50 px-5 py-6 text-sm text-stone-600 ring-1 ring-stone-200">
                     {{ emptyMessage }}
+                </div>
+            </div>
+
+            <div class="border-t border-stone-200 px-5 py-4">
+                <form v-if="!readOnly" class="space-y-3" @submit.prevent="submit">
+                    <textarea
+                        v-model="form.body"
+                        rows="3"
+                        class="w-full rounded-[1.1rem] border-stone-300 px-4 py-3 text-sm shadow-sm focus:border-amber-700 focus:ring-amber-700"
+                        placeholder="Write a message..."
+                    />
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label class="inline-flex cursor-pointer rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950">
+                            <input
+                                type="file"
+                                class="hidden"
+                                @change="setAttachment"
+                            >
+                            Attach file
+                        </label>
+
+                        <p v-if="form.attachment" class="text-sm text-stone-600">
+                            {{ form.attachment.name }}
+                        </p>
+
+                        <button
+                            type="submit"
+                            class="inline-flex rounded-full bg-stone-950 px-5 py-2 text-sm font-semibold text-white transition hover:bg-stone-800"
+                            :disabled="form.processing"
+                        >
+                            Send
+                        </button>
+                    </div>
+
+                    <p v-if="flashSuccess" class="text-sm text-emerald-700">
+                        {{ flashSuccess }}
+                    </p>
+                    <p v-if="flashError || form.errors.body || form.errors.attachment" class="text-sm text-rose-700">
+                        {{ flashError || form.errors.body || form.errors.attachment }}
+                    </p>
+                </form>
+                <div v-else class="text-sm text-stone-600">
+                    Announcements are read-only for students.
                 </div>
             </div>
         </div>
