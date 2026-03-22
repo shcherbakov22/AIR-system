@@ -66,10 +66,20 @@ class StudentAppPolicyService
     public function syncInstalledApps(StudentDevice $device, array $apps): void
     {
         $now = now();
+        $student = $device->student;
         $normalizedApps = collect($apps)
             ->map(fn ($app) => $this->normalizeInstalledApp($app))
             ->filter()
             ->values();
+
+        if ($normalizedApps->isEmpty()) {
+            return;
+        }
+
+        $existingPolicies = $student->appPolicies()
+            ->whereIn('app_key', $normalizedApps->pluck('app_key')->all())
+            ->get()
+            ->keyBy('app_key');
 
         foreach ($normalizedApps as $app) {
             $device->installedApps()->updateOrCreate(
@@ -84,6 +94,19 @@ class StudentAppPolicyService
                     'meta' => $app['meta'],
                 ],
             );
+
+            if ($existingPolicies->has($app['app_key'])) {
+                continue;
+            }
+
+            $student->appPolicies()->create([
+                'app_key' => $app['app_key'],
+                'app_name' => $app['display_name'],
+                'status' => self::STATUS_PERMITTED,
+                'first_seen_at' => $now,
+                'last_seen_at' => $now,
+                'grace_deadline_at' => null,
+            ]);
         }
     }
 

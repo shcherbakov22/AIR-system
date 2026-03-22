@@ -292,7 +292,7 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.app_control.blocked_processes', []);
     }
 
-    public function test_installed_apps_inventory_is_persisted_and_pending_apps_expire_into_blocklist(): void
+    public function test_installed_apps_inventory_is_persisted_and_grandfathered_as_permitted(): void
     {
         [$student, $studentUser] = $this->makeStudent('installed_apps_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -324,6 +324,13 @@ class CompanionApiTest extends TestCase
             'display_version' => '1.2.3',
             'publisher' => 'Microsoft',
             'install_location' => 'C:\\Program Files\\VS Code',
+        ]);
+
+        $this->assertDatabaseHas('student_app_policies', [
+            'student_id' => $student->id,
+            'app_key' => 'code.exe',
+            'app_name' => 'Visual Studio Code',
+            'status' => 'permitted',
         ]);
 
         $this->withHeaders($this->authHeaders($token))
