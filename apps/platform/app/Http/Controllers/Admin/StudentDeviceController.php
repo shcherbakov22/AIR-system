@@ -7,7 +7,6 @@ use App\Http\Requests\Admin\ManageStudentDeviceRequest;
 use App\Models\DeviceCommand;
 use App\Models\DeviceHeartbeat;
 use App\Models\DeviceActivityEvent;
-use App\Models\DeviceEnrollmentToken;
 use App\Models\Student;
 use App\Models\StudentMonitorCapture;
 use App\Models\StudentDevice;
@@ -213,26 +212,6 @@ class StudentDeviceController extends Controller
         return redirect()
             ->route('admin.students.devices.index', $student)
             ->with('success', "Command queued for {$studentDevice->label}.");
-    }
-
-    public function issueEnrollmentToken(
-        ManageStudentDeviceRequest $request,
-        Student $student,
-    ): RedirectResponse {
-        [$record, $plainTextToken] = DeviceEnrollmentToken::issue(
-            $student->id,
-            $request->user()->id,
-            null,
-            30,
-        );
-
-        return redirect()
-            ->route('admin.students.devices.index', $student)
-            ->with('success', "Enrollment token generated for {$student->display_name}.")
-            ->with('enrollment_token', [
-                'token' => $plainTextToken,
-                'expires_at' => $record->expires_at?->toAtomString(),
-            ]);
     }
 
     public function updateInternetAccess(

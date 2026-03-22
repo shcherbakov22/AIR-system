@@ -17,9 +17,11 @@ use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateContro
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
 use App\Http\Controllers\ChatAttachmentController;
 use App\Http\Controllers\CompanionRootCertificateController;
+use App\Http\Controllers\Api\CompanionUpdateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LegacyCaptureController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Student\CompanionEnrollmentController as StudentCompanionEnrollmentController;
 use App\Http\Controllers\Student\ChatController as StudentChatController;
 use App\Http\Controllers\Student\AnnouncementController as StudentAnnouncementController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
@@ -54,6 +56,8 @@ Route::get('/', function () {
 
 Route::get($companionRootCertificateRoute, CompanionRootCertificateController::class)
     ->name('companion.root-ca');
+Route::get('/companion/downloads/windows/installer', [CompanionUpdateController::class, 'installerBundle'])
+    ->name('companion.installer.download');
 
 Route::prefix('ss')
     ->withoutMiddleware([
@@ -119,7 +123,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/students/{student}/assignments', [AdminAssignmentController::class, 'show'])->name('students.assignments.show');
         Route::get('/students/{student}/devices', [AdminStudentDeviceController::class, 'index'])->name('students.devices.index');
         Route::get('/students/{student}/companion-debug', [AdminStudentDeviceController::class, 'debug'])->name('students.devices.debug');
-        Route::post('/students/{student}/devices/enrollment-token', [AdminStudentDeviceController::class, 'issueEnrollmentToken'])->name('students.devices.enrollment-token.store');
         Route::patch('/students/{student}/devices/{studentDevice}', [AdminStudentDeviceController::class, 'update'])->name('students.devices.update');
         Route::patch('/students/{student}/devices/{studentDevice}/internet-access', [AdminStudentDeviceController::class, 'updateInternetAccess'])->name('students.devices.internet.update');
         Route::post('/students/{student}/devices/{studentDevice}/commands', [AdminStudentDeviceController::class, 'command'])->name('students.devices.command');
@@ -148,6 +151,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/assignments', [StudentAssignmentController::class, 'index'])->name('assignments.index');
         Route::patch('/assignments/{studentAssignment}/start', [StudentAssignmentController::class, 'start'])->name('assignments.start');
         Route::patch('/assignments/{studentAssignment}/hand-in', [StudentAssignmentController::class, 'handIn'])->name('assignments.hand-in');
+        Route::get('/companion/enroll', [StudentCompanionEnrollmentController::class, 'show'])->name('companion.enroll');
+        Route::get('/companion/enroll/bootstrap.ps1', [StudentCompanionEnrollmentController::class, 'bootstrapScript'])->name('companion.enroll.bootstrap');
         Route::get('/chat', [StudentChatController::class, 'show'])->name('chat.show');
         Route::post('/chat', [StudentChatController::class, 'store'])->name('chat.store');
         Route::get('/rules', StudentRuleController::class)->name('rules.index');

@@ -68,7 +68,6 @@ const props = defineProps<{
 const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
 const errorMessage = computed(() => page.props.flash?.error ?? null);
-const enrollmentToken = computed(() => page.props.flash?.enrollment_token as { token: string; expires_at?: string | null } | null);
 const labels = reactive(Object.fromEntries(props.devices.map((device) => [device.id, device.label])));
 
 const saveLabel = (deviceId: number) => {
@@ -121,11 +120,6 @@ const startRemoteControl = (deviceId: number) => {
 
 const formatDateTime = (value?: string | null) => value ? new Date(value).toLocaleString() : 'Never';
 const prettyCommand = (value: string) => value.replaceAll('_', ' ');
-const issueEnrollmentToken = () => {
-    router.post(route('admin.students.devices.enrollment-token.store', props.student.id), {}, {
-        preserveScroll: true,
-    });
-};
 </script>
 
 <template>
@@ -139,12 +133,6 @@ const issueEnrollmentToken = () => {
             <div v-if="errorMessage" class="mb-5 rounded-[1.5rem] bg-rose-50 px-6 py-4 text-sm text-rose-800 ring-1 ring-rose-200">
                 {{ errorMessage }}
             </div>
-            <div v-if="enrollmentToken" class="mb-5 rounded-[1.5rem] bg-sky-50 px-6 py-4 text-sm text-sky-900 ring-1 ring-sky-200">
-                <p class="font-semibold">Enrollment token</p>
-                <p class="mt-2 break-all font-mono text-xs">{{ enrollmentToken.token }}</p>
-                <p v-if="enrollmentToken.expires_at" class="mt-2 text-xs text-sky-700">Expires {{ formatDateTime(enrollmentToken.expires_at) }}</p>
-            </div>
-
             <div class="mb-6 flex flex-wrap items-center gap-3">
                 <Link
                     :href="route('admin.students.edit', props.student.id)"
@@ -164,13 +152,6 @@ const issueEnrollmentToken = () => {
                 >
                     Companion debug
                 </Link>
-                <button
-                    type="button"
-                    class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
-                    @click="issueEnrollmentToken"
-                >
-                    Generate enrollment token
-                </button>
             </div>
 
             <div class="grid gap-5">

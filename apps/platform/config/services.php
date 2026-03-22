@@ -72,6 +72,10 @@ return [
             'COMPANION_WINDOWS_UPDATE_PACKAGE_PATH',
             storage_path('app/companion-updates/air-companion-windows.zip')
         ),
+        'windows_installer_bundle_path' => env(
+            'COMPANION_WINDOWS_INSTALLER_BUNDLE_PATH',
+            storage_path('app/companion-updates/air-companion-windows-installer.zip')
+        ),
     ],
 
 ];

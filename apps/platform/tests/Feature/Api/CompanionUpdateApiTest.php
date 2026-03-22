@@ -48,6 +48,21 @@ class CompanionUpdateApiTest extends TestCase
             ->assertDownload('air-companion-windows.zip');
     }
 
+    public function test_companion_installer_bundle_download_serves_windows_installer_bundle(): void
+    {
+        $directory = storage_path('framework/testing/companion-installer-download');
+        @mkdir($directory, 0777, true);
+        $bundlePath = $directory.'/air-companion-windows-installer.zip';
+        file_put_contents($bundlePath, 'fake-installer-zip-bytes');
+
+        config()->set('services.companion_updates.enabled', true);
+        config()->set('services.companion_updates.windows_installer_bundle_path', $bundlePath);
+
+        $this->get(route('companion.installer.download'))
+            ->assertOk()
+            ->assertDownload('air-companion-windows-installer.zip');
+    }
+
     public function test_companion_update_manifest_returns_not_found_when_package_is_missing(): void
     {
         config()->set('services.companion_updates.enabled', true);

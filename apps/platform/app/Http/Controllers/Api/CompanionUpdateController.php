@@ -45,9 +45,34 @@ class CompanionUpdateController extends Controller
         ]);
     }
 
+    public function installerBundle(): BinaryFileResponse
+    {
+        abort_unless((bool) config('services.companion_updates.enabled', true), 404);
+
+        $packagePath = $this->installerBundlePath();
+        $realPath = realpath($packagePath);
+
+        abort_unless($realPath !== false && is_file($realPath) && is_readable($realPath), 404);
+
+        return response()->download($realPath, 'air-companion-windows-installer.zip', [
+            'Content-Type' => 'application/zip',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
+    }
+
     private function packagePath(): string
     {
         $configuredPath = (string) config('services.companion_updates.windows_package_path', '');
+
+        return $this->isAbsolutePath($configuredPath)
+            ? $configuredPath
+            : base_path($configuredPath);
+    }
+
+    private function installerBundlePath(): string
+    {
+        $configuredPath = (string) config('services.companion_updates.windows_installer_bundle_path', '');
 
         return $this->isAbsolutePath($configuredPath)
             ? $configuredPath
