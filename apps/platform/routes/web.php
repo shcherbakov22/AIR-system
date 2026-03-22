@@ -119,6 +119,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/students/{student}/assignments', [AdminAssignmentController::class, 'show'])->name('students.assignments.show');
         Route::get('/students/{student}/devices', [AdminStudentDeviceController::class, 'index'])->name('students.devices.index');
         Route::get('/students/{student}/companion-debug', [AdminStudentDeviceController::class, 'debug'])->name('students.devices.debug');
+        Route::post('/students/{student}/devices/enrollment-token', [AdminStudentDeviceController::class, 'issueEnrollmentToken'])->name('students.devices.enrollment-token.store');
         Route::patch('/students/{student}/devices/{studentDevice}', [AdminStudentDeviceController::class, 'update'])->name('students.devices.update');
         Route::patch('/students/{student}/devices/{studentDevice}/internet-access', [AdminStudentDeviceController::class, 'updateInternetAccess'])->name('students.devices.internet.update');
         Route::post('/students/{student}/devices/{studentDevice}/commands', [AdminStudentDeviceController::class, 'command'])->name('students.devices.command');

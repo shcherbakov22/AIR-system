@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Enums\UserRole;
+use App\Models\DeviceEnrollmentToken;
 use App\Models\RuleDefinition;
 use App\Models\ScheduleRun;
 use App\Models\Student;
@@ -61,6 +62,43 @@ class CompanionApiTest extends TestCase
         $device = StudentDevice::query()->firstOrFail();
         $this->assertNotNull($device->token_hash);
         $this->assertNotEmpty($response->json('token'));
+    }
+
+    public function test_device_can_claim_one_time_enrollment_token(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('token_student', 'secret-pass');
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'token_admin',
+        ]);
+
+        [$record, $plainTextToken] = DeviceEnrollmentToken::issue($student->id, $admin->id, null, 30);
+
+        $response = $this->postJson(route('api.companion.enroll.claim'), [
+            'enrollment_token' => $plainTextToken,
+            'device_key' => 'device-token-student',
+            'label' => 'Token PC',
+            'hostname' => 'token-pc',
+            'platform' => 'windows',
+            'app_version' => '0.1.0',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('student.id', $student->id)
+            ->assertJsonPath('student.username', $studentUser->username)
+            ->assertJsonPath('device.device_key', 'device-token-student');
+
+        $this->assertDatabaseHas('student_devices', [
+            'student_id' => $student->id,
+            'device_key' => 'device-token-student',
+            'label' => 'Token PC',
+        ]);
+
+        $record->refresh();
+        $this->assertNotNull($record->used_at);
+        $this->assertNotNull($record->used_by_device_id);
     }
 
     public function test_policy_allows_internet_by_default_when_network_control_is_enabled(): void

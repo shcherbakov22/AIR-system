@@ -31,5 +31,9 @@ export type PageProps<
     flash?: {
         success?: string | null;
         error?: string | null;
+        enrollment_token?: {
+            token: string;
+            expires_at?: string | null;
+        } | null;
     };
 };
