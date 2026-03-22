@@ -281,14 +281,6 @@ class DashboardController extends Controller
                 'device_id' => $latestDevice->id,
                 'device_label' => $latestDevice->label,
                 'start_url' => route('admin.students.devices.remote-control.store', [$student, $latestDevice]),
-                'active_session_show_url' => optional(
-                    $latestDevice->remoteControlSessions
-                        ->where('status', 'active')
-                        ->whereNotNull('viewer_path')
-                        ->sortByDesc('started_at')
-                        ->first(),
-                    fn ($session) => route('admin.remote-control-sessions.show', $session),
-                ),
             ] : null,
             'latest_device_activity' => $latestDevice ? [
                 'device_label' => $latestDevice->label,

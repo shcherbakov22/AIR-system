@@ -7,6 +7,7 @@ use App\Models\DeviceActivityEvent;
 use App\Models\DeviceCommand;
 use App\Models\DeviceCommandResult;
 use App\Models\DeviceHeartbeat;
+use App\Models\RemoteControlSession;
 use App\Models\Student;
 use App\Models\StudentDevice;
 use App\Models\StudentMonitorCapture;
@@ -491,6 +492,77 @@ class StudentDeviceManagementTest extends TestCase
             'student_device_id' => $device->id,
             'status' => 'active',
             'viewer_path' => '/remote-control/view/sess-1',
+        ]);
+    }
+
+    public function test_admin_remote_control_start_retires_existing_active_sessions_before_creating_a_new_one(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_remote_replace',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_remote_replace',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Remote Replace Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'remote-device-replace',
+            'label' => 'Replace Desk',
+            'platform' => 'windows',
+            'last_seen_at' => now(),
+            'last_ipv4' => '192.168.11.78',
+            'remote_control_ready' => true,
+            'remote_control_active' => true,
+            'remote_control_port' => 5905,
+            'remote_control_last_checked_at' => now(),
+        ]);
+
+        $staleSession = RemoteControlSession::create([
+            'student_device_id' => $device->id,
+            'student_id' => $student->id,
+            'requested_by_user_id' => $admin->id,
+            'session_token' => 'stale-session-token',
+            'target_host' => '192.168.11.78',
+            'gateway_session_id' => 'stale-gateway',
+            'viewer_path' => '/remote-control/view/stale-session-token',
+            'status' => 'active',
+            'started_at' => now()->subMinutes(5),
+        ]);
+
+        config()->set('services.remote_control.enabled', true);
+        config()->set('services.remote_control.gateway_url', 'http://127.0.0.1:9821');
+
+        Http::fake([
+            'http://127.0.0.1:9821/api/sessions/stop' => Http::response(['stopped' => true]),
+            'http://127.0.0.1:9821/api/sessions/start' => Http::response([
+                'session_id' => 'sess-2',
+                'viewer_path' => '/remote-control/view/sess-2',
+            ]),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.students.devices.remote-control.store', [$student, $device]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('remote_control_sessions', [
+            'id' => $staleSession->id,
+            'status' => 'ended',
+        ]);
+
+        $this->assertDatabaseHas('remote_control_sessions', [
+            'student_device_id' => $device->id,
+            'status' => 'active',
+            'viewer_path' => '/remote-control/view/sess-2',
         ]);
     }
 

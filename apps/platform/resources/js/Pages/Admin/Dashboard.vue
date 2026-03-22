@@ -88,7 +88,6 @@ type DashboardStudent = {
         device_id: number;
         device_label: string;
         start_url: string;
-        active_session_show_url?: string | null;
     } | null;
     latest_device_activity?: {
         device_label: string;
@@ -480,11 +479,6 @@ const closeAppsPanel = () => {
 const openRemoteSession = (student: DashboardStudent) => {
     const remoteControl = student.remote_control;
     if (!remoteControl) {
-        return;
-    }
-
-    if (remoteControl.active_session_show_url) {
-        router.visit(remoteControl.active_session_show_url);
         return;
     }
 

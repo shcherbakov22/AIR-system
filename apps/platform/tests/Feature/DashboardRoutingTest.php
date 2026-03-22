@@ -398,7 +398,6 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.latest_camera_capture.source_label', 'Hardware Bridge')
                 ->where('monitorStudents.0.remote_control.device_id', $device->id)
                 ->where('monitorStudents.0.remote_control.start_url', route('admin.students.devices.remote-control.store', [$student, $device]))
-                ->where('monitorStudents.0.remote_control.active_session_show_url', route('admin.remote-control-sessions.show', $remoteControlSession))
                 ->where('monitorStudents.0.latest_device_activity.device_label', 'Desk PC')
                 ->where('monitorStudents.0.latest_device_activity.focused_app.app_name', 'Code.exe')
                 ->where('monitorStudents.0.latest_device_activity.open_apps.1.app_name', 'chrome.exe')

@@ -34,16 +34,6 @@ class RemoteControlSessionController extends Controller
         $heartbeatMaxAgeSeconds = (int) config('services.remote_control.ready_heartbeat_max_age_seconds', 120);
         $recentHeartbeat = $studentDevice->last_seen_at !== null
             && $studentDevice->last_seen_at->greaterThanOrEqualTo(now()->subSeconds($heartbeatMaxAgeSeconds));
-        $activeSession = $studentDevice->remoteControlSessions()
-            ->where('status', 'active')
-            ->whereNotNull('viewer_path')
-            ->latest('started_at')
-            ->latest('id')
-            ->first();
-
-        if ($activeSession !== null) {
-            return redirect()->route('admin.remote-control-sessions.show', $activeSession);
-        }
 
         if (! $studentDevice->remote_control_ready
             || ! $studentDevice->remote_control_active
@@ -62,6 +52,18 @@ class RemoteControlSessionController extends Controller
                 ->route('admin.students.devices.index', $student)
                 ->with('error', 'Device is not remote-control ready yet. Verification was queued.');
         }
+
+        $studentDevice->remoteControlSessions()
+            ->where('status', 'active')
+            ->get()
+            ->each(function (RemoteControlSession $existingSession) use ($gatewayService): void {
+                $gatewayService->stopSession($existingSession);
+
+                $existingSession->forceFill([
+                    'status' => 'ended',
+                    'ended_at' => now(),
+                ])->save();
+            });
 
         $session = RemoteControlSession::create([
             'student_device_id' => $studentDevice->id,
