@@ -42,10 +42,16 @@ class CompanionEnrollmentController extends Controller
 $ErrorActionPreference = 'Stop'
 $installDirectory = Join-Path $env:ProgramFiles 'AIR Companion'
 $utility = Join-Path $installDirectory 'air_companion_tray.exe'
+$serviceBinary = Join-Path $installDirectory 'air_companion_service.exe'
 $serviceName = 'AIRCompanion'
+$debugLog = Join-Path $env:windir 'System32\config\systemprofile\AppData\Roaming\AIRCompanion\debug.log'
 
 if (-not (Test-Path $utility)) {
     throw "AIR Companion is not installed at $installDirectory."
+}
+
+if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
+    throw "AIR Companion service is not installed."
 }
 
 & $utility --write-enrollment --base-url "__BASE_URL__" --enrollment-token "__ENROLLMENT_TOKEN__" --root-ca-url "__ROOT_CA_URL__"
@@ -53,13 +59,33 @@ if ($LASTEXITCODE -ne 0) {
     throw 'Failed to write AIR Companion enrollment request.'
 }
 
-try {
-    Start-Service -Name $serviceName -ErrorAction Stop | Out-Null
-} catch {
-    sc.exe start $serviceName | Out-Null
+if (-not (Test-Path $serviceBinary)) {
+    throw "AIR Companion service binary is missing at $serviceBinary."
 }
 
-Write-Host 'AIR Companion enrollment request written and service start requested.'
+$service = Get-Service -Name $serviceName -ErrorAction Stop
+if ($service.Status -ne 'Running') {
+    Start-Service -Name $serviceName -ErrorAction SilentlyContinue
+    if ((Get-Service -Name $serviceName).Status -ne 'Running') {
+        sc.exe start $serviceName | Out-Null
+    }
+}
+
+for ($attempt = 0; $attempt -lt 15; $attempt++) {
+    $service = Get-Service -Name $serviceName -ErrorAction Stop
+    if ($service.Status -eq 'Running') {
+        Write-Host 'AIR Companion enrollment request written and service is running.'
+        exit 0
+    }
+
+    Start-Sleep -Seconds 1
+}
+
+if (Test-Path $debugLog) {
+    Get-Content $debugLog -Tail 50
+}
+
+throw "AIR Companion service failed to reach Running state. Check $debugLog"
 POWERSHELL;
 
         $script = str_replace(
