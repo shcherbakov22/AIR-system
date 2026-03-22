@@ -9,7 +9,9 @@ use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\ScheduleTemplate;
 use App\Models\Student;
+use App\Models\StudentAppPolicy;
 use App\Models\StudentDevice;
+use App\Models\StudentDeviceInstalledApp;
 use App\Models\StudentMonitorCapture;
 use App\Models\TaskSession;
 use App\Models\RemoteControlSession;
@@ -339,6 +341,46 @@ class DashboardRoutingTest extends TestCase
             'observed_at' => now()->subSeconds(10),
         ]);
 
+        StudentAppPolicy::create([
+            'student_id' => $student->id,
+            'app_key' => 'code.exe',
+            'app_name' => 'Code.exe',
+            'status' => 'permitted',
+            'first_seen_at' => now()->subHour(),
+            'last_seen_at' => now()->subMinute(),
+        ]);
+
+        StudentAppPolicy::create([
+            'student_id' => $student->id,
+            'app_key' => 'steam.exe',
+            'app_name' => 'Steam.exe',
+            'status' => 'pending_review',
+            'first_seen_at' => now()->subMinutes(2),
+            'last_seen_at' => now()->subMinutes(2),
+            'grace_deadline_at' => now()->addMinute(),
+        ]);
+
+        StudentAppPolicy::create([
+            'student_id' => $student->id,
+            'app_key' => 'game.exe',
+            'app_name' => 'Game.exe',
+            'status' => 'blocked',
+            'first_seen_at' => now()->subDay(),
+            'last_seen_at' => now()->subDay(),
+        ]);
+
+        StudentDeviceInstalledApp::create([
+            'student_device_id' => $device->id,
+            'app_key' => 'code.exe',
+            'display_name' => 'Visual Studio Code',
+            'display_version' => '1.2.3',
+            'publisher' => 'Microsoft',
+            'install_location' => 'C:\\Program Files\\VS Code',
+            'first_seen_at' => now()->subDay(),
+            'last_seen_at' => now()->subMinute(),
+            'meta' => ['source' => 'registry_uninstall'],
+        ]);
+
         $remoteControlSession = RemoteControlSession::create([
             'student_device_id' => $device->id,
             'student_id' => $student->id,
@@ -401,6 +443,12 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.latest_device_activity.device_label', 'Desk PC')
                 ->where('monitorStudents.0.latest_device_activity.focused_app.app_name', 'Code.exe')
                 ->where('monitorStudents.0.latest_device_activity.open_apps.1.app_name', 'chrome.exe')
+                ->where('monitorStudents.0.latest_device_activity.installed_apps.0.display_name', 'Visual Studio Code')
+                ->where('monitorStudents.0.app_control.pending_review.0.app_name', 'Steam.exe')
+                ->where('monitorStudents.0.app_control.permitted.0.app_name', 'Code.exe')
+                ->where('monitorStudents.0.app_control.blocked.0.app_name', 'Game.exe')
+                ->where('monitorStudents.0.app_control.permit_url_template', route('admin.students.app-policies.permit', [$student, '__APP_POLICY__']))
+                ->where('monitorStudents.0.app_control.block_url_template', route('admin.students.app-policies.block', [$student, '__APP_POLICY__']))
                 ->where('monitorStudents.0.open_violations.0.rule_title', 'Observe the time')
                 ->where('monitorStudents.0.open_violations.0.push_up_count', 10)
                 ->where('monitorStudents.0.current_push_up_count', 10)

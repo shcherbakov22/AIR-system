@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\StudentMonitorCaptureController as AdminStudentMo
 use App\Http\Controllers\Admin\StudentProgressController as AdminStudentProgressController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\StudentDeviceController as AdminStudentDeviceController;
+use App\Http\Controllers\Admin\StudentAppPolicyController as AdminStudentAppPolicyController;
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
 use App\Http\Controllers\ChatAttachmentController;
@@ -123,6 +124,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/students/{student}/devices/{studentDevice}/commands', [AdminStudentDeviceController::class, 'command'])->name('students.devices.command');
         Route::post('/students/{student}/devices/{studentDevice}/remote-control', [AdminRemoteControlSessionController::class, 'store'])->name('students.devices.remote-control.store');
         Route::patch('/students/{student}/devices/{studentDevice}/revoke', [AdminStudentDeviceController::class, 'revoke'])->name('students.devices.revoke');
+        Route::patch('/students/{student}/app-policies/{studentAppPolicy}/permit', [AdminStudentAppPolicyController::class, 'permit'])->name('students.app-policies.permit');
+        Route::patch('/students/{student}/app-policies/{studentAppPolicy}/block', [AdminStudentAppPolicyController::class, 'block'])->name('students.app-policies.block');
         Route::get('/remote-control-sessions/{remoteControlSession}', [AdminRemoteControlSessionController::class, 'show'])->name('remote-control-sessions.show');
         Route::delete('/remote-control-sessions/{remoteControlSession}', [AdminRemoteControlSessionController::class, 'destroy'])->name('remote-control-sessions.destroy');
         Route::get('/students/{student}/edit', [AdminStudentController::class, 'edit'])->name('students.edit');

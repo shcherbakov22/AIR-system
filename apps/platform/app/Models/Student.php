@@ -103,6 +103,11 @@ class Student extends Model
         return $this->hasMany(StudentDevice::class);
     }
 
+    public function appPolicies(): HasMany
+    {
+        return $this->hasMany(StudentAppPolicy::class);
+    }
+
     public function latestScreenCapture(): HasOne
     {
         return $this->hasOne(StudentMonitorCapture::class)

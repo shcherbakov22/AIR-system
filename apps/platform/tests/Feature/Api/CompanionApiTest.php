@@ -226,6 +226,145 @@ class CompanionApiTest extends TestCase
         ]);
     }
 
+    public function test_first_open_apps_snapshot_is_grandfathered_and_later_new_apps_require_review(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('app_review_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'open_apps',
+                'payload' => [
+                    'apps' => [
+                        [
+                            'app_name' => 'Code.exe',
+                            'window_title' => 'AIR System',
+                        ],
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $this->assertDatabaseHas('student_app_policies', [
+            'student_id' => $student->id,
+            'app_key' => 'code.exe',
+            'app_name' => 'Code.exe',
+            'status' => 'permitted',
+        ]);
+
+        $device->refresh();
+        $this->assertNotNull(data_get($device->meta, 'app_policy_initialized_at'));
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'open_apps',
+                'payload' => [
+                    'apps' => [
+                        [
+                            'app_name' => 'Code.exe',
+                            'window_title' => 'AIR System',
+                        ],
+                        [
+                            'app_name' => 'Steam.exe',
+                            'window_title' => 'Steam',
+                        ],
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $this->assertDatabaseHas('student_app_policies', [
+            'student_id' => $student->id,
+            'app_key' => 'steam.exe',
+            'app_name' => 'Steam.exe',
+            'status' => 'pending_review',
+        ]);
+
+        $policyResponse = $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'));
+
+        $policyResponse
+            ->assertOk()
+            ->assertJsonPath('policy.app_control.mode', 'review')
+            ->assertJsonPath('policy.app_control.blocked_processes', []);
+    }
+
+    public function test_installed_apps_inventory_is_persisted_and_pending_apps_expire_into_blocklist(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('installed_apps_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'installed_apps',
+                'payload' => [
+                    'apps' => [
+                        [
+                            'app_name' => 'Code.exe',
+                            'display_name' => 'Visual Studio Code',
+                            'display_version' => '1.2.3',
+                            'publisher' => 'Microsoft',
+                            'install_location' => 'C:\\Program Files\\VS Code',
+                            'source' => 'registry_uninstall',
+                        ],
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $this->assertDatabaseHas('student_device_installed_apps', [
+            'student_device_id' => $device->id,
+            'app_key' => 'code.exe',
+            'display_name' => 'Visual Studio Code',
+            'display_version' => '1.2.3',
+            'publisher' => 'Microsoft',
+            'install_location' => 'C:\\Program Files\\VS Code',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'open_apps',
+                'payload' => [
+                    'apps' => [
+                        [
+                            'app_name' => 'Code.exe',
+                            'window_title' => 'AIR System',
+                        ],
+                    ],
+                ],
+            ])
+            ->assertOk();
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'open_apps',
+                'payload' => [
+                    'apps' => [
+                        [
+                            'app_name' => 'Game.exe',
+                            'window_title' => 'New Game',
+                        ],
+                    ],
+                ],
+            ])
+            ->assertOk();
+
+        $policy = $student->appPolicies()->where('app_key', 'game.exe')->firstOrFail();
+        $policy->update([
+            'grace_deadline_at' => now()->subSecond(),
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.app_control.blocked_processes.0', 'Game.exe');
+    }
+
     public function test_ready_heartbeat_clears_stale_remote_control_failure_reason(): void
     {
         [$student, $studentUser] = $this->makeStudent('remote_ready_student', 'secret-pass');

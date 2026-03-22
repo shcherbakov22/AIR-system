@@ -12,6 +12,7 @@ class DevicePolicyService
 {
     public function __construct(
         private readonly StudentCommunicationGateService $communicationGateService,
+        private readonly StudentAppPolicyService $studentAppPolicyService,
     ) {
     }
 
@@ -71,9 +72,7 @@ class DevicePolicyService
             'communication_gate' => $communicationGate,
             'internet_policy' => $internetPolicy,
             'app_control' => [
-                'mode' => 'blocklist',
-                'blocked_processes' => [],
-                'blocked_window_patterns' => [],
+                ...$this->studentAppPolicyService->appControlPolicy($device),
             ],
             'capture' => [
                 'screen_enabled' => true,
@@ -172,6 +171,11 @@ class DevicePolicyService
         return [
             'focused_app' => $this->eventPayload($latestFocused),
             'open_apps' => $this->normalizeOpenApps($latestOpenApps?->payload['apps'] ?? []),
+            'installed_apps' => $this->normalizeInstalledApps(
+                $device->relationLoaded('installedApps')
+                    ? $device->installedApps->sortBy('display_name')->values()->all()
+                    : $device->installedApps()->orderBy('display_name')->get()->all()
+            ),
         ];
     }
 
@@ -215,6 +219,40 @@ class DevicePolicyService
                 return [
                     'app_name' => $appName !== '' ? $appName : null,
                     'window_title' => $windowTitle !== '' ? $windowTitle : null,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    public function normalizeInstalledApps(array $apps): array
+    {
+        return collect($apps)
+            ->map(function ($app) {
+                if ($app instanceof \App\Models\StudentDeviceInstalledApp) {
+                    return [
+                        'display_name' => $app->display_name,
+                        'display_version' => $app->display_version,
+                        'publisher' => $app->publisher,
+                        'install_location' => $app->install_location,
+                    ];
+                }
+
+                if (! is_array($app)) {
+                    return null;
+                }
+
+                $displayName = trim((string) ($app['display_name'] ?? ''));
+                if ($displayName === '') {
+                    return null;
+                }
+
+                return [
+                    'display_name' => $displayName,
+                    'display_version' => trim((string) ($app['display_version'] ?? '')) ?: null,
+                    'publisher' => trim((string) ($app['publisher'] ?? '')) ?: null,
+                    'install_location' => trim((string) ($app['install_location'] ?? '')) ?: null,
                 ];
             })
             ->filter()

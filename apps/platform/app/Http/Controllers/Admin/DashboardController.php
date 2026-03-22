@@ -15,6 +15,7 @@ use App\Models\SpeechAnnouncement;
 use App\Models\StudentDevice;
 use App\Services\DevicePolicyService;
 use App\Services\SpeechAnnouncementPlaybackService;
+use App\Services\StudentAppPolicyService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,6 +24,7 @@ class DashboardController extends Controller
     public function __construct(
         protected SpeechAnnouncementPlaybackService $speechPlaybackService,
         protected DevicePolicyService $devicePolicyService,
+        protected StudentAppPolicyService $studentAppPolicyService,
     ) {}
 
     protected function actualDurationSeconds(TaskSession $taskSession): int
@@ -286,7 +288,13 @@ class DashboardController extends Controller
                 'device_label' => $latestDevice->label,
                 'focused_app' => $latestDeviceActivity['focused_app'],
                 'open_apps' => $latestDeviceActivity['open_apps'],
+                'installed_apps' => $latestDeviceActivity['installed_apps'],
             ] : null,
+            'app_control' => [
+                ...$this->studentAppPolicyService->policyGroupsForStudent($student),
+                'permit_url_template' => route('admin.students.app-policies.permit', [$student, '__APP_POLICY__']),
+                'block_url_template' => route('admin.students.app-policies.block', [$student, '__APP_POLICY__']),
+            ],
             'open_violations' => $student->violations
                 ->map(fn ($violation) => [
                     'id' => $violation->id,
@@ -347,6 +355,7 @@ class DashboardController extends Controller
                     ->latest('started_at'),
                 'latestScreenCapture',
                 'latestCameraCapture',
+                'appPolicies',
                 'devices' => fn ($query) => $query
                     ->whereNull('revoked_at')
                     ->with([
@@ -358,6 +367,9 @@ class DashboardController extends Controller
                             ->latest('observed_at')
                             ->latest('id')
                             ->limit(8),
+                        'installedApps' => fn ($installedAppsQuery) => $installedAppsQuery
+                            ->orderBy('display_name')
+                            ->limit(200),
                     ])
                     ->latest('last_seen_at')
                     ->latest('id'),

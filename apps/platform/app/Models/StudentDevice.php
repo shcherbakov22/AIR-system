@@ -97,6 +97,11 @@ class StudentDevice extends Model
         return $this->hasMany(RemoteControlSession::class);
     }
 
+    public function installedApps(): HasMany
+    {
+        return $this->hasMany(StudentDeviceInstalledApp::class);
+    }
+
     public function issueToken(): string
     {
         $plainTextToken = Str::random(64);

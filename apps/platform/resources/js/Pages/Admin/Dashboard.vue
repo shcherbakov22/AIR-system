@@ -101,6 +101,35 @@ type DashboardStudent = {
             app_name?: string | null;
             window_title?: string | null;
         }>;
+        installed_apps: Array<{
+            display_name: string;
+            display_version?: string | null;
+            publisher?: string | null;
+            install_location?: string | null;
+        }>;
+    } | null;
+    app_control?: {
+        pending_review: Array<{
+            id: number;
+            app_key: string;
+            app_name: string;
+            status: string;
+            grace_deadline_at?: string | null;
+        }>;
+        permitted: Array<{
+            id: number;
+            app_key: string;
+            app_name: string;
+            status: string;
+        }>;
+        blocked: Array<{
+            id: number;
+            app_key: string;
+            app_name: string;
+            status: string;
+        }>;
+        permit_url_template: string;
+        block_url_template: string;
     } | null;
     open_violations: Array<{
         id: number;
@@ -484,6 +513,31 @@ const openRemoteSession = (student: DashboardStudent) => {
 
     router.post(remoteControl.start_url, {}, {
         preserveScroll: true,
+    });
+};
+
+const appPolicyUrl = (template: string, policyId: number): string =>
+    template.replace('__APP_POLICY__', String(policyId));
+
+const permitStudentApp = (student: DashboardStudent, policyId: number) => {
+    if (!student.app_control) {
+        return;
+    }
+
+    router.patch(appPolicyUrl(student.app_control.permit_url_template, policyId), {}, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
+const blockStudentApp = (student: DashboardStudent, policyId: number) => {
+    if (!student.app_control) {
+        return;
+    }
+
+    router.patch(appPolicyUrl(student.app_control.block_url_template, policyId), {}, {
+        preserveScroll: true,
+        preserveState: true,
     });
 };
 
@@ -953,6 +1007,132 @@ const blockTooltip = (block: DashboardBlock): string => {
                             </div>
                             <p v-else class="mt-3 text-sm text-stone-500">
                                 No open app snapshot yet.
+                            </p>
+                        </div>
+
+                        <div class="rounded-[1rem] bg-stone-50 p-4 ring-1 ring-stone-200">
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                Pending review
+                            </p>
+                            <div v-if="(selectedAppsStudent.app_control?.pending_review.length ?? 0) > 0" class="mt-3 space-y-2">
+                                <div
+                                    v-for="app in selectedAppsStudent.app_control?.pending_review ?? []"
+                                    :key="`pending-${app.id}`"
+                                    class="rounded-[0.9rem] bg-white px-3 py-2 ring-1 ring-stone-200"
+                                >
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-medium text-stone-950">
+                                                {{ app.app_name }}
+                                            </p>
+                                            <p class="mt-1 text-xs uppercase tracking-[0.14em] text-amber-700">
+                                                Shuts down at {{ app.grace_deadline_at ? new Date(app.grace_deadline_at).toLocaleTimeString() : 'soon' }}
+                                            </p>
+                                        </div>
+                                        <div class="flex shrink-0 items-center gap-2">
+                                            <button
+                                                type="button"
+                                                class="rounded-full border border-emerald-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700"
+                                                @click="permitStudentApp(selectedAppsStudent, app.id)"
+                                            >
+                                                Permit
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="rounded-full border border-rose-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-700"
+                                                @click="blockStudentApp(selectedAppsStudent, app.id)"
+                                            >
+                                                Block
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <p v-else class="mt-3 text-sm text-stone-500">
+                                No apps pending review.
+                            </p>
+                        </div>
+
+                        <div class="grid gap-4 lg:grid-cols-2">
+                            <div class="rounded-[1rem] bg-stone-50 p-4 ring-1 ring-stone-200">
+                                <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                    Permitted
+                                </p>
+                                <div v-if="(selectedAppsStudent.app_control?.permitted.length ?? 0) > 0" class="mt-3 space-y-2">
+                                    <div
+                                        v-for="app in selectedAppsStudent.app_control?.permitted ?? []"
+                                        :key="`permitted-${app.id}`"
+                                        class="rounded-[0.9rem] bg-white px-3 py-2 ring-1 ring-stone-200"
+                                    >
+                                        <div class="flex items-center justify-between gap-3">
+                                            <p class="text-sm font-medium text-stone-950">
+                                                {{ app.app_name }}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                class="rounded-full border border-rose-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-700"
+                                                @click="blockStudentApp(selectedAppsStudent, app.id)"
+                                            >
+                                                Block
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p v-else class="mt-3 text-sm text-stone-500">
+                                    No permitted apps recorded yet.
+                                </p>
+                            </div>
+
+                            <div class="rounded-[1rem] bg-stone-50 p-4 ring-1 ring-stone-200">
+                                <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                    Blocked
+                                </p>
+                                <div v-if="(selectedAppsStudent.app_control?.blocked.length ?? 0) > 0" class="mt-3 space-y-2">
+                                    <div
+                                        v-for="app in selectedAppsStudent.app_control?.blocked ?? []"
+                                        :key="`blocked-${app.id}`"
+                                        class="rounded-[0.9rem] bg-white px-3 py-2 ring-1 ring-stone-200"
+                                    >
+                                        <div class="flex items-center justify-between gap-3">
+                                            <p class="text-sm font-medium text-stone-950">
+                                                {{ app.app_name }}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                class="rounded-full border border-emerald-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700"
+                                                @click="permitStudentApp(selectedAppsStudent, app.id)"
+                                            >
+                                                Permit
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p v-else class="mt-3 text-sm text-stone-500">
+                                    No blocked apps.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="rounded-[1rem] bg-stone-50 p-4 ring-1 ring-stone-200">
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                Installed apps
+                            </p>
+                            <div v-if="(selectedAppsStudent.latest_device_activity?.installed_apps.length ?? 0) > 0" class="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+                                <div
+                                    v-for="(app, index) in selectedAppsStudent.latest_device_activity?.installed_apps ?? []"
+                                    :key="`installed-${index}`"
+                                    class="rounded-[0.9rem] bg-white px-3 py-2 ring-1 ring-stone-200"
+                                >
+                                    <p class="text-sm font-medium text-stone-950">
+                                        {{ app.display_name }}
+                                    </p>
+                                    <p v-if="app.publisher || app.display_version" class="mt-1 text-xs text-stone-600">
+                                        {{ [app.publisher, app.display_version].filter(Boolean).join(' · ') }}
+                                    </p>
+                                </div>
+                            </div>
+                            <p v-else class="mt-3 text-sm text-stone-500">
+                                No installed app inventory yet.
                             </p>
                         </div>
                     </div>
