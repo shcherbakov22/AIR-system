@@ -949,7 +949,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                 class="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/70 p-4"
                 @click.self="closeAppsPanel"
             >
-                <div class="w-full max-w-2xl overflow-hidden rounded-[1.25rem] bg-white shadow-2xl">
+                <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-2xl">
                     <div class="flex items-start justify-between gap-4 border-b border-stone-200 px-5 py-4">
                         <div class="min-w-0">
                             <p class="truncate text-base font-semibold text-stone-950">
@@ -968,7 +968,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </button>
                     </div>
 
-                    <div class="space-y-4 px-5 py-5">
+                    <div class="min-h-0 space-y-4 overflow-y-auto px-5 py-5">
                         <div class="rounded-[1rem] bg-stone-50 p-4 ring-1 ring-stone-200">
                             <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
                                 Focused app
