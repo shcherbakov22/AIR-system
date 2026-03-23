@@ -46,9 +46,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $logDirectory = Join-Path $env:ProgramData 'AIRCompanion\Logs'
 $logPath = Join-Path $logDirectory 'enroll.log'
-$resultPath = Join-Path $logDirectory 'enroll-result.txt'
-$elevatedWrapperPath = Join-Path $logDirectory 'enroll-elevated.ps1'
-New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
+$bootstrapDirectory = Join-Path ([System.IO.Path]::GetTempPath()) 'AIRCompanion'
+$resultPath = Join-Path $bootstrapDirectory 'enroll-result.txt'
+$elevatedWrapperPath = Join-Path $bootstrapDirectory 'enroll-elevated.ps1'
+New-Item -ItemType Directory -Force -Path $bootstrapDirectory | Out-Null
 
 function Show-FailureAndPause {
     param(
