@@ -91,9 +91,14 @@ try {
         throw "AIR Companion service is not installed."
     }
 
-    & $utility --write-enrollment --base-url "__BASE_URL__" --enrollment-token "__ENROLLMENT_TOKEN__" --root-ca-url "__ROOT_CA_URL__"
+    $utilityOutput = & $utility --write-enrollment --base-url "__BASE_URL__" --enrollment-token "__ENROLLMENT_TOKEN__" --root-ca-url "__ROOT_CA_URL__" 2>&1
     if ($LASTEXITCODE -ne 0) {
-        throw 'Failed to write AIR Companion enrollment request.'
+        $utilityMessage = ($utilityOutput | ForEach-Object { "$_" }) -join [Environment]::NewLine
+        if ([string]::IsNullOrWhiteSpace($utilityMessage)) {
+            throw 'Failed to write AIR Companion enrollment request.'
+        }
+
+        throw "Failed to write AIR Companion enrollment request.`n$utilityMessage"
     }
 
     if (-not (Test-Path $serviceBinary)) {
