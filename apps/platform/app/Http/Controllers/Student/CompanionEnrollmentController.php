@@ -47,6 +47,7 @@ $ErrorActionPreference = 'Stop'
 $logDirectory = Join-Path $env:ProgramData 'AIRCompanion\Logs'
 $logPath = Join-Path $logDirectory 'enroll.log'
 $resultPath = Join-Path $logDirectory 'enroll-result.txt'
+$elevatedWrapperPath = Join-Path $logDirectory 'enroll-elevated.ps1'
 New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
 
 function Show-FailureAndPause {
@@ -72,11 +73,33 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
         Remove-Item -Force $resultPath
     }
 
+    @'
+param(
+    [string]$ScriptPath,
+    [string]$ResultPath
+)
+
+$ErrorActionPreference = 'Stop'
+
+try {
+    & $ScriptPath -Elevated
+    $exitCode = if ($LASTEXITCODE -ne $null) { $LASTEXITCODE } else { 0 }
+    if ($exitCode -ne 0 -and -not (Test-Path $ResultPath)) {
+        Set-Content -Path $ResultPath -Value "Elevated enrollment exited with code $exitCode."
+    }
+    exit $exitCode
+} catch {
+    Set-Content -Path $ResultPath -Value $_.Exception.Message
+    exit 1
+}
+'@ | Set-Content -Path $elevatedWrapperPath
+
     $argumentList = @(
         '-NoProfile',
         '-ExecutionPolicy', 'Bypass',
-        '-File', $PSCommandPath,
-        '-Elevated'
+        '-File', $elevatedWrapperPath,
+        '-ScriptPath', $PSCommandPath,
+        '-ResultPath', $resultPath
     )
     $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argumentList -PassThru -Wait
     if ($process.ExitCode -ne 0) {
