@@ -44,6 +44,22 @@ $logDirectory = Join-Path $env:ProgramData 'AIRCompanion\Logs'
 $logPath = Join-Path $logDirectory 'enroll.log'
 New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
 
+function Show-FailureAndPause {
+    param(
+        [string]$Message,
+        [string]$LogPath
+    )
+
+    Write-Host ''
+    Write-Host 'AIR Companion enrollment failed.' -ForegroundColor Red
+    Write-Host $Message -ForegroundColor Red
+    if ($LogPath) {
+        Write-Host "Log: $LogPath" -ForegroundColor Yellow
+    }
+    Write-Host ''
+    Read-Host 'Press Enter to close'
+}
+
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = New-Object Security.Principal.WindowsPrincipal($currentIdentity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -52,58 +68,70 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
         '-File', ('"{0}"' -f $PSCommandPath)
     )
     $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argumentList -PassThru -Wait
+    if ($process.ExitCode -ne 0) {
+        Show-FailureAndPause -Message "Elevated enrollment exited with code $($process.ExitCode)." -LogPath $logPath
+    }
     exit $process.ExitCode
 }
 
-Start-Transcript -Path $logPath -Append | Out-Null
-$installDirectory = Join-Path $env:ProgramFiles 'AIR Companion'
-$utility = Join-Path $installDirectory 'air_companion_tray.exe'
-$serviceBinary = Join-Path $installDirectory 'air_companion_service.exe'
-$serviceName = 'AIRCompanion'
-$debugLog = Join-Path $env:windir 'System32\config\systemprofile\AppData\Roaming\AIRCompanion\debug.log'
+try {
+    Start-Transcript -Path $logPath -Append | Out-Null
+    $installDirectory = Join-Path $env:ProgramFiles 'AIR Companion'
+    $utility = Join-Path $installDirectory 'air_companion_tray.exe'
+    $serviceBinary = Join-Path $installDirectory 'air_companion_service.exe'
+    $serviceName = 'AIRCompanion'
+    $debugLog = Join-Path $env:windir 'System32\config\systemprofile\AppData\Roaming\AIRCompanion\debug.log'
 
-if (-not (Test-Path $utility)) {
-    throw "AIR Companion is not installed at $installDirectory."
-}
-
-if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
-    throw "AIR Companion service is not installed."
-}
-
-& $utility --write-enrollment --base-url "__BASE_URL__" --enrollment-token "__ENROLLMENT_TOKEN__" --root-ca-url "__ROOT_CA_URL__"
-if ($LASTEXITCODE -ne 0) {
-    throw 'Failed to write AIR Companion enrollment request.'
-}
-
-if (-not (Test-Path $serviceBinary)) {
-    throw "AIR Companion service binary is missing at $serviceBinary."
-}
-
-$service = Get-Service -Name $serviceName -ErrorAction Stop
-if ($service.Status -ne 'Running') {
-    Start-Service -Name $serviceName -ErrorAction SilentlyContinue
-    if ((Get-Service -Name $serviceName).Status -ne 'Running') {
-        sc.exe start $serviceName | Out-Null
+    if (-not (Test-Path $utility)) {
+        throw "AIR Companion is not installed at $installDirectory."
     }
-}
 
-for ($attempt = 0; $attempt -lt 15; $attempt++) {
+    if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
+        throw "AIR Companion service is not installed."
+    }
+
+    & $utility --write-enrollment --base-url "__BASE_URL__" --enrollment-token "__ENROLLMENT_TOKEN__" --root-ca-url "__ROOT_CA_URL__"
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Failed to write AIR Companion enrollment request.'
+    }
+
+    if (-not (Test-Path $serviceBinary)) {
+        throw "AIR Companion service binary is missing at $serviceBinary."
+    }
+
     $service = Get-Service -Name $serviceName -ErrorAction Stop
-    if ($service.Status -eq 'Running') {
-        Write-Host 'AIR Companion enrollment request written and service is running.'
-        Write-Host "Enrollment log: $logPath"
-        Stop-Transcript | Out-Null
-        exit 0
+    if ($service.Status -ne 'Running') {
+        Start-Service -Name $serviceName -ErrorAction SilentlyContinue
+        if ((Get-Service -Name $serviceName).Status -ne 'Running') {
+            sc.exe start $serviceName | Out-Null
+        }
     }
 
-    Start-Sleep -Seconds 1
-}
+    for ($attempt = 0; $attempt -lt 15; $attempt++) {
+        $service = Get-Service -Name $serviceName -ErrorAction Stop
+        if ($service.Status -eq 'Running') {
+            Write-Host 'AIR Companion enrollment request written and service is running.'
+            Write-Host "Enrollment log: $logPath"
+            Stop-Transcript | Out-Null
+            exit 0
+        }
 
-if (Test-Path $debugLog) {
-    Get-Content $debugLog -Tail 50
-}
+        Start-Sleep -Seconds 1
+    }
 
-throw "AIR Companion service failed to reach Running state. Check $debugLog"
+    if (Test-Path $debugLog) {
+        Get-Content $debugLog -Tail 50
+    }
+
+    throw "AIR Companion service failed to reach Running state. Check $debugLog"
+} catch {
+    try {
+        Stop-Transcript | Out-Null
+    } catch {
+    }
+    Show-FailureAndPause -Message $_.Exception.Message -LogPath $logPath
+    exit 1
+}
 POWERSHELL;
 
         $script = str_replace(
