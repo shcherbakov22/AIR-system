@@ -18,7 +18,7 @@ class StoreCompanionCaptureRequest extends CompanionDeviceRequest
     public function rules(): array
     {
         return [
-            'capture' => ['required', 'file', 'max:10240'],
+            'capture' => ['required', 'file', 'max:51200'],
             'captured_at' => ['nullable', 'date'],
             'app_name' => ['nullable', 'string', 'max:190'],
             'window_title' => ['nullable', 'string', 'max:255'],
