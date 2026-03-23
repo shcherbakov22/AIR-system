@@ -4,6 +4,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use App\Console\Commands\CompleteDailyScheduleRunsCommand;
+use App\Console\Commands\EvaluateObserveTheTimeViolationsCommand;
 use App\Console\Commands\PurgeStudentMonitorCapturesCommand;
 use App\Console\Commands\SyncGatewayPoliciesCommand;
 use App\Enums\UserRole;
@@ -22,6 +23,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command(PurgeStudentMonitorCapturesCommand::class)->dailyAt('23:59');
+Schedule::command(EvaluateObserveTheTimeViolationsCommand::class)->everyMinute();
 Schedule::command(SyncGatewayPoliciesCommand::class)
     ->everyMinute()
     ->when(fn () => (bool) config('services.network_control.enabled', false));
