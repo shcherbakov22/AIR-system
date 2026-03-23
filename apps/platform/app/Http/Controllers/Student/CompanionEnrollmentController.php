@@ -39,9 +39,14 @@ class CompanionEnrollmentController extends Controller
         $baseUrl = url('/');
         $rootCaUrl = route('companion.root-ca');
         $script = <<<'POWERSHELL'
+param(
+    [switch]$Elevated
+)
+
 $ErrorActionPreference = 'Stop'
 $logDirectory = Join-Path $env:ProgramData 'AIRCompanion\Logs'
 $logPath = Join-Path $logDirectory 'enroll.log'
+$resultPath = Join-Path $logDirectory 'enroll-result.txt'
 New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
 
 function Show-FailureAndPause {
@@ -62,15 +67,26 @@ function Show-FailureAndPause {
 
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = New-Object Security.Principal.WindowsPrincipal($currentIdentity)
-if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) -and -not $Elevated) {
+    if (Test-Path $resultPath) {
+        Remove-Item -Force $resultPath
+    }
+
     $argumentList = @(
         '-NoProfile',
         '-ExecutionPolicy', 'Bypass',
-        '-File', $PSCommandPath
+        '-File', $PSCommandPath,
+        '-Elevated'
     )
     $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argumentList -PassThru -Wait
     if ($process.ExitCode -ne 0) {
-        Show-FailureAndPause -Message "Elevated enrollment exited with code $($process.ExitCode)." -LogPath $logPath
+        $childMessage = if (Test-Path $resultPath) {
+            Get-Content $resultPath -Raw
+        } else {
+            "Elevated enrollment exited with code $($process.ExitCode)."
+        }
+
+        Show-FailureAndPause -Message $childMessage.Trim() -LogPath $logPath
     }
     exit $process.ExitCode
 }
@@ -121,6 +137,7 @@ try {
     for ($attempt = 0; $attempt -lt 15; $attempt++) {
         $service = Get-Service -Name $serviceName -ErrorAction Stop
         if ($service.Status -eq 'Running') {
+            Set-Content -Path $resultPath -Value 'AIR Companion enrollment request written and service is running.'
             Write-Host 'AIR Companion enrollment request written and service is running.'
             Write-Host "Enrollment log: $logPath"
             Stop-Transcript | Out-Null
@@ -136,6 +153,10 @@ try {
 
     throw "AIR Companion service failed to reach Running state. Check $debugLog"
 } catch {
+    try {
+        Set-Content -Path $resultPath -Value $_.Exception.Message
+    } catch {
+    }
     try {
         Stop-Transcript | Out-Null
     } catch {
