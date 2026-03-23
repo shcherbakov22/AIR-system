@@ -82,6 +82,7 @@ try {
     $serviceBinary = Join-Path $installDirectory 'air_companion_service.exe'
     $serviceName = 'AIRCompanion'
     $debugLog = Join-Path $env:windir 'System32\config\systemprofile\AppData\Roaming\AIRCompanion\debug.log'
+    $requestPath = Join-Path $env:ProgramData 'AIRCompanion\Internal\enrollment-request.json'
 
     if (-not (Test-Path $utility)) {
         throw "AIR Companion is not installed at $installDirectory."
@@ -89,6 +90,10 @@ try {
 
     if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
         throw "AIR Companion service is not installed."
+    }
+
+    if (Test-Path $requestPath -PathType Container) {
+        Remove-Item -Recurse -Force $requestPath
     }
 
     $utilityOutput = & $utility --write-enrollment --base-url "__BASE_URL__" --enrollment-token "__ENROLLMENT_TOKEN__" --root-ca-url "__ROOT_CA_URL__" 2>&1
