@@ -410,6 +410,42 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.app_control.blocked_processes.0', 'Game.exe');
     }
 
+    public function test_protected_shell_apps_are_never_emitted_as_blocked_processes(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('protected_apps_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $student->appPolicies()->create([
+            'app_key' => 'explorer.exe',
+            'app_name' => 'explorer.exe',
+            'status' => 'blocked',
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+
+        $student->appPolicies()->create([
+            'app_key' => 'rundll32.exe',
+            'app_name' => 'rundll32.exe',
+            'status' => 'blocked',
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+
+        $student->appPolicies()->create([
+            'app_key' => 'game.exe',
+            'app_name' => 'Game.exe',
+            'status' => 'blocked',
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.app_control.blocked_processes', ['Game.exe']);
+    }
+
     public function test_ready_heartbeat_clears_stale_remote_control_failure_reason(): void
     {
         [$student, $studentUser] = $this->makeStudent('remote_ready_student', 'secret-pass');

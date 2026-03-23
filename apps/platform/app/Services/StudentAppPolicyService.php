@@ -15,6 +15,16 @@ class StudentAppPolicyService
     public const STATUS_PENDING_REVIEW = 'pending_review';
     public const STATUS_BLOCKED = 'blocked';
     public const PENDING_GRACE_SECONDS = 60;
+    private const PROTECTED_APP_KEYS = [
+        'explorer.exe',
+        'rundll32.exe',
+        'shellexperiencehost.exe',
+        'startmenuexperiencehost.exe',
+        'searchhost.exe',
+        'searchapp.exe',
+        'dwm.exe',
+        'taskmgr.exe',
+    ];
 
     public function syncOpenApps(StudentDevice $device, array $apps): void
     {
@@ -42,6 +52,8 @@ class StudentAppPolicyService
                 $policy->forceFill([
                     'app_name' => $app['app_name'],
                     'last_seen_at' => $now,
+                    'status' => $this->isProtectedAppKey($app['app_key']) ? self::STATUS_PERMITTED : $policy->status,
+                    'grace_deadline_at' => $this->isProtectedAppKey($app['app_key']) ? null : $policy->grace_deadline_at,
                 ])->save();
                 continue;
             }
@@ -49,10 +61,10 @@ class StudentAppPolicyService
             $student->appPolicies()->create([
                 'app_key' => $app['app_key'],
                 'app_name' => $app['app_name'],
-                'status' => $initialized ? self::STATUS_PENDING_REVIEW : self::STATUS_PERMITTED,
+                'status' => $this->defaultStatusForAppKey($app['app_key'], $initialized),
                 'first_seen_at' => $now,
                 'last_seen_at' => $now,
-                'grace_deadline_at' => $initialized ? $now->copy()->addSeconds(self::PENDING_GRACE_SECONDS) : null,
+                'grace_deadline_at' => $this->defaultGraceDeadlineForAppKey($app['app_key'], $initialized, $now),
             ]);
         }
 
@@ -121,6 +133,7 @@ class StudentAppPolicyService
                     || ($policy->status === self::STATUS_PENDING_REVIEW
                         && $policy->grace_deadline_at !== null
                         && $policy->grace_deadline_at->lessThanOrEqualTo(now())))
+                ->reject(fn (StudentAppPolicy $policy) => $this->isProtectedAppKey($policy->app_key))
                 ->pluck('app_name')
                 ->filter()
                 ->values()
@@ -154,6 +167,11 @@ class StudentAppPolicyService
 
     public function block(StudentAppPolicy $policy, int $userId): void
     {
+        if ($this->isProtectedAppKey($policy->app_key)) {
+            $this->permit($policy, $userId);
+            return;
+        }
+
         $policy->forceFill([
             'status' => self::STATUS_BLOCKED,
             'grace_deadline_at' => null,
@@ -229,5 +247,28 @@ class StudentAppPolicyService
     protected function appKey(string $appName): string
     {
         return Str::lower(trim($appName));
+    }
+
+    protected function isProtectedAppKey(string $appKey): bool
+    {
+        return in_array(Str::lower(trim($appKey)), self::PROTECTED_APP_KEYS, true);
+    }
+
+    protected function defaultStatusForAppKey(string $appKey, bool $initialized): string
+    {
+        if ($this->isProtectedAppKey($appKey)) {
+            return self::STATUS_PERMITTED;
+        }
+
+        return $initialized ? self::STATUS_PENDING_REVIEW : self::STATUS_PERMITTED;
+    }
+
+    protected function defaultGraceDeadlineForAppKey(string $appKey, bool $initialized, CarbonInterface $now): ?CarbonInterface
+    {
+        if ($this->isProtectedAppKey($appKey) || ! $initialized) {
+            return null;
+        }
+
+        return $now->copy()->addSeconds(self::PENDING_GRACE_SECONDS);
     }
 }
