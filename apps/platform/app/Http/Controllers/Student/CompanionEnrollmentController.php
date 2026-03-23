@@ -40,6 +40,10 @@ class CompanionEnrollmentController extends Controller
         $rootCaUrl = route('companion.root-ca');
         $script = <<<'POWERSHELL'
 $ErrorActionPreference = 'Stop'
+$logDirectory = Join-Path $env:ProgramData 'AIRCompanion\Logs'
+$logPath = Join-Path $logDirectory 'enroll.log'
+New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
+
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = New-Object Security.Principal.WindowsPrincipal($currentIdentity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -47,10 +51,11 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
         '-ExecutionPolicy', 'Bypass',
         '-File', ('"{0}"' -f $PSCommandPath)
     )
-    Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argumentList | Out-Null
-    exit 0
+    $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argumentList -PassThru -Wait
+    exit $process.ExitCode
 }
 
+Start-Transcript -Path $logPath -Append | Out-Null
 $installDirectory = Join-Path $env:ProgramFiles 'AIR Companion'
 $utility = Join-Path $installDirectory 'air_companion_tray.exe'
 $serviceBinary = Join-Path $installDirectory 'air_companion_service.exe'
@@ -86,6 +91,8 @@ for ($attempt = 0; $attempt -lt 15; $attempt++) {
     $service = Get-Service -Name $serviceName -ErrorAction Stop
     if ($service.Status -eq 'Running') {
         Write-Host 'AIR Companion enrollment request written and service is running.'
+        Write-Host "Enrollment log: $logPath"
+        Stop-Transcript | Out-Null
         exit 0
     }
 
