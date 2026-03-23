@@ -64,8 +64,9 @@ $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = New-Object Security.Principal.WindowsPrincipal($currentIdentity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $argumentList = @(
+        '-NoProfile',
         '-ExecutionPolicy', 'Bypass',
-        '-File', ('"{0}"' -f $PSCommandPath)
+        '-File', $PSCommandPath
     )
     $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argumentList -PassThru -Wait
     if ($process.ExitCode -ne 0) {
