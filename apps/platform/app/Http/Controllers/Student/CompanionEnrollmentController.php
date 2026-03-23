@@ -40,6 +40,17 @@ class CompanionEnrollmentController extends Controller
         $rootCaUrl = route('companion.root-ca');
         $script = <<<'POWERSHELL'
 $ErrorActionPreference = 'Stop'
+$currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = New-Object Security.Principal.WindowsPrincipal($currentIdentity)
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    $argumentList = @(
+        '-ExecutionPolicy', 'Bypass',
+        '-File', ('"{0}"' -f $PSCommandPath)
+    )
+    Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argumentList | Out-Null
+    exit 0
+}
+
 $installDirectory = Join-Path $env:ProgramFiles 'AIR Companion'
 $utility = Join-Path $installDirectory 'air_companion_tray.exe'
 $serviceBinary = Join-Path $installDirectory 'air_companion_service.exe'
