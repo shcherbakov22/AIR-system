@@ -39,6 +39,17 @@ return [
         'shared_token' => env('EDGE_CLIENT_SHARED_TOKEN', 'dev-edge-token'),
     ],
 
+    'network_control' => [
+        'enabled' => env('NETWORK_CONTROL_ENABLED', false),
+        'base_url' => env('NETWORK_CONTROL_BASE_URL'),
+        'token' => env('NETWORK_CONTROL_TOKEN'),
+        'local_gateway_enabled' => env('LOCAL_GATEWAY_ENABLED', false),
+        'gateway_server_ipv4' => env('LOCAL_GATEWAY_SERVER_IPV4', '192.168.11.228'),
+        'gateway_dns_ipv4' => env('LOCAL_GATEWAY_DNS_IPV4', '192.168.11.228'),
+        'gateway_nft_binary' => env('LOCAL_GATEWAY_NFT_BINARY', 'nft'),
+        'gateway_table_name' => env('LOCAL_GATEWAY_TABLE_NAME', 'air_companion'),
+    ],
+
     'local_tls' => [
         'root_ca_path' => env(
             'LOCAL_TLS_ROOT_CA_PATH',
@@ -56,7 +67,7 @@ return [
     'companion_updates' => [
         'enabled' => env('COMPANION_UPDATES_ENABLED', true),
         'channel' => env('COMPANION_UPDATES_CHANNEL', 'stable'),
-        'version' => env('COMPANION_UPDATES_VERSION', '0.1.3'),
+        'version' => env('COMPANION_UPDATES_VERSION', '0.1.2'),
         'windows_package_path' => env(
             'COMPANION_WINDOWS_UPDATE_PACKAGE_PATH',
             storage_path('app/companion-updates/air-companion-windows.zip')

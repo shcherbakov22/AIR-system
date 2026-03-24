@@ -15,7 +15,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -281,11 +280,11 @@ class StudentDeviceManagementTest extends TestCase
                 ->where('devices.0.commands.0.command_type', 'request_screenshot')
                 ->where('devices.0.commands.0.results.0.status', 'ok')
                 ->where('devices.0.captures.0.capture_kind', 'screen')
-                ->where('devices.0.internet_access_mode', 'allow_all')
+                ->where('devices.0.policy.reason', 'internet_control_removed')
             );
     }
 
-    public function test_admin_can_change_device_internet_access_mode(): void
+    public function test_internet_access_controls_are_removed_from_admin_device_routes(): void
     {
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
@@ -312,32 +311,14 @@ class StudentDeviceManagementTest extends TestCase
             'internet_access_mode' => 'allow_all',
         ]);
 
-        config()->set('services.network_control.enabled', true);
-        config()->set('services.network_control.local_gateway_enabled', true);
-        config()->set('services.network_control.gateway_nft_binary', 'nft');
-        config()->set('services.network_control.gateway_table_name', 'air_companion');
-
-        Process::fake();
-
         $this->actingAs($admin)
-            ->patch(route('admin.students.devices.internet.update', [$student, $device]), [
+            ->patch("/admin/students/{$student->id}/devices/{$device->id}/internet-access", [
                 'internet_access_mode' => 'block_all',
             ])
-            ->assertRedirect(route('admin.students.devices.debug', $student, absolute: false))
-            ->assertSessionHas('success', 'Internet blocked for Internet Desk. Gateway sync applied immediately.');
-
-        $this->assertDatabaseHas('student_devices', [
-            'id' => $device->id,
-            'internet_access_mode' => 'block_all',
-        ]);
-
-        Process::assertRan(function ($process) {
-            return $process->command === ['nft', '-f', '-']
-                && str_contains($process->input, 'table inet air_companion');
-        });
+            ->assertNotFound();
     }
 
-    public function test_admin_cannot_change_internet_mode_for_revoked_device(): void
+    public function test_removed_internet_access_route_stays_unavailable_for_revoked_device(): void
     {
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
@@ -366,7 +347,7 @@ class StudentDeviceManagementTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->patch(route('admin.students.devices.internet.update', [$student, $device]), [
+            ->patch("/admin/students/{$student->id}/devices/{$device->id}/internet-access", [
                 'internet_access_mode' => 'block_all',
             ])
             ->assertNotFound();

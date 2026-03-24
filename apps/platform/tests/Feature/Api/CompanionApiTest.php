@@ -25,8 +25,6 @@ class CompanionApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        config()->set('services.network_control.enabled', true);
     }
 
     public function test_student_can_enroll_device_and_receive_token(): void
@@ -101,7 +99,7 @@ class CompanionApiTest extends TestCase
         $this->assertNotNull($record->used_by_device_id);
     }
 
-    public function test_policy_allows_internet_by_default_when_network_control_is_enabled(): void
+    public function test_policy_reports_internet_control_as_removed(): void
     {
         [$student, $studentUser] = $this->makeStudent('policy_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -115,10 +113,11 @@ class CompanionApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('policy.internet_policy.mode', 'allow_all')
             ->assertJsonPath('policy.internet_policy.internet_allowed', true)
-            ->assertJsonPath('policy.internet_policy.reason', 'admin_device_allow');
+            ->assertJsonPath('policy.internet_policy.reason', 'internet_control_removed')
+            ->assertJsonPath('network_state.reason', 'internet_control_removed');
     }
 
-    public function test_policy_blocks_internet_when_device_is_manually_blocked(): void
+    public function test_policy_ignores_legacy_device_internet_access_mode(): void
     {
         [$student, $studentUser] = $this->makeStudent('internet_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -131,15 +130,13 @@ class CompanionApiTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('policy.internet_policy.mode', 'block_all')
-            ->assertJsonPath('policy.internet_policy.internet_allowed', false)
-            ->assertJsonPath('policy.internet_policy.reason', 'admin_device_block');
+            ->assertJsonPath('policy.internet_policy.mode', 'allow_all')
+            ->assertJsonPath('policy.internet_policy.internet_allowed', true)
+            ->assertJsonPath('policy.internet_policy.reason', 'internet_control_removed');
     }
 
-    public function test_policy_reports_internet_control_as_disabled_when_feature_is_paused(): void
+    public function test_policy_keeps_internet_removed_when_feature_flags_change(): void
     {
-        config()->set('services.network_control.enabled', false);
-
         [$student, $studentUser] = $this->makeStudent('disabled_internet_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
 
@@ -168,7 +165,7 @@ class CompanionApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('policy.internet_policy.mode', 'allow_all')
             ->assertJsonPath('policy.internet_policy.internet_allowed', true)
-            ->assertJsonPath('policy.internet_policy.reason', 'internet_control_disabled');
+            ->assertJsonPath('policy.internet_policy.reason', 'internet_control_removed');
     }
 
     public function test_device_can_post_heartbeat_activity_and_capture(): void

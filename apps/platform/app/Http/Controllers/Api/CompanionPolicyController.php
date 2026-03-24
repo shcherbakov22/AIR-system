@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\CompanionDeviceRequest;
 use App\Services\DevicePolicyService;
-use App\Services\NetworkControlService;
 use Illuminate\Http\JsonResponse;
 
 class CompanionPolicyController extends Controller
@@ -13,12 +12,15 @@ class CompanionPolicyController extends Controller
     public function show(
         CompanionDeviceRequest $request,
         DevicePolicyService $devicePolicyService,
-        NetworkControlService $networkControlService,
     ): JsonResponse {
         $device = $request->device();
         $policy = $devicePolicyService->buildForDevice($device);
         $policyHash = $devicePolicyService->policyHash($policy);
-        $networkState = $networkControlService->sync($device, $policy['internet_policy']);
+        $networkState = [
+            'status' => 'removed',
+            'reason' => 'internet_control_removed',
+            'policy' => $policy['internet_policy'],
+        ];
 
         $device->forceFill([
             'last_policy_hash' => $policyHash,

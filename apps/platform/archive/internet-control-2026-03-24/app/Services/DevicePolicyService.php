@@ -117,10 +117,21 @@ class DevicePolicyService
 
     protected function internetPolicy(StudentDevice $device): array
     {
+        if (! (bool) config('services.network_control.enabled', false)) {
+            return [
+                'mode' => 'allow_all',
+                'internet_allowed' => true,
+                'reason' => 'internet_control_disabled',
+                'allowed_domains' => [],
+            ];
+        }
+
+        $mode = $device->internet_access_mode === 'block_all' ? 'block_all' : 'allow_all';
+
         return [
-            'mode' => 'allow_all',
-            'internet_allowed' => true,
-            'reason' => 'internet_control_removed',
+            'mode' => $mode,
+            'internet_allowed' => $mode === 'allow_all',
+            'reason' => $mode === 'allow_all' ? 'admin_device_allow' : 'admin_device_block',
             'allowed_domains' => [],
         ];
     }

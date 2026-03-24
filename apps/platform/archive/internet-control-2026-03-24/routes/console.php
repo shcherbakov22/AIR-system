@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Artisan;
 use App\Console\Commands\CompleteDailyScheduleRunsCommand;
 use App\Console\Commands\EvaluateObserveTheTimeViolationsCommand;
 use App\Console\Commands\PurgeStudentMonitorCapturesCommand;
+use App\Console\Commands\SyncGatewayPoliciesCommand;
 use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\StudentConsequenceProfile;
@@ -23,6 +24,9 @@ Artisan::command('inspire', function () {
 
 Schedule::command(PurgeStudentMonitorCapturesCommand::class)->dailyAt('23:59');
 Schedule::command(EvaluateObserveTheTimeViolationsCommand::class)->everyMinute();
+Schedule::command(SyncGatewayPoliciesCommand::class)
+    ->everyMinute()
+    ->when(fn () => (bool) config('services.network_control.enabled', false));
 Schedule::command(CompleteDailyScheduleRunsCommand::class)->dailyAt('20:00');
 
 Artisan::command('legacy:import-recent-users

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps<{
     student: {
@@ -21,6 +21,7 @@ const props = defineProps<{
         last_mac_address?: string | null;
         last_gateway_ipv4?: string | null;
         network_adapter_name?: string | null;
+        internet_access_mode: 'allow_all' | 'block_all';
         revoked_at?: string | null;
         last_network_state: Record<string, unknown>;
         meta: Record<string, unknown>;
@@ -92,6 +93,13 @@ const props = defineProps<{
 const formatDateTime = (value?: string | null) => value ? new Date(value).toLocaleString() : 'Never';
 const pretty = (value: string) => value.replaceAll('_', ' ');
 const formatJson = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
+const setInternetAccessMode = (deviceId: number, mode: 'allow_all' | 'block_all') => {
+    router.patch(route('admin.students.devices.internet.update', [props.student.id, deviceId]), {
+        internet_access_mode: mode,
+    }, {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -159,9 +167,27 @@ const formatJson = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
                             <p class="mt-1 text-xs text-stone-500">Gateway {{ device.last_gateway_ipv4 || 'Unknown' }}</p>
                         </div>
                         <div class="rounded-[1.25rem] bg-stone-100 p-4 text-sm text-stone-700">
-                            <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Policy</p>
-                            <p class="mt-2 font-semibold text-stone-950">Internet control removed</p>
+                            <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Internet policy</p>
+                            <p class="mt-2 font-semibold text-stone-950">{{ device.policy.internet_allowed ? 'Allowed' : 'Blocked' }}</p>
                             <p class="mt-1 text-xs text-stone-500">{{ pretty(device.policy.reason) }}</p>
+                            <div class="mt-3 flex gap-2">
+                                <button
+                                    type="button"
+                                    class="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] transition"
+                                    :class="device.internet_access_mode === 'allow_all' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-stone-300 text-stone-700 hover:border-stone-950 hover:text-stone-950'"
+                                    @click="setInternetAccessMode(device.id, 'allow_all')"
+                                >
+                                    Allow
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] transition"
+                                    :class="device.internet_access_mode === 'block_all' ? 'border-rose-600 bg-rose-600 text-white' : 'border-stone-300 text-stone-700 hover:border-stone-950 hover:text-stone-950'"
+                                    @click="setInternetAccessMode(device.id, 'block_all')"
+                                >
+                                    Block
+                                </button>
+                            </div>
                         </div>
                     </div>
 
