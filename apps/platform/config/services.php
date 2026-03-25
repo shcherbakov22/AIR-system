@@ -56,7 +56,7 @@ return [
     'companion_updates' => [
         'enabled' => env('COMPANION_UPDATES_ENABLED', true),
         'channel' => env('COMPANION_UPDATES_CHANNEL', 'stable'),
-        'version' => env('COMPANION_UPDATES_VERSION', '0.1.4'),
+        'version' => env('COMPANION_UPDATES_VERSION', '0.1.5'),
         'windows_package_path' => env(
             'COMPANION_WINDOWS_UPDATE_PACKAGE_PATH',
             storage_path('app/companion-updates/air-companion-windows.zip')
