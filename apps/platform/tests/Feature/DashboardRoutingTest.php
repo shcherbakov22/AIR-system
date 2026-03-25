@@ -18,6 +18,7 @@ use App\Models\RemoteControlSession;
 use App\Models\Violation;
 use App\Models\User;
 use App\Models\DeviceActivityEvent;
+use App\Models\ChatMessage;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -429,6 +430,15 @@ class DashboardRoutingTest extends TestCase
             'reported_by_user_id' => $admin->id,
         ]);
 
+        ChatMessage::create([
+            'student_id' => $student->id,
+            'sender_user_id' => $studentUser->id,
+            'channel' => 'chat',
+            'body' => 'Please check this first.',
+            'created_at' => now()->subSeconds(45),
+            'updated_at' => now()->subSeconds(45),
+        ]);
+
         $this->actingAs($admin)
             ->get(route('admin.dashboard'))
             ->assertOk()
@@ -449,6 +459,9 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.app_control.blocked.0.app_name', 'Game.exe')
                 ->where('monitorStudents.0.app_control.permit_url_template', route('admin.students.app-policies.permit', [$student, '__APP_POLICY__']))
                 ->where('monitorStudents.0.app_control.block_url_template', route('admin.students.app-policies.block', [$student, '__APP_POLICY__']))
+                ->where('monitorStudents.0.communication_gate.has_unread_student_chat', true)
+                ->where('monitorStudents.0.communication_gate.unread_student_chat.body', 'Please check this first.')
+                ->where('monitorStudents.0.communication_gate.chat_url', route('admin.chats.show', $student))
                 ->where('monitorStudents.0.open_violations.0.rule_title', 'Observe the time')
                 ->where('monitorStudents.0.open_violations.0.push_up_count', 10)
                 ->where('monitorStudents.0.current_push_up_count', 10)

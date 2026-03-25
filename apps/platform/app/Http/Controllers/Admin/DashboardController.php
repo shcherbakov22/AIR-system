@@ -16,6 +16,7 @@ use App\Models\StudentDevice;
 use App\Services\DevicePolicyService;
 use App\Services\SpeechAnnouncementPlaybackService;
 use App\Services\StudentAppPolicyService;
+use App\Services\StudentCommunicationGateService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,6 +26,7 @@ class DashboardController extends Controller
         protected SpeechAnnouncementPlaybackService $speechPlaybackService,
         protected DevicePolicyService $devicePolicyService,
         protected StudentAppPolicyService $studentAppPolicyService,
+        protected StudentCommunicationGateService $studentCommunicationGateService,
     ) {}
 
     protected function actualDurationSeconds(TaskSession $taskSession): int
@@ -294,6 +296,10 @@ class DashboardController extends Controller
                 ...$this->studentAppPolicyService->policyGroupsForStudent($student),
                 'permit_url_template' => route('admin.students.app-policies.permit', [$student, '__APP_POLICY__']),
                 'block_url_template' => route('admin.students.app-policies.block', [$student, '__APP_POLICY__']),
+            ],
+            'communication_gate' => $this->studentCommunicationGateService->payload($student) + [
+                'admin_blocking_message' => $this->studentCommunicationGateService->adminBlockingMessage($student),
+                'chat_url' => route('admin.chats.show', $student),
             ],
             'open_violations' => $student->violations
                 ->map(fn ($violation) => [

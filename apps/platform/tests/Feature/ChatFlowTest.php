@@ -230,6 +230,44 @@ class ChatFlowTest extends TestCase
         $this->assertNotNull($student->last_seen_mentor_chat_at);
     }
 
+    public function test_opening_admin_chat_marks_student_messages_as_seen(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        ChatMessage::create([
+            'student_id' => $student->id,
+            'sender_user_id' => $studentUser->id,
+            'channel' => 'chat',
+            'body' => 'Need help.',
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+
+        $this->assertNull($student->last_seen_student_chat_at);
+
+        $this->actingAs($mentor)
+            ->get(route('admin.chats.show', $student))
+            ->assertOk();
+
+        $student->refresh();
+
+        $this->assertNotNull($student->last_seen_student_chat_at);
+    }
+
     public function test_mentor_can_delete_chat_messages(): void
     {
         Storage::fake('local');

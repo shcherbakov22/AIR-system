@@ -131,6 +131,19 @@ type DashboardStudent = {
         permit_url_template: string;
         block_url_template: string;
     } | null;
+    communication_gate?: {
+        has_unread: boolean;
+        has_unread_student_chat: boolean;
+        unread_student_chat?: {
+            id: number;
+            body?: string | null;
+            created_at_label?: string | null;
+            sender_name?: string | null;
+            has_attachment: boolean;
+        } | null;
+        admin_blocking_message?: string | null;
+        chat_url: string;
+    } | null;
     open_violations: Array<{
         id: number;
         rule_title: string;
@@ -505,6 +518,9 @@ const closeAppsPanel = () => {
     selectedAppsStudent.value = null;
 };
 
+const hasAdminChatGate = (student: DashboardStudent): boolean =>
+    Boolean(student.communication_gate?.has_unread_student_chat);
+
 const openRemoteSession = (student: DashboardStudent) => {
     const remoteControl = student.remote_control;
     if (!remoteControl) {
@@ -739,19 +755,30 @@ const blockTooltip = (block: DashboardBlock): string => {
                         <div class="flex shrink-0 items-center gap-1">
                             <Link
                                 :href="route('admin.students.progress', student.id)"
-                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
+                                :class="hasAdminChatGate(student)
+                                    ? 'pointer-events-none border-stone-200 text-stone-400'
+                                    : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
+                                :aria-disabled="hasAdminChatGate(student)"
                             >
                                 Prog
                             </Link>
                             <Link
-                                :href="route('admin.chats.show', student.id)"
-                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                :href="student.communication_gate?.chat_url ?? route('admin.chats.show', student.id)"
+                                class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
+                                :class="hasAdminChatGate(student)
+                                    ? 'border-rose-500 bg-rose-50 text-rose-800 hover:border-rose-600 hover:text-rose-900'
+                                    : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
                             >
                                 Chat
                             </Link>
                             <button
                                 type="button"
-                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition disabled:cursor-not-allowed disabled:opacity-50"
+                                :class="hasAdminChatGate(student)
+                                    ? 'border-stone-200 text-stone-400'
+                                    : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
+                                :disabled="hasAdminChatGate(student)"
                                 @click="openAppsPanel(student)"
                             >
                                 Apps
@@ -759,13 +786,36 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <button
                                 type="button"
                                 class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
-                                :class="student.remote_control ? 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950' : 'border-stone-200 text-stone-400'"
-                                :disabled="!student.remote_control"
+                                :class="student.remote_control && !hasAdminChatGate(student)
+                                    ? 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'
+                                    : 'border-stone-200 text-stone-400'"
+                                :disabled="!student.remote_control || hasAdminChatGate(student)"
                                 @click="openRemoteSession(student)"
                             >
                                 Remote
                             </button>
                         </div>
+                    </div>
+
+                    <div
+                        v-if="student.communication_gate?.has_unread_student_chat"
+                        class="mt-1 rounded-[0.75rem] border border-rose-300 bg-rose-50 px-2 py-2"
+                    >
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-800">
+                            Unread student chat
+                        </p>
+                        <p class="mt-1 text-[11px] font-medium text-rose-950">
+                            {{ student.communication_gate.admin_blocking_message }}
+                        </p>
+                        <p class="mt-1 line-clamp-2 text-[11px] text-rose-900">
+                            {{ student.communication_gate.unread_student_chat?.body || 'Attachment only message.' }}
+                        </p>
+                        <p class="mt-1 text-[10px] text-rose-700">
+                            {{ student.communication_gate.unread_student_chat?.sender_name || student.display_name }}
+                            <span v-if="student.communication_gate.unread_student_chat?.created_at_label">
+                                · {{ student.communication_gate.unread_student_chat?.created_at_label }}
+                            </span>
+                        </p>
                     </div>
 
                     <div class="mt-1 flex flex-col gap-1">
@@ -877,7 +927,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <button
                                 type="button"
                                 class="shrink-0 rounded-[0.55rem] border border-stone-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-40"
-                                :disabled="!selectedViolationRuleIds[student.id]"
+                                :disabled="!selectedViolationRuleIds[student.id] || hasAdminChatGate(student)"
                                 @click="applyViolation(student.id)"
                             >
                                 Apply

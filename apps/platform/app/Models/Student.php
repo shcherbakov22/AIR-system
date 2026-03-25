@@ -23,6 +23,7 @@ class Student extends Model
     {
         return [
             'last_seen_mentor_chat_at' => 'datetime',
+            'last_seen_student_chat_at' => 'datetime',
             'last_seen_announcements_at' => 'datetime',
         ];
     }

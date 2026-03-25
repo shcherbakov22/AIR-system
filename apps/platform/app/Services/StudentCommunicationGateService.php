@@ -8,6 +8,22 @@ use App\Models\Student;
 
 class StudentCommunicationGateService
 {
+    public function latestUnreadStudentChat(Student $student): ?ChatMessage
+    {
+        return ChatMessage::query()
+            ->with('sender')
+            ->where('student_id', $student->id)
+            ->where('channel', 'chat')
+            ->whereHas('sender', fn ($query) => $query->where('role', UserRole::Student->value))
+            ->when(
+                $student->last_seen_student_chat_at,
+                fn ($query) => $query->where('created_at', '>', $student->last_seen_student_chat_at),
+            )
+            ->latest('created_at')
+            ->latest('id')
+            ->first();
+    }
+
     public function latestUnreadMentorChat(Student $student): ?ChatMessage
     {
         return ChatMessage::query()
@@ -41,11 +57,20 @@ class StudentCommunicationGateService
 
     public function payload(Student $student): array
     {
+        $unreadStudentChat = $this->latestUnreadStudentChat($student);
         $unreadMentorChat = $this->latestUnreadMentorChat($student);
         $unreadAnnouncement = $this->latestUnreadAnnouncement($student);
 
         return [
             'has_unread' => $unreadMentorChat !== null || $unreadAnnouncement !== null,
+            'has_unread_student_chat' => $unreadStudentChat !== null,
+            'unread_student_chat' => $unreadStudentChat ? [
+                'id' => $unreadStudentChat->id,
+                'body' => $unreadStudentChat->body,
+                'created_at_label' => $unreadStudentChat->created_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
+                'sender_name' => $unreadStudentChat->sender?->name ?: $student->display_name,
+                'has_attachment' => $unreadStudentChat->hasAttachment(),
+            ] : null,
             'unread_mentor_chat' => $unreadMentorChat ? [
                 'id' => $unreadMentorChat->id,
                 'body' => $unreadMentorChat->body,
@@ -97,6 +122,19 @@ class StudentCommunicationGateService
             . ' before continuing the schedule.';
     }
 
+    public function adminBlockingMessage(Student $student): ?string
+    {
+        $chat = $this->payload($student)['unread_student_chat'];
+
+        if (! $chat) {
+            return null;
+        }
+
+        return 'Read the unread student chat'
+            . ($chat['created_at_label'] ? " ({$chat['created_at_label']})" : '')
+            . ' before using other dashboard actions.';
+    }
+
     public function markMentorChatSeen(Student $student): void
     {
         $latestMentorChatAt = ChatMessage::query()
@@ -107,6 +145,19 @@ class StudentCommunicationGateService
 
         $student->forceFill([
             'last_seen_mentor_chat_at' => $latestMentorChatAt,
+        ])->save();
+    }
+
+    public function markStudentChatSeen(Student $student): void
+    {
+        $latestStudentChatAt = ChatMessage::query()
+            ->where('student_id', $student->id)
+            ->where('channel', 'chat')
+            ->whereHas('sender', fn ($query) => $query->where('role', UserRole::Student->value))
+            ->max('created_at');
+
+        $student->forceFill([
+            'last_seen_student_chat_at' => $latestStudentChatAt,
         ])->save();
     }
 
