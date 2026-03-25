@@ -628,6 +628,17 @@ const showCaptureHistoryItem = (index: number) => {
     selectedCapture.value = nextCapture;
 };
 
+const jumpToCaptureHistory = (event: Event) => {
+    const target = event.target as HTMLInputElement | null;
+    const nextIndex = Number(target?.value ?? NaN);
+
+    if (Number.isNaN(nextIndex)) {
+        return;
+    }
+
+    showCaptureHistoryItem(nextIndex);
+};
+
 const showPreviousCapture = () => {
     showCaptureHistoryItem(selectedCaptureHistoryIndex.value + 1);
 };
@@ -1238,6 +1249,29 @@ const blockTooltip = (block: DashboardBlock): string => {
                             >
                                 Close
                             </button>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="selectedCaptureHistory.length > 1"
+                        class="border-b border-stone-200 px-4 py-3"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                Scrub
+                            </span>
+                            <input
+                                type="range"
+                                min="0"
+                                :max="selectedCaptureHistory.length - 1"
+                                :value="selectedCaptureHistoryIndex"
+                                class="h-2 w-full cursor-pointer accent-stone-900"
+                                :disabled="captureHistoryLoading"
+                                @input="jumpToCaptureHistory"
+                            >
+                            <span class="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                                {{ selectedCaptureHistoryIndex + 1 }} / {{ selectedCaptureHistory.length }}
+                            </span>
                         </div>
                     </div>
 
