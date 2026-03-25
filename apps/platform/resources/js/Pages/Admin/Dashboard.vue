@@ -630,11 +630,13 @@ const showCaptureHistoryItem = (index: number) => {
 
 const jumpToCaptureHistory = (event: Event) => {
     const target = event.target as HTMLInputElement | null;
-    const nextIndex = Number(target?.value ?? NaN);
+    const sliderValue = Number(target?.value ?? NaN);
 
-    if (Number.isNaN(nextIndex)) {
+    if (Number.isNaN(sliderValue)) {
         return;
     }
+
+    const nextIndex = (selectedCaptureHistory.value.length - 1) - sliderValue;
 
     showCaptureHistoryItem(nextIndex);
 };
@@ -1264,7 +1266,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 type="range"
                                 min="0"
                                 :max="selectedCaptureHistory.length - 1"
-                                :value="selectedCaptureHistoryIndex"
+                                :value="(selectedCaptureHistory.length - 1) - selectedCaptureHistoryIndex"
                                 class="h-2 w-full cursor-pointer accent-stone-900"
                                 :disabled="captureHistoryLoading"
                                 @input="jumpToCaptureHistory"
