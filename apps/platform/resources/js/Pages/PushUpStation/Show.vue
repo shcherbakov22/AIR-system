@@ -75,6 +75,7 @@ const currentSet = ref(1);
 const totalSets = ref(0);
 const isResting = ref(false);
 const countdownText = ref('');
+const backCalibrated = ref(false);
 
 let heartbeatTimer: number | null = null;
 let port: SerialPortLike | null = null;
@@ -146,6 +147,17 @@ const sendMaintenanceCommand = async (command: 'CAL_FLOOR' | 'CAL_BACK' | 'RESET
         repCount.value = 0;
         movementText.value = 'Standby';
         statusText.value = 'Reset sent';
+        backCalibrated.value = false;
+    }
+
+    if (command === 'CAL_FLOOR') {
+        statusText.value = 'Floor calibrated';
+        backCalibrated.value = false;
+    }
+
+    if (command === 'CAL_BACK') {
+        statusText.value = 'Back calibrated';
+        backCalibrated.value = true;
     }
 };
 
@@ -193,6 +205,7 @@ const claimNext = async () => {
         repCount.value = payload.session?.current_rep ?? 0;
         currentSet.value = 1;
         totalSets.value = payload.session?.configuration.sets ?? 0;
+        backCalibrated.value = false;
         statusText.value = payload.session ? 'Session claimed' : 'No pending sessions';
 
     } finally {
@@ -221,6 +234,7 @@ const startCurrentSession = async () => {
     totalSets.value = currentSession.value.configuration.sets;
     repCount.value = 0;
     movementText.value = 'Standby';
+    backCalibrated.value = false;
 
     await postJson(route('push-up-station.sessions.start', currentSession.value.id), 'PATCH', {
         station_key: stationKey.value,
@@ -308,6 +322,7 @@ const completeCurrentSession = async () => {
     totalSets.value = 0;
     isResting.value = false;
     countdownText.value = '';
+    backCalibrated.value = false;
     clearRestTimer();
     await heartbeat();
 };
@@ -330,6 +345,7 @@ const failCurrentSession = async () => {
     totalSets.value = 0;
     isResting.value = false;
     countdownText.value = '';
+    backCalibrated.value = false;
     clearRestTimer();
     await heartbeat();
 };
@@ -569,7 +585,7 @@ onBeforeUnmount(() => {
                             <button
                                 type="button"
                                 class="rounded-full border border-emerald-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700"
-                                :disabled="!serialConnected"
+                                :disabled="!serialConnected || !backCalibrated"
                                 @click="startCurrentSession"
                             >
                                 Start
