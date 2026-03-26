@@ -365,12 +365,14 @@ const readLoop = async () => {
                 break;
             }
 
-            const chunk = decoder.decode(value, { stream: true });
+            const chunk = decoder.decode(value);
             if (!chunk) {
                 continue;
             }
 
-            if (chunk.includes('FINISH_NOW')) {
+            const normalizedChunk = chunk.replace(/\r/g, '\n');
+
+            if (normalizedChunk.includes('FINISH_NOW')) {
                 if (currentSession.value && currentSet.value < totalSets.value) {
                     repCount.value = currentSession.value.configuration.reps;
                     await startRest();
@@ -379,19 +381,24 @@ const readLoop = async () => {
                 }
             }
 
-            if (chunk.includes('STATE:SEARCHING_BACK')) {
+            if (normalizedChunk.includes('STATE:SEARCHING_BACK')) {
                 statusText.value = 'Searching back position';
             }
 
-            if (chunk.includes('STATE:BACK_DETECTED')) {
+            if (normalizedChunk.includes('STATE:BACK_DETECTED')) {
                 statusText.value = 'Back detected, start moving';
             }
 
-            if (chunk.includes('STATE:TOTAL_RESET_OK')) {
+            if (normalizedChunk.includes('STATE:TOTAL_RESET_OK')) {
                 statusText.value = 'Device reset';
             }
 
-            for (const part of chunk.split(';')) {
+            for (const rawPart of normalizedChunk.split(/[;\n]+/)) {
+                const part = rawPart.trim();
+                if (!part) {
+                    continue;
+                }
+
                 if (part.startsWith('D:')) {
                     distanceText.value = part.split(':')[1] ?? '---';
                 }
