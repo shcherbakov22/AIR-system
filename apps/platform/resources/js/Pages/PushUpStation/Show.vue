@@ -71,11 +71,16 @@ const distanceText = ref('---');
 const repCount = ref(0);
 const movementText = ref('Standby');
 const busy = ref(false);
+const currentSet = ref(1);
+const totalSets = ref(0);
+const isResting = ref(false);
+const countdownText = ref('');
 
 let heartbeatTimer: number | null = null;
 let port: SerialPortLike | null = null;
 let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 let progressThrottleAt = 0;
+let restTimer: number | null = null;
 
 const sessionStatusLabel = computed(() => {
     if (!currentSession.value) {
@@ -123,6 +128,27 @@ const sendSerial = async (message: string) => {
     await writer.write(new TextEncoder().encode(`${message}\n`));
 };
 
+const clearRestTimer = () => {
+    if (restTimer !== null) {
+        window.clearInterval(restTimer);
+        restTimer = null;
+    }
+};
+
+const sendMaintenanceCommand = async (command: 'CAL_FLOOR' | 'CAL_BACK' | 'RESET') => {
+    if (!serialConnected.value) {
+        return;
+    }
+
+    await sendSerial(command);
+
+    if (command === 'RESET') {
+        repCount.value = 0;
+        movementText.value = 'Standby';
+        statusText.value = 'Reset sent';
+    }
+};
+
 const heartbeat = async () => {
     ensureStationKey();
 
@@ -165,10 +191,27 @@ const claimNext = async () => {
         pendingCount.value = payload.pending_count;
         currentSession.value = payload.session;
         repCount.value = payload.session?.current_rep ?? 0;
+        currentSet.value = 1;
+        totalSets.value = payload.session?.configuration.sets ?? 0;
         statusText.value = payload.session ? 'Session claimed' : 'No pending sessions';
+
+        if (payload.session && serialConnected.value) {
+            await startCurrentSession();
+        }
     } finally {
         busy.value = false;
     }
+};
+
+const sendWorkoutConfig = async () => {
+    if (!currentSession.value || !serialConnected.value) {
+        return;
+    }
+
+    const config = currentSession.value.configuration;
+    await sendSerial('CAL_BACK');
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    await sendSerial(`${config.reps},${config.penalty_reps},${config.drop_threshold},${config.up_gap},${config.down_tolerance}`);
 };
 
 const startCurrentSession = async () => {
@@ -176,15 +219,52 @@ const startCurrentSession = async () => {
         return;
     }
 
-    const config = currentSession.value.configuration;
+    clearRestTimer();
+    isResting.value = false;
+    countdownText.value = '';
+    currentSet.value = Math.max(1, currentSet.value);
+    totalSets.value = currentSession.value.configuration.sets;
+    repCount.value = 0;
+    movementText.value = 'Standby';
 
     await postJson(route('push-up-station.sessions.start', currentSession.value.id), 'PATCH', {
         station_key: stationKey.value,
     });
 
-    statusText.value = `Running ${currentSession.value.student.display_name}`;
-    repCount.value = 0;
-    await sendSerial(`${config.reps},${config.penalty_reps},${config.drop_threshold},${config.up_gap},${config.down_tolerance}`);
+    statusText.value = `Set ${currentSet.value}/${totalSets.value}: preparing ${currentSession.value.student.display_name}`;
+    await sendWorkoutConfig();
+};
+
+const startRest = async () => {
+    if (!currentSession.value) {
+        return;
+    }
+
+    clearRestTimer();
+    isResting.value = true;
+    movementText.value = 'Rest';
+    countdownText.value = `${currentSession.value.configuration.rest_seconds}s`;
+    statusText.value = `Rest before set ${currentSet.value + 1}/${totalSets.value}`;
+    await sendSerial('BEEP_REST');
+
+    let remaining = currentSession.value.configuration.rest_seconds;
+    restTimer = window.setInterval(async () => {
+        remaining -= 1;
+        countdownText.value = `${Math.max(remaining, 0)}s`;
+
+        if (remaining <= 5 && remaining > 0) {
+            await sendSerial('BEEP_LOW');
+        }
+
+        if (remaining <= 0) {
+            clearRestTimer();
+            isResting.value = false;
+            countdownText.value = '';
+            currentSet.value += 1;
+            await sendSerial('BEEP_START');
+            await startCurrentSession();
+        }
+    }, 1000);
 };
 
 const pushProgress = async (currentRep: number) => {
@@ -204,8 +284,8 @@ const pushProgress = async (currentRep: number) => {
         'PATCH',
         {
             station_key: stationKey.value,
-            current_rep: currentRep,
-            current_set: 1,
+            current_rep: ((Math.max(currentSet.value, 1) - 1) * currentSession.value.configuration.reps) + currentRep,
+            current_set: currentSet.value,
         },
     );
 
@@ -229,6 +309,11 @@ const completeCurrentSession = async () => {
     currentSession.value = null;
     repCount.value = 0;
     movementText.value = 'Standby';
+    currentSet.value = 1;
+    totalSets.value = 0;
+    isResting.value = false;
+    countdownText.value = '';
+    clearRestTimer();
     await heartbeat();
 };
 
@@ -245,6 +330,12 @@ const failCurrentSession = async () => {
     statusText.value = 'Session failed';
     currentSession.value = null;
     repCount.value = 0;
+    movementText.value = 'Standby';
+    currentSet.value = 1;
+    totalSets.value = 0;
+    isResting.value = false;
+    countdownText.value = '';
+    clearRestTimer();
     await heartbeat();
 };
 
@@ -266,27 +357,56 @@ const readLoop = async () => {
 
             buffer += decoder.decode(value, { stream: true });
 
-            if (buffer.includes('FINISH_NOW')) {
-                buffer = buffer.replace('FINISH_NOW', '');
-                await completeCurrentSession();
-            }
+            const lines = buffer.split(/\r?\n/);
+            buffer = lines.pop() ?? '';
 
-            const parts = buffer.split(';');
-            buffer = parts.pop() ?? '';
-
-            for (const part of parts) {
-                if (part.startsWith('D:')) {
-                    distanceText.value = part.split(':')[1] ?? '---';
+            for (const rawLine of lines) {
+                const line = rawLine.trim();
+                if (!line) {
+                    continue;
                 }
 
-                if (part.startsWith('W:')) {
-                    const nextRep = Number(part.split(':')[1] ?? '0');
-                    repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
-                    await pushProgress(repCount.value);
+                if (line.includes('FINISH_NOW')) {
+                    if (currentSession.value && currentSet.value < totalSets.value) {
+                        repCount.value = currentSession.value.configuration.reps;
+                        await startRest();
+                    } else {
+                        await completeCurrentSession();
+                    }
+                    continue;
                 }
 
-                if (part.startsWith('S:')) {
-                    movementText.value = part.split(':')[1] === '1' ? 'Up' : 'Down';
+                if (line.startsWith('STATE:SEARCHING_BACK')) {
+                    statusText.value = 'Searching back position';
+                    continue;
+                }
+
+                if (line.startsWith('STATE:BACK_DETECTED')) {
+                    statusText.value = 'Back detected, start moving';
+                    continue;
+                }
+
+                if (line.startsWith('STATE:TOTAL_RESET_OK')) {
+                    statusText.value = 'Device reset';
+                    continue;
+                }
+
+                for (const part of line.split(';')) {
+                    if (part.startsWith('D:')) {
+                        distanceText.value = part.split(':')[1] ?? '---';
+                    }
+
+                    if (part.startsWith('W:')) {
+                        const nextRep = Number(part.split(':')[1] ?? '0');
+                        repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
+                        if (!isResting.value) {
+                            await pushProgress(repCount.value);
+                        }
+                    }
+
+                    if (part.startsWith('S:')) {
+                        movementText.value = part.split(':')[1] === '1' ? 'Up' : 'Down';
+                    }
                 }
             }
         }
@@ -324,6 +444,8 @@ onBeforeUnmount(() => {
     if (heartbeatTimer !== null) {
         window.clearInterval(heartbeatTimer);
     }
+
+    clearRestTimer();
 });
 </script>
 
@@ -388,6 +510,12 @@ onBeforeUnmount(() => {
                     <p class="text-[11px] uppercase tracking-[0.3em] text-lime-300">Rep count</p>
                     <p class="mt-3 text-7xl font-semibold leading-none">{{ repCount }}</p>
                     <p class="mt-3 text-sm uppercase tracking-[0.18em] text-lime-300">{{ movementText }}</p>
+                    <p class="mt-2 text-xs uppercase tracking-[0.16em] text-lime-200">
+                        <template v-if="currentSession">
+                            Set {{ currentSet }}/{{ totalSets }}
+                            <span v-if="countdownText"> · {{ countdownText }}</span>
+                        </template>
+                    </p>
                 </div>
 
                 <div class="mt-5 rounded-[1.25rem] bg-stone-50 p-5 ring-1 ring-stone-200">
@@ -429,6 +557,22 @@ onBeforeUnmount(() => {
                         <div class="flex flex-wrap gap-3">
                             <button
                                 type="button"
+                                class="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700"
+                                :disabled="!serialConnected"
+                                @click="sendMaintenanceCommand('CAL_FLOOR')"
+                            >
+                                Cal floor
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700"
+                                :disabled="!serialConnected"
+                                @click="sendMaintenanceCommand('CAL_BACK')"
+                            >
+                                Cal back
+                            </button>
+                            <button
+                                type="button"
                                 class="rounded-full border border-emerald-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700"
                                 :disabled="!serialConnected"
                                 @click="startCurrentSession"
@@ -441,6 +585,14 @@ onBeforeUnmount(() => {
                                 @click="claimNext"
                             >
                                 Refresh
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700"
+                                :disabled="!serialConnected"
+                                @click="sendMaintenanceCommand('RESET')"
+                            >
+                                Reset
                             </button>
                             <button
                                 type="button"
