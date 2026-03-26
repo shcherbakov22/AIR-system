@@ -101,6 +101,9 @@ class ViolationController extends Controller
                         : null,
                 ]
                 : null,
+            'start_push_up_url' => $violation->status === 'open'
+                ? route('admin.violations.push-up-sessions.store', $violation)
+                : null,
         ];
     }
 

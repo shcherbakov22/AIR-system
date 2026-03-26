@@ -149,6 +149,7 @@ type DashboardStudent = {
         rule_title: string;
         push_up_count: number;
         occurred_at_label?: string | null;
+        start_push_up_url?: string | null;
     }>;
     violation_rule_options: Array<{
         id: number;
@@ -487,6 +488,17 @@ const applyViolation = (studentId: number) => {
         onSuccess: () => {
             selectedViolationRuleIds.value[studentId] = '';
         },
+    });
+};
+
+const queueStudentPushUps = (url?: string | null) => {
+    if (!url) {
+        return;
+    }
+
+    router.post(url, {}, {
+        preserveScroll: true,
+        preserveState: true,
     });
 };
 
@@ -910,6 +922,15 @@ const blockTooltip = (block: DashboardBlock): string => {
                                         {{ violation.push_up_count }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
                                     </p>
                                 </div>
+
+                                <button
+                                    v-if="violation.start_push_up_url"
+                                    type="button"
+                                    class="inline-flex rounded-full border border-amber-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700 transition hover:border-amber-500 hover:text-amber-900"
+                                    @click="queueStudentPushUps(violation.start_push_up_url)"
+                                >
+                                    Do pushups
+                                </button>
 
                                 <button
                                     type="button"

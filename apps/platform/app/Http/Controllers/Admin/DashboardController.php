@@ -307,6 +307,7 @@ class DashboardController extends Controller
                     'rule_title' => $violation->rule_title_snapshot,
                     'push_up_count' => $violation->penalty_units,
                     'occurred_at_label' => $violation->occurred_at?->format('d M, H:i'),
+                    'start_push_up_url' => route('admin.violations.push-up-sessions.store', $violation),
                 ])
                 ->all(),
             'violation_rule_options' => $violationRuleOptions,

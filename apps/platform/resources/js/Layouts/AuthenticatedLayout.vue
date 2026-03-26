@@ -68,6 +68,11 @@ const navItems = computed(() => {
             active: route().current('admin.violations.*'),
         });
         items.push({
+            label: 'Counter',
+            href: route('push-up-station.show'),
+            active: route().current('push-up-station.*'),
+        });
+        items.push({
             label: 'Schedules',
             href: route('admin.schedule-templates.index'),
             active: route().current('admin.schedule-templates.*'),
@@ -87,6 +92,11 @@ const navItems = computed(() => {
             label: 'Assignments',
             href: route('student.assignments.index'),
             active: route().current('student.assignments.*'),
+        });
+        items.push({
+            label: 'Counter',
+            href: route('push-up-station.show'),
+            active: route().current('push-up-station.*'),
         });
         items.push({
             label: 'Rules',

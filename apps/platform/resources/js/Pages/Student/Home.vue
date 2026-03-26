@@ -56,6 +56,7 @@ const props = defineProps<{
         rule_title: string;
         push_up_count: number;
         occurred_at_label?: string | null;
+        start_push_up_url?: string | null;
     }>;
     activeScheduleRun: {
         id: number;
@@ -167,6 +168,13 @@ const canFinishScheduleNow = computed(() =>
 const pauseOwnTimerFormOpen = ref(false);
 const hasTaskTemplates = computed(() => props.taskTemplates.length > 0);
 const hasBlockingViolations = computed(() => props.openViolations.length > 0);
+const queueViolationPushUps = (url?: string | null) => {
+    if (!url) {
+        return;
+    }
+
+    router.post(url, {}, { preserveScroll: true, preserveState: true });
+};
 const hasBlockingCommunication = computed(() => props.communicationGate.has_unread);
 const hasBlockingAssignments = computed(() => props.assignmentGate.has_unread);
 const hasUnreadMentorChat = computed(() => props.communicationGate.unread_mentor_chat !== null);
@@ -890,9 +898,19 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                             <p
                                 v-for="violation in openViolations"
                                 :key="violation.id"
-                                class="truncate"
+                                class="flex items-center justify-between gap-3"
                             >
-                                {{ violation.rule_title }} - {{ violation.push_up_count }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
+                                <span class="truncate">
+                                    {{ violation.rule_title }} - {{ violation.push_up_count }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
+                                </span>
+                                <button
+                                    v-if="violation.start_push_up_url"
+                                    type="button"
+                                    class="shrink-0 rounded-full border border-amber-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700 transition hover:border-amber-500 hover:text-amber-900"
+                                    @click="queueViolationPushUps(violation.start_push_up_url)"
+                                >
+                                    Do pushups
+                                </button>
                             </p>
                         </div>
                     </div>

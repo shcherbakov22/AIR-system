@@ -152,6 +152,7 @@ class HomeController extends Controller
                     'rule_title' => $violation->rule_title_snapshot,
                     'push_up_count' => $violation->penalty_units,
                     'occurred_at_label' => $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
+                    'start_push_up_url' => route('student.violations.push-up-sessions.store', $violation),
                 ])
                 ->all(),
             'activeTaskSession' => $activeTaskSession

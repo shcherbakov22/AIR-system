@@ -35,6 +35,7 @@ const props = defineProps<{
             notes?: string | null;
             recorded_at_label?: string | null;
         } | null;
+        start_push_up_url?: string | null;
     }>;
 }>();
 
@@ -70,6 +71,17 @@ const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement
     router.patch(route('admin.students.push-up-counter.update', studentId), {
         action,
     }, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
+const queuePushUps = (url?: string | null) => {
+    if (!url) {
+        return;
+    }
+
+    router.post(url, {}, {
         preserveScroll: true,
         preserveState: true,
     });
@@ -234,6 +246,14 @@ const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement
                         </div>
 
                         <div class="flex shrink-0 flex-wrap gap-3">
+                            <button
+                                v-if="violation.start_push_up_url"
+                                type="button"
+                                class="inline-flex rounded-full border border-amber-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 transition hover:border-amber-500 hover:text-amber-900"
+                                @click="queuePushUps(violation.start_push_up_url)"
+                            >
+                                Do pushups
+                            </button>
                             <Link
                                 :href="route('admin.violations.show', violation.id)"
                                 class="inline-flex rounded-full border border-rose-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-500 hover:text-rose-900"

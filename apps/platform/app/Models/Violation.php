@@ -50,4 +50,9 @@ class Violation extends Model
     {
         return $this->hasMany(ViolationResolution::class);
     }
+
+    public function pushUpSessions(): HasMany
+    {
+        return $this->hasMany(PushUpSession::class);
+    }
 }

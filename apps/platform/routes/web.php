@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\AnnouncementController as AdminAnnouncementController;
 use App\Http\Controllers\Admin\AssignmentController as AdminAssignmentController;
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
+use App\Http\Controllers\Admin\PushUpSessionController as AdminPushUpSessionController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
 use App\Http\Controllers\Admin\RemoteControlSessionController as AdminRemoteControlSessionController;
@@ -21,11 +22,13 @@ use App\Http\Controllers\Api\CompanionUpdateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LegacyCaptureController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PushUpStationController;
 use App\Http\Controllers\Student\CompanionEnrollmentController as StudentCompanionEnrollmentController;
 use App\Http\Controllers\Student\ChatController as StudentChatController;
 use App\Http\Controllers\Student\AnnouncementController as StudentAnnouncementController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\HomeController as StudentHomeController;
+use App\Http\Controllers\Student\PushUpSessionController as StudentPushUpSessionController;
 use App\Http\Controllers\Student\RuleController as StudentRuleController;
 use App\Http\Controllers\Student\ScheduleRunController as StudentScheduleRunController;
 use App\Http\Controllers\Student\ScheduleRunTaskSessionController as StudentScheduleRunTaskSessionController;
@@ -75,6 +78,13 @@ Route::prefix('ss')
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/push-up-station', [PushUpStationController::class, 'show'])->name('push-up-station.show');
+    Route::post('/push-up-station/heartbeat', [PushUpStationController::class, 'heartbeat'])->name('push-up-station.heartbeat');
+    Route::post('/push-up-station/claim-next', [PushUpStationController::class, 'claimNext'])->name('push-up-station.claim-next');
+    Route::patch('/push-up-station/sessions/{pushUpSession}/start', [PushUpStationController::class, 'start'])->name('push-up-station.sessions.start');
+    Route::patch('/push-up-station/sessions/{pushUpSession}/progress', [PushUpStationController::class, 'progress'])->name('push-up-station.sessions.progress');
+    Route::patch('/push-up-station/sessions/{pushUpSession}/complete', [PushUpStationController::class, 'complete'])->name('push-up-station.sessions.complete');
+    Route::patch('/push-up-station/sessions/{pushUpSession}/fail', [PushUpStationController::class, 'fail'])->name('push-up-station.sessions.fail');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -105,6 +115,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/violations/{violation}', [AdminViolationController::class, 'show'])->name('violations.show');
         Route::patch('/violations/{violation}/resolve', [AdminViolationController::class, 'resolve'])->name('violations.resolve');
         Route::delete('/violations/{violation}', [AdminViolationController::class, 'destroy'])->name('violations.destroy');
+        Route::post('/violations/{violation}/push-up-sessions', [AdminPushUpSessionController::class, 'store'])->name('violations.push-up-sessions.store');
         Route::get('/schedule-templates', [AdminScheduleTemplateController::class, 'index'])->name('schedule-templates.index');
         Route::get('/schedule-templates/create', [AdminScheduleTemplateController::class, 'create'])->name('schedule-templates.create');
         Route::post('/schedule-templates', [AdminScheduleTemplateController::class, 'store'])->name('schedule-templates.store');
@@ -146,6 +157,7 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('student')->name('student.')->middleware('student')->group(function () {
         Route::get('/home', StudentHomeController::class)->name('home');
+        Route::post('/violations/{violation}/push-up-sessions', [StudentPushUpSessionController::class, 'store'])->name('violations.push-up-sessions.store');
         Route::get('/announcements', [StudentAnnouncementController::class, 'show'])->name('announcements.show');
         Route::get('/assignments', [StudentAssignmentController::class, 'index'])->name('assignments.index');
         Route::patch('/assignments/{studentAssignment}/start', [StudentAssignmentController::class, 'start'])->name('assignments.start');
