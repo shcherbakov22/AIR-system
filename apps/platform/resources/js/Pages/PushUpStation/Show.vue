@@ -195,9 +195,6 @@ const claimNext = async () => {
         totalSets.value = payload.session?.configuration.sets ?? 0;
         statusText.value = payload.session ? 'Session claimed' : 'No pending sessions';
 
-        if (payload.session && serialConnected.value) {
-            await startCurrentSession();
-        }
     } finally {
         busy.value = false;
     }
@@ -579,11 +576,11 @@ onBeforeUnmount(() => {
                             >
                                 Start
                             </button>
-                            <button
-                                type="button"
-                                class="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700"
-                                @click="claimNext"
-                            >
+                        <button
+                            type="button"
+                            class="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700"
+                            @click="claimNext"
+                        >
                                 Refresh
                             </button>
                             <button
@@ -606,6 +603,9 @@ onBeforeUnmount(() => {
 
                     <p v-else class="mt-4 text-sm text-stone-500">
                         No claimed task. Keep this window open on the station machine.
+                    </p>
+                    <p v-if="currentSession" class="mt-3 text-xs text-stone-500">
+                        After the student is in position, use <span class="font-semibold text-stone-700">Start</span> to run back calibration and begin the set.
                     </p>
                 </div>
             </div>
