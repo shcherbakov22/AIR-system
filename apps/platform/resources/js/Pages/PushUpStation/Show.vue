@@ -206,8 +206,6 @@ const sendWorkoutConfig = async () => {
     }
 
     const config = currentSession.value.configuration;
-    await sendSerial('CAL_BACK');
-    await new Promise((resolve) => window.setTimeout(resolve, 350));
     await sendSerial(`${config.reps},${config.penalty_reps},${config.drop_threshold},${config.up_gap},${config.down_tolerance}`);
 };
 
@@ -228,7 +226,7 @@ const startCurrentSession = async () => {
         station_key: stationKey.value,
     });
 
-    statusText.value = `Set ${currentSet.value}/${totalSets.value}: preparing ${currentSession.value.student.display_name}`;
+    statusText.value = `Set ${currentSet.value}/${totalSets.value}: starting ${currentSession.value.student.display_name}`;
     await sendWorkoutConfig();
 };
 
@@ -605,7 +603,7 @@ onBeforeUnmount(() => {
                         No claimed task. Keep this window open on the station machine.
                     </p>
                     <p v-if="currentSession" class="mt-3 text-xs text-stone-500">
-                        After the student is in position, use <span class="font-semibold text-stone-700">Start</span> to run back calibration and begin the set.
+                        After the student is in position, use <span class="font-semibold text-stone-700">Cal back</span>, then <span class="font-semibold text-stone-700">Start</span>.
                     </p>
                 </div>
             </div>
