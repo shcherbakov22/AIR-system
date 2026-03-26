@@ -357,7 +357,6 @@ const readLoop = async () => {
 
     const decoder = new TextDecoder();
     const reader = port.readable.getReader();
-    let buffer = '';
 
     try {
         while (true) {
@@ -366,58 +365,47 @@ const readLoop = async () => {
                 break;
             }
 
-            buffer += decoder.decode(value, { stream: true });
+            const chunk = decoder.decode(value, { stream: true });
+            if (!chunk) {
+                continue;
+            }
 
-            const lines = buffer.split(/\r?\n/);
-            buffer = lines.pop() ?? '';
+            if (chunk.includes('FINISH_NOW')) {
+                if (currentSession.value && currentSet.value < totalSets.value) {
+                    repCount.value = currentSession.value.configuration.reps;
+                    await startRest();
+                } else {
+                    await completeCurrentSession();
+                }
+            }
 
-            for (const rawLine of lines) {
-                const line = rawLine.trim();
-                if (!line) {
-                    continue;
+            if (chunk.includes('STATE:SEARCHING_BACK')) {
+                statusText.value = 'Searching back position';
+            }
+
+            if (chunk.includes('STATE:BACK_DETECTED')) {
+                statusText.value = 'Back detected, start moving';
+            }
+
+            if (chunk.includes('STATE:TOTAL_RESET_OK')) {
+                statusText.value = 'Device reset';
+            }
+
+            for (const part of chunk.split(';')) {
+                if (part.startsWith('D:')) {
+                    distanceText.value = part.split(':')[1] ?? '---';
                 }
 
-                if (line.includes('FINISH_NOW')) {
-                    if (currentSession.value && currentSet.value < totalSets.value) {
-                        repCount.value = currentSession.value.configuration.reps;
-                        await startRest();
-                    } else {
-                        await completeCurrentSession();
+                if (part.startsWith('W:')) {
+                    const nextRep = Number(part.split(':')[1] ?? '0');
+                    repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
+                    if (!isResting.value) {
+                        await pushProgress(repCount.value);
                     }
-                    continue;
                 }
 
-                if (line.startsWith('STATE:SEARCHING_BACK')) {
-                    statusText.value = 'Searching back position';
-                    continue;
-                }
-
-                if (line.startsWith('STATE:BACK_DETECTED')) {
-                    statusText.value = 'Back detected, start moving';
-                    continue;
-                }
-
-                if (line.startsWith('STATE:TOTAL_RESET_OK')) {
-                    statusText.value = 'Device reset';
-                    continue;
-                }
-
-                for (const part of line.split(';')) {
-                    if (part.startsWith('D:')) {
-                        distanceText.value = part.split(':')[1] ?? '---';
-                    }
-
-                    if (part.startsWith('W:')) {
-                        const nextRep = Number(part.split(':')[1] ?? '0');
-                        repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
-                        if (!isResting.value) {
-                            await pushProgress(repCount.value);
-                        }
-                    }
-
-                    if (part.startsWith('S:')) {
-                        movementText.value = part.split(':')[1] === '1' ? 'Up' : 'Down';
-                    }
+                if (part.startsWith('S:')) {
+                    movementText.value = part.split(':')[1] === '1' ? 'Up' : 'Down';
                 }
             }
         }
