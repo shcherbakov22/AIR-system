@@ -895,25 +895,25 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </button>
                     </div>
 
-                    <div v-if="student.open_violations.length > 0" class="mt-1 rounded-[0.75rem] bg-stone-50 px-1.5 py-1">
+                    <div v-if="student.open_violations.length > 0" class="mt-1 rounded-[0.75rem] bg-rose-50 px-1.5 py-1 ring-1 ring-rose-200">
                         <div class="space-y-1">
                             <div
                                 v-for="violation in student.open_violations"
                                 :key="violation.id"
-                                class="flex items-center justify-between gap-2 rounded-[0.75rem] bg-white px-2 py-1.5 ring-1 ring-stone-200"
+                                class="flex items-center justify-between gap-2 rounded-[0.75rem] bg-white px-2 py-1.5 ring-1 ring-rose-200"
                             >
                                 <div class="min-w-0">
-                                    <p class="truncate text-[11px] font-medium text-stone-900">
+                                    <p class="truncate text-[11px] font-medium text-rose-950">
                                         {{ violation.rule_title }}
                                     </p>
-                                    <p class="text-[10px] text-stone-500">
+                                    <p class="text-[10px] text-rose-700">
                                         {{ violation.push_up_count }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
                                     </p>
                                 </div>
 
                                 <button
                                     type="button"
-                                    class="inline-flex rounded-full border border-stone-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    class="inline-flex rounded-full border border-rose-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-700 transition hover:border-rose-500 hover:text-rose-900"
                                     @click="deleteViolation(violation.id)"
                                 >
                                     Remove

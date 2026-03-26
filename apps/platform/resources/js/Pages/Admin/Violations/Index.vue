@@ -161,10 +161,10 @@ const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement
                                     <template v-if="violationCountFor(student.id, ruleDefinition.id) > 0">
                                         <button
                                             type="button"
-                                            class="group flex h-14 w-full items-center justify-center bg-amber-100 px-2 transition hover:bg-amber-200"
+                                            class="group flex h-14 w-full items-center justify-center bg-rose-100 px-2 transition hover:bg-rose-200"
                                             @click="addViolation(student.id, ruleDefinition.id)"
                                         >
-                                            <span class="text-lg leading-none text-amber-800 transition group-hover:text-amber-950">
+                                            <span class="text-lg leading-none text-rose-800 transition group-hover:text-rose-950">
                                                 ×
                                             </span>
                                         </button>
@@ -172,10 +172,10 @@ const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement
                                     <button
                                         v-else
                                         type="button"
-                                        class="group flex h-14 w-full items-center justify-center gap-2 px-2 transition hover:bg-amber-50"
+                                        class="group flex h-14 w-full items-center justify-center gap-2 px-2 transition hover:bg-rose-50"
                                         @click="addViolation(student.id, ruleDefinition.id)"
                                     >
-                                        <span class="text-lg leading-none text-stone-300 transition group-hover:text-amber-700">
+                                        <span class="text-lg leading-none text-stone-300 transition group-hover:text-rose-700">
                                             +
                                         </span>
                                     </button>
@@ -186,14 +186,14 @@ const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement
                 </div>
             </div>
 
-            <div class="mt-5 overflow-hidden rounded-[1.75rem] bg-white shadow-sm ring-1 ring-stone-200">
-                <div class="border-b border-stone-200 px-4 py-4 sm:px-5">
-                    <h2 class="text-lg font-semibold text-stone-950">
+            <div class="mt-5 overflow-hidden rounded-[1.75rem] bg-rose-50 shadow-sm ring-1 ring-rose-200">
+                <div class="border-b border-rose-200 px-4 py-4 sm:px-5">
+                    <h2 class="text-lg font-semibold text-rose-950">
                         Open violations
                     </h2>
                 </div>
 
-                <div v-if="props.openViolations.length > 0" class="divide-y divide-stone-200">
+                <div v-if="props.openViolations.length > 0" class="divide-y divide-rose-200">
                     <article
                         v-for="violation in props.openViolations"
                         :key="violation.id"
@@ -201,31 +201,31 @@ const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement
                     >
                         <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <h3 class="text-sm font-semibold text-stone-950">
+                                <h3 class="text-sm font-semibold text-rose-950">
                                     {{ violation.student.username }}
                                 </h3>
-                                <span class="text-sm text-stone-400">·</span>
-                                <p class="text-sm text-stone-700">
+                                <span class="text-sm text-rose-300">·</span>
+                                <p class="text-sm text-rose-800">
                                     {{ violation.rule_title }}
                                 </p>
-                                <span class="text-sm text-stone-400">·</span>
-                                <p class="text-sm text-stone-700">
+                                <span class="text-sm text-rose-300">·</span>
+                                <p class="text-sm text-rose-800">
                                     {{ violation.push_up_count }} push-ups
                                 </p>
-                                <span class="text-sm text-stone-400">·</span>
-                                <p class="text-sm text-stone-500">
+                                <span class="text-sm text-rose-300">·</span>
+                                <p class="text-sm text-rose-700">
                                     {{ violation.occurred_at_label || 'Time not recorded' }}
                                 </p>
                             </div>
                             <p
                                 v-if="violation.notes"
-                                class="mt-2 text-sm leading-6 text-stone-600"
+                                class="mt-2 text-sm leading-6 text-rose-800"
                             >
                                 {{ violation.notes }}
                             </p>
                             <p
                                 v-if="violation.latest_resolution"
-                                class="mt-2 text-sm text-stone-500"
+                                class="mt-2 text-sm text-rose-700"
                             >
                                 {{
                                     `${labelViolationResolutionAction(violation.latest_resolution.action)} ${violation.latest_resolution.recorded_at_label || ''}`.trim()
@@ -236,7 +236,7 @@ const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement
                         <div class="flex shrink-0 flex-wrap gap-3">
                             <Link
                                 :href="route('admin.violations.show', violation.id)"
-                                class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                class="inline-flex rounded-full border border-rose-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-500 hover:text-rose-900"
                             >
                                 Review
                             </Link>
@@ -252,7 +252,7 @@ const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement
                 </div>
 
                 <div v-else class="px-4 py-10 text-center sm:px-5">
-                    <p class="text-sm uppercase tracking-[0.3em] text-stone-500">
+                    <p class="text-sm uppercase tracking-[0.3em] text-rose-500">
                         No open violations
                     </p>
                 </div>
