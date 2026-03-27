@@ -192,6 +192,14 @@ const speechLogs = ref<Array<{
 const speechPlaybackActive = ref(false);
 const activeSpeechAnnouncementId = ref<number | null>(null);
 
+const selectedCaptureImageUrl = computed(() => {
+    if (!selectedCapture.value?.image_url) {
+        return null;
+    }
+
+    return `${selectedCapture.value.image_url}${selectedCapture.value.image_url.includes('?') ? '&' : '?'}capture_id=${selectedCapture.value.id}`;
+});
+
 const parseTimestamp = (value?: string | null): number | null => {
     if (!value) {
         return null;
@@ -1418,7 +1426,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         >
                             <img
                                 v-if="selectedCapture.image_url"
-                                :src="selectedCapture.image_url"
+                                :src="selectedCaptureImageUrl ?? selectedCapture.image_url"
                                 :alt="selectedCapture.capture_kind === 'camera' ? 'Camera capture' : 'Screen capture'"
                                 class="max-h-[80vh] w-full object-contain"
                             >
