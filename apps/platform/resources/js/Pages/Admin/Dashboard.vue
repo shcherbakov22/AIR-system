@@ -175,7 +175,9 @@ const captureHistoryLoading = ref(false);
 const selectedAppsStudent = ref<DashboardStudent | null>(null);
 const selectedViolationRuleIds = ref<Record<number, string>>({});
 const browserSpeechStorageKey = 'air-dashboard-browser-speech-enabled';
+const browserSpeechWatermarkStorageKey = 'air-dashboard-browser-speech-watermark';
 const browserSpeechEnabled = ref(localStorage.getItem(browserSpeechStorageKey) !== '0');
+const browserSpeechWatermark = ref(Number(localStorage.getItem(browserSpeechWatermarkStorageKey) ?? '0') || 0);
 const serverSpeechPendingCount = ref(props.serverSpeech.pending_count);
 const speechLogsOpen = ref(false);
 const speechLogsLoading = ref(false);
@@ -246,7 +248,14 @@ watch(browserSpeechEnabled, (enabled) => {
         window.speechSynthesis.cancel();
         speechPlaybackActive.value = false;
         activeSpeechAnnouncementId.value = null;
+        return;
     }
+
+    initializeSpeechWatermark().catch(() => {});
+});
+
+watch(browserSpeechWatermark, (value) => {
+    localStorage.setItem(browserSpeechWatermarkStorageKey, String(value));
 });
 
 let clockInterval: number | null = null;
@@ -341,12 +350,33 @@ const toggleBrowserSpeech = () => {
     browserSpeechEnabled.value = !browserSpeechEnabled.value;
 };
 
+const initializeSpeechWatermark = async () => {
+    if (!browserSpeechEnabled.value) {
+        return;
+    }
+
+    const response = await window.fetch(route('admin.speech-announcements.latest-pending'), {
+        headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+    });
+
+    if (!response.ok) {
+        return;
+    }
+
+    const payload = await response.json() as { latest_pending_id: number | null };
+    browserSpeechWatermark.value = Math.max(browserSpeechWatermark.value, payload.latest_pending_id ?? 0);
+};
+
 const fetchNextSpeechAnnouncement = async () => {
     if (!browserSpeechEnabled.value || speechPlaybackActive.value || !('speechSynthesis' in window)) {
         return;
     }
 
-    const response = await window.fetch(route('admin.speech-announcements.next'), {
+    const response = await window.fetch(`${route('admin.speech-announcements.next')}?after_id=${encodeURIComponent(String(browserSpeechWatermark.value))}`, {
         headers: {
             Accept: 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
@@ -371,8 +401,10 @@ const fetchNextSpeechAnnouncement = async () => {
 
     speechPlaybackActive.value = true;
     activeSpeechAnnouncementId.value = payload.announcement.id;
+    browserSpeechWatermark.value = Math.max(browserSpeechWatermark.value, payload.announcement.id);
 
     const utterance = new SpeechSynthesisUtterance(payload.announcement.message);
+    utterance.lang = 'en-US';
     utterance.rate = 1;
     utterance.pitch = 1;
 
@@ -439,7 +471,7 @@ onMounted(() => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', reloadMonitorBoard);
     nextTick(scrollScheduleBoardsToActiveBlock);
-    fetchNextSpeechAnnouncement().catch(() => {});
+    initializeSpeechWatermark().catch(() => {});
 });
 
 onBeforeUnmount(() => {

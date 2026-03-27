@@ -33,8 +33,11 @@ class SpeechAnnouncementController extends Controller
 
     public function next(): JsonResponse
     {
+        $afterId = request()->integer('after_id');
+
         $announcement = SpeechAnnouncement::query()
             ->whereNull('spoken_at')
+            ->when($afterId > 0, fn ($query) => $query->where('id', '>', $afterId))
             ->oldest('id')
             ->first();
 
@@ -52,6 +55,15 @@ class SpeechAnnouncementController extends Controller
                 'processing_started_at' => $announcement->processing_started_at?->toIso8601String(),
                 'processing_host' => $announcement->processing_host,
             ],
+        ]);
+    }
+
+    public function latestPending(): JsonResponse
+    {
+        return response()->json([
+            'latest_pending_id' => SpeechAnnouncement::query()
+                ->whereNull('spoken_at')
+                ->max('id'),
         ]);
     }
 

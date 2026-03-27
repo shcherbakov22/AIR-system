@@ -152,6 +152,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/student-monitor-captures/{studentMonitorCapture}', [AdminStudentMonitorCaptureController::class, 'show'])->name('student-monitor-captures.show');
         Route::get('/speech-announcements/history', [AdminSpeechAnnouncementController::class, 'history'])->name('speech-announcements.history');
         Route::get('/speech-announcements/next', [AdminSpeechAnnouncementController::class, 'next'])->name('speech-announcements.next');
+        Route::get('/speech-announcements/latest-pending', [AdminSpeechAnnouncementController::class, 'latestPending'])->name('speech-announcements.latest-pending');
         Route::patch('/speech-announcements/{speechAnnouncement}/spoken', [AdminSpeechAnnouncementController::class, 'markSpoken'])->name('speech-announcements.mark-spoken');
         Route::patch('/speech-announcements/state', [AdminSpeechAnnouncementController::class, 'updateState'])->name('speech-announcements.state.update');
     });
