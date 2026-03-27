@@ -922,9 +922,10 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </div>
                     </div>
 
-                    <div
+                    <Link
                         v-if="student.communication_gate?.has_unread_student_chat"
-                        class="mt-1 rounded-[0.75rem] border border-rose-300 bg-rose-50 px-2 py-2"
+                        :href="student.communication_gate?.chat_url ?? route('admin.chats.show', student.id)"
+                        class="mt-1 block rounded-[0.75rem] border border-rose-300 bg-rose-50 px-2 py-2 transition hover:border-rose-400 hover:bg-rose-100"
                     >
                         <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-800">
                             Unread student chat
@@ -941,7 +942,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 · {{ student.communication_gate.unread_student_chat?.created_at_label }}
                             </span>
                         </p>
-                    </div>
+                    </Link>
 
                     <div class="mt-1 flex flex-col gap-1">
                         <button
