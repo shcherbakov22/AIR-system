@@ -174,9 +174,9 @@ const selectedCaptureHistoryIndex = ref(0);
 const captureHistoryLoading = ref(false);
 const selectedAppsStudent = ref<DashboardStudent | null>(null);
 const selectedViolationRuleIds = ref<Record<number, string>>({});
-const serverSpeechEnabled = ref(props.serverSpeech.enabled);
+const browserSpeechStorageKey = 'air-dashboard-browser-speech-enabled';
+const browserSpeechEnabled = ref(localStorage.getItem(browserSpeechStorageKey) !== '0');
 const serverSpeechPendingCount = ref(props.serverSpeech.pending_count);
-const speechStateSaving = ref(false);
 const speechLogsOpen = ref(false);
 const speechLogsLoading = ref(false);
 const speechLogs = ref<Array<{
@@ -187,6 +187,8 @@ const speechLogs = ref<Array<{
     spoken_at_label?: string | null;
     student_name?: string | null;
 }>>([]);
+const speechPlaybackActive = ref(false);
+const activeSpeechAnnouncementId = ref<number | null>(null);
 
 const parseTimestamp = (value?: string | null): number | null => {
     if (!value) {
@@ -232,14 +234,24 @@ watch(
 watch(
     () => props.serverSpeech,
     (serverSpeech) => {
-        serverSpeechEnabled.value = serverSpeech.enabled;
         serverSpeechPendingCount.value = serverSpeech.pending_count;
     },
     { immediate: true, deep: true },
 );
 
+watch(browserSpeechEnabled, (enabled) => {
+    localStorage.setItem(browserSpeechStorageKey, enabled ? '1' : '0');
+
+    if (!enabled && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        speechPlaybackActive.value = false;
+        activeSpeechAnnouncementId.value = null;
+    }
+});
+
 let clockInterval: number | null = null;
 let reloadInterval: number | null = null;
+let speechPollInterval: number | null = null;
 let isReloading = false;
 const scheduleBoardRefs = new Map<number, HTMLElement>();
 
@@ -325,42 +337,87 @@ const loadSpeechLogs = async () => {
     }
 };
 
-const toggleServerSpeech = async () => {
-    if (speechStateSaving.value) {
+const toggleBrowserSpeech = () => {
+    browserSpeechEnabled.value = !browserSpeechEnabled.value;
+};
+
+const fetchNextSpeechAnnouncement = async () => {
+    if (!browserSpeechEnabled.value || speechPlaybackActive.value || !('speechSynthesis' in window)) {
         return;
     }
 
-    speechStateSaving.value = true;
+    const response = await window.fetch(route('admin.speech-announcements.next'), {
+        headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+    });
 
-    try {
-        const response = await window.fetch(route('admin.speech-announcements.state.update'), {
-            method: 'PATCH',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name=\"csrf-token\"]')?.content ?? '',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                enabled: !serverSpeechEnabled.value,
-            }),
-        });
+    if (!response.ok) {
+        return;
+    }
 
-        if (!response.ok) {
-            return;
+    const payload = await response.json() as {
+        announcement: {
+            id: number;
+            message: string;
+        } | null;
+    };
+
+    if (!payload.announcement) {
+        return;
+    }
+
+    speechPlaybackActive.value = true;
+    activeSpeechAnnouncementId.value = payload.announcement.id;
+
+    const utterance = new SpeechSynthesisUtterance(payload.announcement.message);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    const finish = async (markSpoken: boolean) => {
+        if (markSpoken && activeSpeechAnnouncementId.value !== null) {
+            const spokenResponse = await window.fetch(route('admin.speech-announcements.mark-spoken', activeSpeechAnnouncementId.value), {
+                method: 'PATCH',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name=\"csrf-token\"]')?.content ?? '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (spokenResponse.ok) {
+                const spokenPayload = await spokenResponse.json() as { pending_count: number };
+                serverSpeechPendingCount.value = spokenPayload.pending_count;
+
+                if (speechLogsOpen.value) {
+                    await loadSpeechLogs();
+                }
+            }
         }
 
-        const payload = await response.json() as {
-            enabled: boolean;
-            pending_count: number;
-        };
+        speechPlaybackActive.value = false;
+        activeSpeechAnnouncementId.value = null;
+    };
 
-        serverSpeechEnabled.value = payload.enabled;
-        serverSpeechPendingCount.value = payload.pending_count;
-    } finally {
-        speechStateSaving.value = false;
-    }
+    utterance.onend = () => {
+        finish(true).catch(() => {
+            speechPlaybackActive.value = false;
+            activeSpeechAnnouncementId.value = null;
+        });
+    };
+
+    utterance.onerror = () => {
+        finish(false).catch(() => {
+            speechPlaybackActive.value = false;
+            activeSpeechAnnouncementId.value = null;
+        });
+    };
+
+    window.speechSynthesis.speak(utterance);
 };
 
 const openSpeechLogs = async () => {
@@ -376,9 +433,13 @@ onMounted(() => {
     syncLiveNow();
     clockInterval = window.setInterval(syncLiveNow, 1000);
     reloadInterval = window.setInterval(reloadMonitorBoard, 5000);
+    speechPollInterval = window.setInterval(() => {
+        fetchNextSpeechAnnouncement().catch(() => {});
+    }, 3000);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', reloadMonitorBoard);
     nextTick(scrollScheduleBoardsToActiveBlock);
+    fetchNextSpeechAnnouncement().catch(() => {});
 });
 
 onBeforeUnmount(() => {
@@ -388,6 +449,14 @@ onBeforeUnmount(() => {
 
     if (reloadInterval !== null) {
         window.clearInterval(reloadInterval);
+    }
+
+    if (speechPollInterval !== null) {
+        window.clearInterval(speechPollInterval);
+    }
+
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
     }
 
     document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -735,16 +804,15 @@ const blockTooltip = (block: DashboardBlock): string => {
             <button
                 type="button"
                 class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold transition"
-                :class="serverSpeechEnabled ? 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100' : 'bg-stone-200 text-stone-700 hover:bg-stone-300'"
-                :disabled="speechStateSaving"
-                @click="toggleServerSpeech"
+                :class="browserSpeechEnabled ? 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100' : 'bg-stone-200 text-stone-700 hover:bg-stone-300'"
+                @click="toggleBrowserSpeech"
             >
-                <span class="sr-only">Toggle server voice</span>
+                <span class="sr-only">Toggle browser voice</span>
                 <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
                     <path d="M4 8H7L11 5V15L7 12H4V8Z" stroke-linejoin="round" />
-                    <path v-if="serverSpeechEnabled" d="M14 7C15.3333 8.16667 16 9.16667 16 10C16 10.8333 15.3333 11.8333 14 13" stroke-linecap="round" />
+                    <path v-if="browserSpeechEnabled" d="M14 7C15.3333 8.16667 16 9.16667 16 10C16 10.8333 15.3333 11.8333 14 13" stroke-linecap="round" />
                 </svg>
-                <span>{{ speechStateSaving ? 'Saving...' : (serverSpeechEnabled ? 'Voice on' : 'Voice off') }}</span>
+                <span>{{ browserSpeechEnabled ? 'Voice on' : 'Voice off' }}</span>
                 <span class="text-[10px] opacity-70">
                     {{ serverSpeechPendingCount }}
                 </span>

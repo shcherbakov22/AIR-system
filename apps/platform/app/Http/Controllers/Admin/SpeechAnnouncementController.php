@@ -55,6 +55,16 @@ class SpeechAnnouncementController extends Controller
         ]);
     }
 
+    public function markSpoken(SpeechAnnouncement $speechAnnouncement, SpeechAnnouncementPlaybackService $playbackService): JsonResponse
+    {
+        $playbackService->markAnnouncementSpoken($speechAnnouncement);
+
+        return response()->json([
+            'accepted' => true,
+            'pending_count' => SpeechAnnouncement::query()->whereNull('spoken_at')->count(),
+        ]);
+    }
+
     public function updateState(Request $request, SpeechAnnouncementPlaybackService $playbackService): JsonResponse
     {
         $validated = $request->validate([
