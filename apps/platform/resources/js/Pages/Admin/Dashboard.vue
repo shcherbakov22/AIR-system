@@ -1418,7 +1418,6 @@ const blockTooltip = (block: DashboardBlock): string => {
                         >
                             <img
                                 v-if="selectedCapture.image_url"
-                                :key="selectedCapture.id"
                                 :src="selectedCapture.image_url"
                                 :alt="selectedCapture.capture_kind === 'camera' ? 'Camera capture' : 'Screen capture'"
                                 class="max-h-[80vh] w-full object-contain"
