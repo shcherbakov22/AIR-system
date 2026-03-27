@@ -25,10 +25,11 @@ defineProps<{
         <div class="mx-auto max-w-6xl px-6 py-10">
             <div class="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-stone-200">
                 <div v-if="students.length > 0" class="divide-y divide-stone-200">
-                    <article
+                    <Link
                         v-for="student in students"
                         :key="student.id"
-                        class="flex items-center justify-between gap-4 px-6 py-5"
+                        :href="route('admin.chats.show', student.id)"
+                        class="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-stone-50"
                     >
                         <div class="min-w-0">
                             <h3 class="truncate text-xl font-semibold text-stone-950">
@@ -49,14 +50,8 @@ defineProps<{
                             <p class="mb-3 text-xs text-stone-500">
                                 {{ student.latest_message?.created_at_label ?? '' }}
                             </p>
-                            <Link
-                                :href="route('admin.chats.show', student.id)"
-                                class="inline-flex rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800"
-                            >
-                                Open chat
-                            </Link>
                         </div>
-                    </article>
+                    </Link>
                 </div>
 
                 <div v-else class="px-6 py-10 text-sm text-stone-600">
