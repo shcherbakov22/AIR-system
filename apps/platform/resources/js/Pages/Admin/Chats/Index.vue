@@ -34,9 +34,6 @@ defineProps<{
                             <h3 class="truncate text-xl font-semibold text-stone-950">
                                 {{ student.display_name }}
                             </h3>
-                            <p class="mt-1 text-sm text-stone-500">
-                                {{ student.username }}
-                            </p>
                             <p v-if="student.latest_message?.body" class="mt-2 truncate text-sm text-stone-700">
                                 {{ student.latest_message.sender_name }}: {{ student.latest_message.body }}
                             </p>
