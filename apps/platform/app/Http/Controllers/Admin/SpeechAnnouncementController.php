@@ -35,11 +35,29 @@ class SpeechAnnouncementController extends Controller
     {
         $afterId = request()->integer('after_id');
 
-        $announcement = SpeechAnnouncement::query()
-            ->whereNull('spoken_at')
-            ->when($afterId > 0, fn ($query) => $query->where('id', '>', $afterId))
-            ->oldest('id')
-            ->first();
+        $playbackService = app(SpeechAnnouncementPlaybackService::class);
+        $playbackService->releaseExpiredClaims();
+
+        $announcement = \Illuminate\Support\Facades\DB::transaction(function () use ($afterId) {
+            $announcement = SpeechAnnouncement::query()
+                ->whereNull('spoken_at')
+                ->whereNull('processing_started_at')
+                ->when($afterId > 0, fn ($query) => $query->where('id', '>', $afterId))
+                ->oldest('id')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $announcement) {
+                return null;
+            }
+
+            $announcement->update([
+                'processing_started_at' => now(),
+                'processing_host' => (string) gethostname(),
+            ]);
+
+            return $announcement->fresh();
+        });
 
         if (! $announcement) {
             return response()->json([
