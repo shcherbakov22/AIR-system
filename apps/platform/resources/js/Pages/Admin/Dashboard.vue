@@ -192,14 +192,6 @@ const speechLogs = ref<Array<{
 const speechPlaybackActive = ref(false);
 const activeSpeechAnnouncementId = ref<number | null>(null);
 
-const selectedCaptureImageUrl = computed(() => {
-    if (!selectedCapture.value?.image_url) {
-        return null;
-    }
-
-    return `${selectedCapture.value.image_url}${selectedCapture.value.image_url.includes('?') ? '&' : '?'}capture_id=${selectedCapture.value.id}`;
-});
-
 const parseTimestamp = (value?: string | null): number | null => {
     if (!value) {
         return null;
@@ -624,17 +616,6 @@ const openCapture = (studentName: string, capture: DashboardCapture) => {
     loadCaptureHistory(studentName, capture.id);
 };
 
-const preloadCaptureImages = (captures: Array<DashboardCapture & { studentName: string }>) => {
-    captures.forEach((capture) => {
-        if (!capture.image_url) {
-            return;
-        }
-
-        const image = new Image();
-        image.src = capture.image_url;
-    });
-};
-
 const closeCapture = () => {
     selectedCapture.value = null;
     selectedCaptureHistory.value = [];
@@ -737,7 +718,6 @@ const loadCaptureHistory = async (studentName: string, captureId: number) => {
             ...historyCapture,
             studentName,
         }));
-        preloadCaptureImages(selectedCaptureHistory.value);
 
         const currentIndex = selectedCaptureHistory.value.findIndex((historyCapture) => historyCapture.id === captureId);
 
@@ -1426,7 +1406,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         >
                             <img
                                 v-if="selectedCapture.image_url"
-                                :src="selectedCaptureImageUrl ?? selectedCapture.image_url"
+                                :src="selectedCapture.image_url"
                                 :alt="selectedCapture.capture_kind === 'camera' ? 'Camera capture' : 'Screen capture'"
                                 class="max-h-[80vh] w-full object-contain"
                             >
