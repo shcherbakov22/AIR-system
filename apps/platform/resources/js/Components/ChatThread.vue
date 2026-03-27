@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PageProps } from '@/types';
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 
 type ChatMessage = {
@@ -48,6 +48,7 @@ const form = useForm<{
 });
 
 let refreshInterval: number | null = null;
+const messagesContainer = ref<HTMLElement | null>(null);
 
 const submit = () => {
     if (!props.sendRoute) {
@@ -123,8 +124,20 @@ const deleteMessage = (deleteUrl?: string | null) => {
     });
 };
 
+const scrollToLatestMessage = (behavior: ScrollBehavior = 'auto') => {
+    if (!messagesContainer.value) {
+        return;
+    }
+
+    messagesContainer.value.scrollTo({
+        top: messagesContainer.value.scrollHeight,
+        behavior,
+    });
+};
+
 onMounted(() => {
     refreshInterval = window.setInterval(reloadThread, 5000);
+    void nextTick(() => scrollToLatestMessage());
 });
 
 onBeforeUnmount(() => {
@@ -132,6 +145,13 @@ onBeforeUnmount(() => {
         window.clearInterval(refreshInterval);
     }
 });
+
+watch(
+    () => props.messages.length,
+    () => {
+        void nextTick(() => scrollToLatestMessage());
+    },
+);
 </script>
 
 <template>
@@ -146,7 +166,7 @@ onBeforeUnmount(() => {
                 </h2>
             </div>
 
-            <div class="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-5">
+            <div ref="messagesContainer" class="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-5">
                 <div
                     v-for="message in messages"
                     :key="message.id"
