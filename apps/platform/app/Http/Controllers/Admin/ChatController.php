@@ -54,6 +54,15 @@ class ChatController extends Controller
         return back();
     }
 
+    public function markMessageRead(Student $student, ChatMessage $chatMessage, StudentCommunicationGateService $communicationGateService): RedirectResponse
+    {
+        abort_unless($chatMessage->student_id === $student->id && $chatMessage->channel === 'chat', 404);
+
+        $communicationGateService->markStudentChatMessageSeen($student, $chatMessage);
+
+        return back();
+    }
+
     public function store(StoreChatMessageRequest $request, Student $student): RedirectResponse
     {
         $attachment = $request->file('attachment');

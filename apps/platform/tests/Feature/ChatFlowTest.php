@@ -268,6 +268,53 @@ class ChatFlowTest extends TestCase
         $this->assertNotNull($student->last_seen_student_chat_at);
     }
 
+    public function test_admin_can_mark_one_student_message_read_without_dismissing_the_rest(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $firstMessage = ChatMessage::create([
+            'student_id' => $student->id,
+            'sender_user_id' => $studentUser->id,
+            'channel' => 'chat',
+            'body' => 'First unread.',
+            'created_at' => now()->subMinutes(2),
+            'updated_at' => now()->subMinutes(2),
+        ]);
+
+        $secondMessage = ChatMessage::create([
+            'student_id' => $student->id,
+            'sender_user_id' => $studentUser->id,
+            'channel' => 'chat',
+            'body' => 'Second unread.',
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($mentor)
+            ->patch(route('admin.students.chat.messages.read', [$student, $firstMessage]))
+            ->assertRedirect();
+
+        $firstMessage->refresh();
+        $secondMessage->refresh();
+
+        $this->assertNotNull($firstMessage->admin_read_at);
+        $this->assertNull($secondMessage->admin_read_at);
+    }
+
     public function test_mentor_can_delete_chat_messages(): void
     {
         Storage::fake('local');

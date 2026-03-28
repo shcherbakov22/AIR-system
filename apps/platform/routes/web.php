@@ -134,6 +134,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/students/{student}/assignments', [AdminAssignmentController::class, 'show'])->name('students.assignments.show');
         Route::get('/students/{student}/devices', [AdminStudentDeviceController::class, 'index'])->name('students.devices.index');
         Route::get('/students/{student}/companion-debug', [AdminStudentDeviceController::class, 'debug'])->name('students.devices.debug');
+        Route::patch('/students/{student}/chat/messages/{chatMessage}/read', [AdminChatController::class, 'markMessageRead'])->name('students.chat.messages.read');
         Route::patch('/students/{student}/devices/{studentDevice}', [AdminStudentDeviceController::class, 'update'])->name('students.devices.update');
         Route::post('/students/{student}/devices/{studentDevice}/commands', [AdminStudentDeviceController::class, 'command'])->name('students.devices.command');
         Route::post('/students/{student}/devices/{studentDevice}/remote-control', [AdminRemoteControlSessionController::class, 'store'])->name('students.devices.remote-control.store');

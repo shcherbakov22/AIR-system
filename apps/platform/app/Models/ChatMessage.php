@@ -20,12 +20,14 @@ class ChatMessage extends Model
         'attachment_name',
         'attachment_mime',
         'attachment_size',
+        'admin_read_at',
     ];
 
     protected function casts(): array
     {
         return [
             'attachment_size' => 'integer',
+            'admin_read_at' => 'datetime',
         ];
     }
 

@@ -297,11 +297,20 @@ class DashboardController extends Controller
                 'permit_url_template' => route('admin.students.app-policies.permit', [$student, '__APP_POLICY__']),
                 'block_url_template' => route('admin.students.app-policies.block', [$student, '__APP_POLICY__']),
             ],
-            'communication_gate' => $this->studentCommunicationGateService->payload($student) + [
+            'communication_gate' => (function () use ($student) {
+                $payload = $this->studentCommunicationGateService->payload($student);
+                $payload['unread_student_chats'] = collect($payload['unread_student_chats'] ?? [])
+                    ->map(fn (array $message) => $message + [
+                        'read_url' => route('admin.students.chat.messages.read', [$student, $message['id']]),
+                    ])
+                    ->all();
+
+                return $payload + [
                 'admin_blocking_message' => $this->studentCommunicationGateService->adminBlockingMessage($student),
                 'chat_url' => route('admin.chats.show', $student),
                 'read_url' => route('admin.students.chat.read', $student),
-            ],
+            ];
+            })(),
             'open_violations' => $student->violations
                 ->map(fn ($violation) => [
                     'id' => $violation->id,

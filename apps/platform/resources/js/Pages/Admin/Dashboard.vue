@@ -141,6 +141,14 @@ type DashboardStudent = {
             sender_name?: string | null;
             has_attachment: boolean;
         } | null;
+        unread_student_chats: Array<{
+            id: number;
+            body?: string | null;
+            created_at_label?: string | null;
+            sender_name?: string | null;
+            has_attachment: boolean;
+            read_url: string;
+        }>;
         admin_blocking_message?: string | null;
         chat_url: string;
         read_url: string;
@@ -635,12 +643,12 @@ const closeAppsPanel = () => {
 const hasAdminChatGate = (student: DashboardStudent): boolean =>
     Boolean(student.communication_gate?.has_unread_student_chat);
 
-const markStudentChatNotificationRead = (student: DashboardStudent) => {
-    if (!student.communication_gate?.read_url) {
+const markStudentChatNotificationRead = (student: DashboardStudent, readUrl?: string | null) => {
+    if (!readUrl) {
         return;
     }
 
-    router.patch(student.communication_gate.read_url, {}, {
+    router.patch(readUrl, {}, {
         preserveScroll: true,
         preserveState: true,
     });
@@ -894,7 +902,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 :href="route('admin.students.progress', student.id)"
                                 class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
                                 :class="hasAdminChatGate(student)
-                                    ? 'pointer-events-none border-stone-200 text-stone-400'
+                                    ? 'pointer-events-none border-stone-200 bg-stone-100 text-stone-400'
                                     : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
                                 :aria-disabled="hasAdminChatGate(student)"
                             >
@@ -925,7 +933,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
                                 :class="student.remote_control && !hasAdminChatGate(student)
                                     ? 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'
-                                    : 'border-stone-200 text-stone-400'"
+                                    : 'border-stone-200 bg-stone-100 text-stone-400'"
                                 :disabled="!student.remote_control || hasAdminChatGate(student)"
                                 @click="openRemoteSession(student)"
                             >
@@ -934,11 +942,9 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </div>
                     </div>
 
-                    <button
+                    <div
                         v-if="student.communication_gate?.has_unread_student_chat"
-                        type="button"
-                        class="mt-1 block w-full rounded-[0.75rem] border border-rose-300 bg-rose-50 px-2 py-2 text-left transition hover:border-rose-400 hover:bg-rose-100"
-                        @click="markStudentChatNotificationRead(student)"
+                        class="mt-1 rounded-[0.75rem] border border-rose-300 bg-rose-50 px-2 py-2"
                     >
                         <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-800">
                             Unread student chat
@@ -946,16 +952,26 @@ const blockTooltip = (block: DashboardBlock): string => {
                         <p class="mt-1 text-[11px] font-medium text-rose-950">
                             {{ student.communication_gate.admin_blocking_message }}
                         </p>
-                        <p class="mt-1 line-clamp-2 text-[11px] text-rose-900">
-                            {{ student.communication_gate.unread_student_chat?.body || 'Attachment only message.' }}
-                        </p>
-                        <p class="mt-1 text-[10px] text-rose-700">
-                            {{ student.communication_gate.unread_student_chat?.sender_name || student.display_name }}
-                            <span v-if="student.communication_gate.unread_student_chat?.created_at_label">
-                                · {{ student.communication_gate.unread_student_chat?.created_at_label }}
-                            </span>
-                        </p>
-                    </button>
+                        <div class="mt-2 space-y-2">
+                            <button
+                                v-for="message in student.communication_gate?.unread_student_chats ?? []"
+                                :key="message.id"
+                                type="button"
+                                class="block w-full rounded-[0.65rem] border border-rose-200 bg-white/70 px-2 py-2 text-left transition hover:border-rose-400 hover:bg-rose-100"
+                                @click="markStudentChatNotificationRead(student, message.read_url)"
+                            >
+                                <p class="line-clamp-2 text-[11px] text-rose-900">
+                                    {{ message.body || 'Attachment only message.' }}
+                                </p>
+                                <p class="mt-1 text-[10px] text-rose-700">
+                                    {{ message.sender_name || student.display_name }}
+                                    <span v-if="message.created_at_label">
+                                        · {{ message.created_at_label }}
+                                    </span>
+                                </p>
+                            </button>
+                        </div>
+                    </div>
 
                     <div class="mt-1 flex flex-col gap-1">
                         <button
