@@ -1118,12 +1118,12 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </p>
                     </div>
 
-                    <div class="mt-1 rounded-[0.75rem] bg-stone-100 px-1.5 py-1.5">
+                    <div class="mt-1 rounded-[0.75rem] bg-amber-100 px-2 py-2">
                         <div class="flex items-start justify-between gap-2">
-                            <p class="min-w-0 truncate text-[15px] font-semibold text-stone-900">
+                            <p class="min-w-0 truncate text-[16px] font-semibold text-stone-900">
                                 {{ student.active_task_session?.task_title ?? 'No active task' }}
                             </p>
-                            <p class="shrink-0 text-[14px] font-semibold leading-tight text-stone-700">
+                            <p class="shrink-0 text-[15px] font-semibold leading-tight text-stone-700">
                                 <template v-if="student.active_task_session">
                                     {{ student.active_task_session.elapsedLabel }}
                                 </template>
