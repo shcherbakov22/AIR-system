@@ -640,7 +640,11 @@ const closeAppsPanel = () => {
     selectedAppsStudent.value = null;
 };
 
-const hasAdminChatGate = (student: DashboardStudent): boolean =>
+const hasAnyAdminChatGate = computed(() =>
+    monitorStudents.value.some((student) => Boolean(student.communication_gate?.has_unread_student_chat)),
+);
+
+const hasStudentUnreadChat = (student: DashboardStudent): boolean =>
     Boolean(student.communication_gate?.has_unread_student_chat);
 
 const markStudentChatNotificationRead = (student: DashboardStudent, readUrl?: string | null) => {
@@ -901,17 +905,17 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <Link
                                 :href="route('admin.students.progress', student.id)"
                                 class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
-                                :class="hasAdminChatGate(student)
+                                :class="hasAnyAdminChatGate
                                     ? 'pointer-events-none border-stone-200 bg-stone-100 text-stone-400'
                                     : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
-                                :aria-disabled="hasAdminChatGate(student)"
+                                :aria-disabled="hasAnyAdminChatGate"
                             >
                                 Prog
                             </Link>
                             <Link
                                 :href="student.communication_gate?.chat_url ?? route('admin.chats.show', student.id)"
                                 class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
-                                :class="hasAdminChatGate(student)
+                                :class="hasStudentUnreadChat(student)
                                     ? 'border-rose-500 bg-rose-50 text-rose-800 hover:border-rose-600 hover:text-rose-900'
                                     : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
                             >
@@ -920,10 +924,10 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <button
                                 type="button"
                                 class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition disabled:cursor-not-allowed disabled:opacity-50"
-                                :class="hasAdminChatGate(student)
-                                    ? 'border-stone-200 text-stone-400'
+                                :class="hasAnyAdminChatGate
+                                    ? 'border-stone-200 bg-stone-100 text-stone-400'
                                     : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
-                                :disabled="hasAdminChatGate(student)"
+                                :disabled="hasAnyAdminChatGate"
                                 @click="openAppsPanel(student)"
                             >
                                 Apps
@@ -931,10 +935,10 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <button
                                 type="button"
                                 class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
-                                :class="student.remote_control && !hasAdminChatGate(student)
+                                :class="student.remote_control && !hasAnyAdminChatGate
                                     ? 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'
                                     : 'border-stone-200 bg-stone-100 text-stone-400'"
-                                :disabled="!student.remote_control || hasAdminChatGate(student)"
+                                :disabled="!student.remote_control || hasAnyAdminChatGate"
                                 @click="openRemoteSession(student)"
                             >
                                 Remote
@@ -1085,7 +1089,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <button
                                 type="button"
                                 class="shrink-0 rounded-[0.55rem] border border-stone-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-40"
-                                :disabled="!selectedViolationRuleIds[student.id] || hasAdminChatGate(student)"
+                                :disabled="!selectedViolationRuleIds[student.id] || hasAnyAdminChatGate"
                                 @click="applyViolation(student.id)"
                             >
                                 Apply
