@@ -644,9 +644,6 @@ const hasAnyAdminChatGate = computed(() =>
     monitorStudents.value.some((student) => Boolean(student.communication_gate?.has_unread_student_chat)),
 );
 
-const hasStudentUnreadChat = (student: DashboardStudent): boolean =>
-    Boolean(student.communication_gate?.has_unread_student_chat);
-
 const markStudentChatNotificationRead = (student: DashboardStudent, readUrl?: string | null) => {
     if (!readUrl) {
         return;
@@ -915,9 +912,10 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <Link
                                 :href="student.communication_gate?.chat_url ?? route('admin.chats.show', student.id)"
                                 class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
-                                :class="hasStudentUnreadChat(student)
-                                    ? 'border-rose-500 bg-rose-50 text-rose-800 hover:border-rose-600 hover:text-rose-900'
+                                :class="hasAnyAdminChatGate
+                                    ? 'pointer-events-none border-stone-200 bg-stone-100 text-stone-400'
                                     : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
+                                :aria-disabled="hasAnyAdminChatGate"
                             >
                                 Chat
                             </Link>
