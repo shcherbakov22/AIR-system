@@ -143,6 +143,7 @@ type DashboardStudent = {
         } | null;
         admin_blocking_message?: string | null;
         chat_url: string;
+        read_url: string;
     } | null;
     open_violations: Array<{
         id: number;
@@ -634,6 +635,17 @@ const closeAppsPanel = () => {
 const hasAdminChatGate = (student: DashboardStudent): boolean =>
     Boolean(student.communication_gate?.has_unread_student_chat);
 
+const markStudentChatNotificationRead = (student: DashboardStudent) => {
+    if (!student.communication_gate?.read_url) {
+        return;
+    }
+
+    router.patch(student.communication_gate.read_url, {}, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
 const openRemoteSession = (student: DashboardStudent) => {
     const remoteControl = student.remote_control;
     if (!remoteControl) {
@@ -922,10 +934,11 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </div>
                     </div>
 
-                    <Link
+                    <button
                         v-if="student.communication_gate?.has_unread_student_chat"
-                        :href="student.communication_gate?.chat_url ?? route('admin.chats.show', student.id)"
-                        class="mt-1 block rounded-[0.75rem] border border-rose-300 bg-rose-50 px-2 py-2 transition hover:border-rose-400 hover:bg-rose-100"
+                        type="button"
+                        class="mt-1 block w-full rounded-[0.75rem] border border-rose-300 bg-rose-50 px-2 py-2 text-left transition hover:border-rose-400 hover:bg-rose-100"
+                        @click="markStudentChatNotificationRead(student)"
                     >
                         <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-800">
                             Unread student chat
@@ -942,7 +955,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 · {{ student.communication_gate.unread_student_chat?.created_at_label }}
                             </span>
                         </p>
-                    </Link>
+                    </button>
 
                     <div class="mt-1 flex flex-col gap-1">
                         <button

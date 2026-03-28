@@ -47,6 +47,13 @@ class ChatController extends Controller
         ]);
     }
 
+    public function markRead(Student $student, StudentCommunicationGateService $communicationGateService): RedirectResponse
+    {
+        $communicationGateService->markStudentChatSeen($student);
+
+        return back();
+    }
+
     public function store(StoreChatMessageRequest $request, Student $student): RedirectResponse
     {
         $attachment = $request->file('attachment');

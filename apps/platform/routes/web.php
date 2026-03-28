@@ -148,6 +148,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('/students/{student}/password', [AdminStudentController::class, 'updatePassword'])->name('students.password.update');
         Route::patch('/students/{student}/push-up-counter', [AdminStudentController::class, 'updatePushUpCounter'])->name('students.push-up-counter.update');
         Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
+        Route::patch('/students/{student}/chat/read', [AdminChatController::class, 'markRead'])->name('students.chat.read');
         Route::get('/student-monitor-captures/{studentMonitorCapture}/day-history', [AdminStudentMonitorCaptureController::class, 'dayHistory'])->name('student-monitor-captures.day-history');
         Route::get('/student-monitor-captures/{studentMonitorCapture}', [AdminStudentMonitorCaptureController::class, 'show'])->name('student-monitor-captures.show');
         Route::get('/speech-announcements/history', [AdminSpeechAnnouncementController::class, 'history'])->name('speech-announcements.history');

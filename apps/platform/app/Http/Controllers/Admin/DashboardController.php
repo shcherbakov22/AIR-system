@@ -300,6 +300,7 @@ class DashboardController extends Controller
             'communication_gate' => $this->studentCommunicationGateService->payload($student) + [
                 'admin_blocking_message' => $this->studentCommunicationGateService->adminBlockingMessage($student),
                 'chat_url' => route('admin.chats.show', $student),
+                'read_url' => route('admin.students.chat.read', $student),
             ],
             'open_violations' => $student->violations
                 ->map(fn ($violation) => [
