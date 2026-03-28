@@ -971,7 +971,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         v-if="student.communication_gate?.has_unread_student_chat"
                         class="mt-1 rounded-[0.75rem] border border-rose-300 bg-rose-50 px-2 py-2"
                     >
-                        <div class="mt-2 space-y-2">
+                        <div class="space-y-2">
                             <button
                                 v-for="message in student.communication_gate?.unread_student_chats ?? []"
                                 :key="message.id"
