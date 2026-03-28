@@ -1096,7 +1096,9 @@ const blockTooltip = (block: DashboardBlock): string => {
                         <div class="flex items-center gap-1">
                             <select
                                 v-model="selectedViolationRuleIds[student.id]"
-                                class="min-w-0 flex-1 rounded-[0.55rem] border border-stone-300 bg-white px-2 py-1 text-[11px] font-medium text-stone-800"
+                                class="min-w-0 flex-1 rounded-[0.55rem] border border-stone-300 bg-white px-2 py-1 text-[11px] font-medium text-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="hasAnyAdminChatGate"
+                                @change="applyViolation(student.id)"
                             >
                                 <option value="">Add violation</option>
                                 <option
@@ -1107,14 +1109,6 @@ const blockTooltip = (block: DashboardBlock): string => {
                                     {{ ruleDefinition.title }}
                                 </option>
                             </select>
-                            <button
-                                type="button"
-                                class="shrink-0 rounded-[0.55rem] border border-stone-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-40"
-                                :disabled="!selectedViolationRuleIds[student.id] || hasAnyAdminChatGate"
-                                @click="applyViolation(student.id)"
-                            >
-                                Apply
-                            </button>
                         </div>
                     </div>
 
