@@ -899,23 +899,38 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </div>
 
                         <div class="flex shrink-0 items-center gap-1">
+                            <span
+                                v-if="hasAnyAdminChatGate"
+                                class="inline-flex rounded-full border border-stone-200 bg-stone-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400 opacity-50"
+                                aria-disabled="true"
+                            >
+                                Prog
+                            </span>
                             <Link
+                                v-else
                                 :href="route('admin.students.progress', student.id)"
-                                class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
-                                :class="hasAnyAdminChatGate
-                                    ? 'pointer-events-none border-stone-200 bg-stone-100 text-stone-400'
-                                    : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
-                                :aria-disabled="hasAnyAdminChatGate"
+                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
                             >
                                 Prog
                             </Link>
                             <Link
+                                v-if="student.communication_gate?.has_unread_student_chat"
                                 :href="student.communication_gate?.chat_url ?? route('admin.chats.show', student.id)"
-                                class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
-                                :class="hasAnyAdminChatGate
-                                    ? 'pointer-events-none border-stone-200 bg-stone-100 text-stone-400'
-                                    : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
-                                :aria-disabled="hasAnyAdminChatGate"
+                                class="rounded-full border border-rose-300 bg-rose-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700 transition hover:border-rose-500 hover:bg-rose-100 hover:text-rose-800"
+                            >
+                                Chat
+                            </Link>
+                            <span
+                                v-else-if="hasAnyAdminChatGate"
+                                class="inline-flex rounded-full border border-stone-200 bg-stone-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400 opacity-50"
+                                aria-disabled="true"
+                            >
+                                Chat
+                            </span>
+                            <Link
+                                v-else
+                                :href="student.communication_gate?.chat_url ?? route('admin.chats.show', student.id)"
+                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
                             >
                                 Chat
                             </Link>
@@ -932,7 +947,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                             </button>
                             <button
                                 type="button"
-                                class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition"
+                                class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition disabled:cursor-not-allowed disabled:opacity-50"
                                 :class="student.remote_control && !hasAnyAdminChatGate
                                     ? 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'
                                     : 'border-stone-200 bg-stone-100 text-stone-400'"
