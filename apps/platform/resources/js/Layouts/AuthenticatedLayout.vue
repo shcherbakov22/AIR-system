@@ -7,10 +7,12 @@ const props = withDefaults(defineProps<{
     hideSidebar?: boolean;
     fullWidth?: boolean;
     sidebarDrawer?: boolean;
+    disableSidebarToggle?: boolean;
 }>(), {
     hideSidebar: false,
     fullWidth: false,
     sidebarDrawer: false,
+    disableSidebarToggle: false,
 });
 
 const page = usePage<PageProps>();
@@ -196,8 +198,9 @@ const closeMobileNav = () => {
             <button
                 v-if="!props.hideSidebar"
                 type="button"
-                class="fixed left-2 top-1.5 z-30 inline-flex items-center justify-center p-0 text-stone-700 transition hover:text-stone-900"
+                class="fixed left-2 top-1.5 z-30 inline-flex items-center justify-center p-0 text-stone-700 transition disabled:cursor-not-allowed disabled:opacity-40"
                 :class="props.sidebarDrawer ? '' : 'lg:hidden'"
+                :disabled="props.disableSidebarToggle"
                 @click="mobileNavOpen = true"
             >
                 <span class="sr-only">Open menu</span>

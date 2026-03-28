@@ -836,9 +836,17 @@ const blockTooltip = (block: DashboardBlock): string => {
 <template>
     <Head title="Mentor monitor" />
 
-    <AuthenticatedLayout :sidebar-drawer="true" :full-width="true">
+    <AuthenticatedLayout :sidebar-drawer="true" :full-width="true" :disable-sidebar-toggle="hasAnyAdminChatGate">
         <div class="fixed right-2 top-1.5 z-30 flex items-center gap-2">
+            <span
+                v-if="hasAnyAdminChatGate"
+                class="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-400 opacity-50"
+                aria-disabled="true"
+            >
+                <span>Violations</span>
+            </span>
             <Link
+                v-else
                 :href="route('admin.violations.index')"
                 class="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-stone-700 transition hover:text-stone-950"
             >
