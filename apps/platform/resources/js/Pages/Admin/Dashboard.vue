@@ -946,12 +946,6 @@ const blockTooltip = (block: DashboardBlock): string => {
                         v-if="student.communication_gate?.has_unread_student_chat"
                         class="mt-1 rounded-[0.75rem] border border-rose-300 bg-rose-50 px-2 py-2"
                     >
-                        <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-800">
-                            Unread student chat
-                        </p>
-                        <p class="mt-1 text-[11px] font-medium text-rose-950">
-                            {{ student.communication_gate.admin_blocking_message }}
-                        </p>
                         <div class="mt-2 space-y-2">
                             <button
                                 v-for="message in student.communication_gate?.unread_student_chats ?? []"
@@ -960,7 +954,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 class="block w-full rounded-[0.65rem] border border-rose-200 bg-white/70 px-2 py-2 text-left transition hover:border-rose-400 hover:bg-rose-100"
                                 @click="markStudentChatNotificationRead(student, message.read_url)"
                             >
-                                <p class="line-clamp-2 text-[11px] text-rose-900">
+                                <p class="line-clamp-3 text-sm font-medium leading-5 text-rose-950">
                                     {{ message.body || 'Attachment only message.' }}
                                 </p>
                                 <p class="mt-1 text-[10px] text-rose-700">
