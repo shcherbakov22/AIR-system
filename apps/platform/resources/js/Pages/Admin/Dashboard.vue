@@ -1103,21 +1103,20 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </p>
                     </div>
 
-                    <div class="mt-1 rounded-[0.75rem] bg-stone-100 px-1.5 py-1">
-                        <p class="truncate text-[13px] font-medium text-stone-900">
-                            {{ student.active_task_session?.task_title ?? 'No active task' }}
-                        </p>
-                        <p class="truncate text-[10px] leading-tight text-stone-500">
-                            <template v-if="student.active_task_session">
-                                {{ student.active_task_session.elapsedLabel }}
-                                <span v-if="student.active_task_session.remainingLabel">
-                                    - {{ student.active_task_session.remainingLabel }} left
-                                </span>
-                            </template>
-                            <template v-else>
-                                Idle
-                            </template>
-                        </p>
+                    <div class="mt-1 rounded-[0.75rem] bg-stone-100 px-1.5 py-1.5">
+                        <div class="flex items-start justify-between gap-2">
+                            <p class="min-w-0 truncate text-[15px] font-semibold text-stone-900">
+                                {{ student.active_task_session?.task_title ?? 'No active task' }}
+                            </p>
+                            <p class="shrink-0 text-[14px] font-semibold leading-tight text-stone-700">
+                                <template v-if="student.active_task_session">
+                                    {{ student.active_task_session.elapsedLabel }}
+                                </template>
+                                <template v-else>
+                                    Idle
+                                </template>
+                            </p>
+                        </div>
                     </div>
 
                     <div v-if="student.schedule_board" class="mt-1 min-h-0 flex flex-1 flex-col overflow-hidden rounded-[0.55rem] bg-stone-50/60 p-px">
