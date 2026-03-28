@@ -1119,7 +1119,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                     </div>
 
                     <div class="mt-1 rounded-[0.75rem] bg-amber-100 px-2 py-2">
-                        <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center justify-between gap-2">
                             <p class="min-w-0 truncate text-[16px] font-semibold text-stone-900">
                                 {{ student.active_task_session?.task_title ?? 'No active task' }}
                             </p>
