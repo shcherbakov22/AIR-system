@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\ManageStudentDeviceRequest;
 use App\Models\RemoteControlSession;
 use App\Models\Student;
 use App\Models\StudentDevice;
+use App\Models\DeviceCommand;
 use App\Services\RemoteControlGatewayService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
@@ -35,22 +36,23 @@ class RemoteControlSessionController extends Controller
         $recentHeartbeat = $studentDevice->last_seen_at !== null
             && $studentDevice->last_seen_at->greaterThanOrEqualTo(now()->subSeconds($heartbeatMaxAgeSeconds));
 
-        if (! $studentDevice->remote_control_ready
-            || ! $studentDevice->remote_control_active
-            || ! $studentDevice->last_ipv4
-            || ! $studentDevice->remote_control_port
-            || ! $recentHeartbeat) {
-            $studentDevice->commands()->create([
-                'requested_by_user_id' => $request->user()->id,
-                'command_type' => 'verify_remote_control',
-                'status' => 'pending',
-                'payload' => [],
-                'requested_at' => now(),
-            ]);
+        if (! $studentDevice->last_ipv4 || ! $recentHeartbeat) {
+            $this->queueDeviceCommand($studentDevice, $request->user()->id, 'verify_remote_control');
 
             return redirect()
                 ->route('admin.students.devices.index', $student)
                 ->with('error', 'Device is not remote-control ready yet. Verification was queued.');
+        }
+
+        if (! $studentDevice->remote_control_active || ! $studentDevice->remote_control_port) {
+            $startCommand = $this->queueDeviceCommand($studentDevice, $request->user()->id, 'start_remote_control');
+            $started = $this->waitForSuccessfulRemoteStart($studentDevice, $startCommand);
+
+            if (! $started) {
+                return redirect()
+                    ->route('admin.students.devices.index', $student)
+                    ->with('error', 'Remote helper did not start in time. Try again in a few seconds.');
+            }
         }
 
         $studentDevice->remoteControlSessions()
@@ -97,6 +99,52 @@ class RemoteControlSessionController extends Controller
         }
 
         return redirect()->route('admin.remote-control-sessions.show', $session);
+    }
+
+    protected function queueDeviceCommand(StudentDevice $studentDevice, int $userId, string $commandType): DeviceCommand
+    {
+        return $studentDevice->commands()->create([
+            'requested_by_user_id' => $userId,
+            'command_type' => $commandType,
+            'status' => 'pending',
+            'payload' => [],
+            'requested_at' => now(),
+        ]);
+    }
+
+    protected function waitForSuccessfulRemoteStart(StudentDevice $studentDevice, DeviceCommand $command): bool
+    {
+        $timeoutSeconds = max(1, (int) config('services.remote_control.start_command_wait_seconds', 12));
+        $deadline = now()->addSeconds($timeoutSeconds);
+
+        do {
+            $command->refresh();
+            if ($command->status === 'completed') {
+                $studentDevice->forceFill([
+                    'remote_control_ready' => true,
+                    'remote_control_active' => true,
+                    'remote_control_port' => $studentDevice->remote_control_port ?: 5905,
+                    'remote_control_last_checked_at' => now(),
+                    'remote_control_failure_reason' => null,
+                ])->save();
+
+                return true;
+            }
+
+            if ($command->status === 'failed') {
+                $output = (string) data_get($command->results()->first()?->payload, 'output', '');
+                $studentDevice->forceFill([
+                    'remote_control_last_checked_at' => now(),
+                    'remote_control_failure_reason' => $output !== '' ? $output : 'remote helper failed to start',
+                ])->save();
+
+                return false;
+            }
+
+            usleep(250000);
+        } while (now()->lt($deadline));
+
+        return false;
     }
 
     public function show(RemoteControlSession $remoteControlSession): Response

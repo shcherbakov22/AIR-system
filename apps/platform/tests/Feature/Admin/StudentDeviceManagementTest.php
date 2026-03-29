@@ -476,6 +476,93 @@ class StudentDeviceManagementTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_start_remote_control_session_when_helper_is_not_active_yet(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_remote_bootstrap',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_remote_bootstrap',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Remote Bootstrap Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'remote-device-bootstrap',
+            'label' => 'Bootstrap Desk',
+            'platform' => 'windows',
+            'last_seen_at' => now(),
+            'last_ipv4' => '192.168.11.88',
+            'remote_control_ready' => true,
+            'remote_control_active' => false,
+            'remote_control_port' => null,
+            'remote_control_last_checked_at' => now(),
+        ]);
+
+        config()->set('services.remote_control.enabled', true);
+        config()->set('services.remote_control.gateway_url', 'http://127.0.0.1:9821');
+        config()->set('services.remote_control.start_command_wait_seconds', 1);
+
+        DeviceCommand::created(function (DeviceCommand $command) use ($device): void {
+            if ($command->command_type !== 'start_remote_control') {
+                return;
+            }
+
+            DeviceCommandResult::create([
+                'device_command_id' => $command->id,
+                'student_device_id' => $command->student_device_id,
+                'status' => 'completed',
+                'payload' => ['output' => 'remote control started'],
+                'received_at' => now(),
+            ]);
+
+            $command->forceFill([
+                'status' => 'completed',
+                'completed_at' => now(),
+            ])->save();
+
+            $device->forceFill([
+                'remote_control_ready' => true,
+                'remote_control_active' => true,
+                'remote_control_port' => 5905,
+                'remote_control_last_checked_at' => now(),
+                'remote_control_failure_reason' => null,
+            ])->save();
+        });
+
+        Http::fake([
+            'http://127.0.0.1:9821/api/sessions/start' => Http::response([
+                'session_id' => 'sess-bootstrap',
+                'viewer_path' => '/remote-control/view/sess-bootstrap',
+            ]),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.students.devices.remote-control.store', [$student, $device]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('device_commands', [
+            'student_device_id' => $device->id,
+            'command_type' => 'start_remote_control',
+            'status' => 'completed',
+        ]);
+
+        $this->assertDatabaseHas('remote_control_sessions', [
+            'student_device_id' => $device->id,
+            'status' => 'active',
+            'viewer_path' => '/remote-control/view/sess-bootstrap',
+        ]);
+    }
+
     public function test_admin_remote_control_start_retires_existing_active_sessions_before_creating_a_new_one(): void
     {
         $admin = User::factory()->create([

@@ -51,6 +51,7 @@ return [
         'enabled' => env('REMOTE_CONTROL_ENABLED', true),
         'gateway_url' => env('REMOTE_CONTROL_GATEWAY_URL', 'http://127.0.0.1:9821'),
         'ready_heartbeat_max_age_seconds' => (int) env('REMOTE_CONTROL_READY_HEARTBEAT_MAX_AGE_SECONDS', 120),
+        'start_command_wait_seconds' => (int) env('REMOTE_CONTROL_START_COMMAND_WAIT_SECONDS', 12),
     ],
 
     'companion_updates' => [
