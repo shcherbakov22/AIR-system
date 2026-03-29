@@ -669,6 +669,46 @@ const openRemoteSession = (student: DashboardStudent) => {
 const appPolicyUrl = (template: string, policyId: number): string =>
     template.replace('__APP_POLICY__', String(policyId));
 
+const moveStudentAppPolicy = (
+    student: DashboardStudent,
+    policyId: number,
+    targetStatus: 'pending_review' | 'permitted' | 'blocked',
+) => {
+    if (!student.app_control) {
+        return;
+    }
+
+    const buckets = student.app_control;
+    const sourceKeys: Array<'pending_review' | 'permitted' | 'blocked'> = ['pending_review', 'permitted', 'blocked'];
+    let movedPolicy: { id: number; app_key: string; app_name: string; status: string; grace_deadline_at?: string | null } | null = null;
+
+    for (const key of sourceKeys) {
+        const index = buckets[key].findIndex((policy) => policy.id === policyId);
+        if (index === -1) {
+            continue;
+        }
+
+        movedPolicy = { ...buckets[key][index], status: targetStatus };
+        buckets[key].splice(index, 1);
+        break;
+    }
+
+    if (!movedPolicy) {
+        return;
+    }
+
+    if (targetStatus !== 'pending_review') {
+        delete movedPolicy.grace_deadline_at;
+    }
+
+    const targetBucket = buckets[targetStatus];
+    if (targetBucket.some((policy) => policy.id === movedPolicy.id)) {
+        return;
+    }
+
+    targetBucket.unshift(movedPolicy);
+};
+
 const permitStudentApp = (student: DashboardStudent, policyId: number) => {
     if (!student.app_control) {
         return;
@@ -677,6 +717,9 @@ const permitStudentApp = (student: DashboardStudent, policyId: number) => {
     router.patch(appPolicyUrl(student.app_control.permit_url_template, policyId), {}, {
         preserveScroll: true,
         preserveState: true,
+        onSuccess: () => {
+            moveStudentAppPolicy(student, policyId, 'permitted');
+        },
     });
 };
 
@@ -688,6 +731,9 @@ const blockStudentApp = (student: DashboardStudent, policyId: number) => {
     router.patch(appPolicyUrl(student.app_control.block_url_template, policyId), {}, {
         preserveScroll: true,
         preserveState: true,
+        onSuccess: () => {
+            moveStudentAppPolicy(student, policyId, 'blocked');
+        },
     });
 };
 
