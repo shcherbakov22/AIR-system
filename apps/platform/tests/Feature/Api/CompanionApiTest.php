@@ -407,7 +407,7 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.app_control.blocked_processes.0', 'Game.exe');
     }
 
-    public function test_protected_shell_apps_are_never_emitted_as_blocked_processes(): void
+    public function test_protected_shell_apps_except_task_manager_are_never_emitted_as_blocked_processes(): void
     {
         [$student, $studentUser] = $this->makeStudent('protected_apps_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -437,10 +437,18 @@ class CompanionApiTest extends TestCase
             'last_seen_at' => now(),
         ]);
 
+        $student->appPolicies()->create([
+            'app_key' => 'taskmgr.exe',
+            'app_name' => 'taskmgr.exe',
+            'status' => 'blocked',
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+
         $this->withHeaders($this->authHeaders($token))
             ->getJson(route('api.companion.policy.show'))
             ->assertOk()
-            ->assertJsonPath('policy.app_control.blocked_processes', ['Game.exe']);
+            ->assertJsonPath('policy.app_control.blocked_processes', ['Game.exe', 'taskmgr.exe']);
     }
 
     public function test_ready_heartbeat_clears_stale_remote_control_failure_reason(): void

@@ -23,7 +23,6 @@ class StudentAppPolicyService
         'searchhost.exe',
         'searchapp.exe',
         'dwm.exe',
-        'taskmgr.exe',
     ];
 
     public function syncOpenApps(StudentDevice $device, array $apps): void

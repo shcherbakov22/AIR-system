@@ -22,7 +22,6 @@ class PermitProtectedAppPoliciesCommand extends Command
             'searchhost.exe',
             'searchapp.exe',
             'dwm.exe',
-            'taskmgr.exe',
         ];
 
         $updated = StudentAppPolicy::query()
