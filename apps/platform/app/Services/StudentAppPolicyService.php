@@ -14,7 +14,7 @@ class StudentAppPolicyService
     public const STATUS_PERMITTED = 'permitted';
     public const STATUS_PENDING_REVIEW = 'pending_review';
     public const STATUS_BLOCKED = 'blocked';
-    public const PENDING_GRACE_SECONDS = 60;
+    public const PENDING_GRACE_SECONDS = 0;
     private const PROTECTED_APP_KEYS = [
         'explorer.exe',
         'rundll32.exe',

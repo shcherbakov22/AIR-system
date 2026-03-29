@@ -324,7 +324,7 @@ class CompanionApiTest extends TestCase
         $policyResponse
             ->assertOk()
             ->assertJsonPath('policy.app_control.mode', 'review')
-            ->assertJsonPath('policy.app_control.blocked_processes', []);
+            ->assertJsonPath('policy.app_control.blocked_processes', ['Steam.exe']);
     }
 
     public function test_installed_apps_inventory_is_persisted_and_grandfathered_as_permitted(): void
