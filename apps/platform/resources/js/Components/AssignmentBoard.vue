@@ -1,0 +1,194 @@
+<script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+
+type AssignmentStatus = 'unread' | 'viewed' | 'in_progress' | 'handed_in' | 'completed';
+
+type Assignment = {
+    id: number;
+    title: string;
+    body?: string | null;
+    status: AssignmentStatus;
+    created_at_label?: string | null;
+    viewed_at_label?: string | null;
+    started_at_label?: string | null;
+    completed_at_label?: string | null;
+    creator_name: string;
+    student?: {
+        id: number;
+        display_name: string;
+        username: string;
+    };
+    start_url?: string | null;
+    hand_in_url?: string | null;
+    complete_url?: string | null;
+    incomplete_url?: string | null;
+    delete_url?: string | null;
+    student_view_url?: string | null;
+};
+
+const props = withDefaults(defineProps<{
+    assignments: Assignment[];
+    mode?: 'student' | 'admin';
+}>(), {
+    mode: 'student',
+});
+
+const emit = defineEmits<{
+    start: [url?: string | null];
+    handIn: [url?: string | null];
+    complete: [url?: string | null];
+    incomplete: [url?: string | null];
+}>();
+
+const columns: Array<{ key: AssignmentStatus; label: string; tone: string }> = [
+    { key: 'unread', label: 'To do', tone: 'border-sky-200 bg-sky-50/70' },
+    { key: 'viewed', label: 'Ready', tone: 'border-stone-200 bg-stone-100/70' },
+    { key: 'in_progress', label: 'In progress', tone: 'border-amber-200 bg-amber-50/80' },
+    { key: 'handed_in', label: 'Submitted', tone: 'border-indigo-200 bg-indigo-50/80' },
+    { key: 'completed', label: 'Done', tone: 'border-emerald-200 bg-emerald-50/80' },
+];
+
+const groupedAssignments = computed(() =>
+    columns.map((column) => ({
+        ...column,
+        assignments: props.assignments.filter((assignment) => assignment.status === column.key),
+    })),
+);
+
+const statusBadgeClasses = (status: AssignmentStatus): string => {
+    if (status === 'unread') return 'bg-sky-100 text-sky-900';
+    if (status === 'viewed') return 'bg-stone-200 text-stone-800';
+    if (status === 'in_progress') return 'bg-amber-100 text-amber-900';
+    if (status === 'handed_in') return 'bg-indigo-100 text-indigo-900';
+
+    return 'bg-emerald-100 text-emerald-900';
+};
+
+const statusLabel = (status: AssignmentStatus): string => {
+    if (status === 'in_progress') return 'In progress';
+    if (status === 'handed_in') return 'Handed in';
+
+    return status.charAt(0).toUpperCase() + status.slice(1);
+};
+</script>
+
+<template>
+    <div v-if="assignments.length === 0" class="rounded-[1.25rem] bg-stone-50 px-5 py-6 text-sm text-stone-600 ring-1 ring-stone-200">
+        No assignments yet.
+    </div>
+
+    <div v-else class="overflow-x-auto pb-2">
+        <div class="flex min-w-max gap-4">
+            <section
+                v-for="column in groupedAssignments"
+                :key="column.key"
+                class="flex w-[21rem] shrink-0 flex-col rounded-[1.5rem] border p-3"
+                :class="column.tone"
+            >
+                <div class="mb-3 flex items-center justify-between gap-3 px-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-700">
+                        {{ column.label }}
+                    </h3>
+                    <span class="rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-stone-600 ring-1 ring-stone-200">
+                        {{ column.assignments.length }}
+                    </span>
+                </div>
+
+                <div class="space-y-3">
+                    <article
+                        v-for="assignment in column.assignments"
+                        :key="assignment.id"
+                        class="rounded-[1.2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div
+                                    v-if="mode === 'admin' && assignment.student"
+                                    class="mb-2 flex flex-wrap items-center gap-2 text-xs text-stone-500"
+                                >
+                                    <Link
+                                        v-if="assignment.student_view_url"
+                                        :href="assignment.student_view_url"
+                                        class="font-semibold text-stone-700 underline underline-offset-2"
+                                    >
+                                        {{ assignment.student.display_name }}
+                                    </Link>
+                                    <span>{{ assignment.student.username }}</span>
+                                </div>
+
+                                <h4 class="text-base font-semibold text-stone-950">
+                                    {{ assignment.title }}
+                                </h4>
+                                <p class="mt-1 text-xs text-stone-500">
+                                    Created by {{ assignment.creator_name }}<span v-if="assignment.created_at_label">, {{ assignment.created_at_label }}</span>
+                                </p>
+                            </div>
+
+                            <span
+                                class="shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                                :class="statusBadgeClasses(assignment.status)"
+                            >
+                                {{ statusLabel(assignment.status) }}
+                            </span>
+                        </div>
+
+                        <p v-if="assignment.body" class="mt-3 whitespace-pre-wrap text-sm leading-6 text-stone-800">
+                            {{ assignment.body }}
+                        </p>
+
+                        <div class="mt-3 flex flex-wrap gap-3 text-xs text-stone-500">
+                            <span v-if="assignment.viewed_at_label">Viewed {{ assignment.viewed_at_label }}</span>
+                            <span v-if="assignment.started_at_label">Started {{ assignment.started_at_label }}</span>
+                            <span v-if="assignment.completed_at_label">Completed {{ assignment.completed_at_label }}</span>
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <button
+                                v-if="assignment.start_url"
+                                type="button"
+                                class="rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-stone-800"
+                                @click="emit('start', assignment.start_url)"
+                            >
+                                Start
+                            </button>
+                            <button
+                                v-if="assignment.hand_in_url"
+                                type="button"
+                                class="rounded-full bg-indigo-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-indigo-600"
+                                @click="emit('handIn', assignment.hand_in_url)"
+                            >
+                                Hand in
+                            </button>
+                            <button
+                                v-if="assignment.complete_url"
+                                type="button"
+                                class="rounded-full bg-emerald-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-emerald-600"
+                                @click="emit('complete', assignment.complete_url)"
+                            >
+                                Mark complete
+                            </button>
+                            <button
+                                v-if="assignment.incomplete_url"
+                                type="button"
+                                class="rounded-full bg-amber-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-amber-500"
+                                @click="emit('incomplete', assignment.incomplete_url)"
+                            >
+                                Mark incomplete
+                            </button>
+                            <Link
+                                v-if="assignment.delete_url"
+                                :href="assignment.delete_url"
+                                method="delete"
+                                as="button"
+                                class="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                            >
+                                Delete
+                            </Link>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </div>
+    </div>
+</template>
