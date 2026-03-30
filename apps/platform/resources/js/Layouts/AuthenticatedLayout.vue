@@ -26,6 +26,7 @@ const navItems = computed(() => {
         {
             label: 'Overview',
             href: route('dashboard'),
+            external: false,
             active:
                 user.value.role === 'admin'
                     ? route().current('admin.dashboard')
@@ -37,77 +38,92 @@ const navItems = computed(() => {
         items.push({
             label: 'Students',
             href: route('admin.students.index'),
+            external: false,
             active: route().current('admin.students.*'),
         });
         items.push({
             label: 'Chats',
             href: route('admin.chats.index'),
+            external: false,
             active: route().current('admin.chats.*'),
         });
         items.push({
             label: 'Announcements',
             href: route('admin.announcements.index'),
+            external: false,
             active: route().current('admin.announcements.*'),
         });
         items.push({
             label: 'Assignments',
             href: route('admin.assignments.index'),
+            external: false,
             active: route().current('admin.assignments.*') || route().current('admin.students.assignments.*'),
         });
         items.push({
             label: 'Tasks',
             href: route('admin.task-templates.index'),
+            external: false,
             active: route().current('admin.task-templates.*'),
         });
         items.push({
             label: 'Rules',
             href: route('admin.rule-definitions.index'),
+            external: false,
             active: route().current('admin.rule-definitions.*'),
         });
         items.push({
             label: 'Violations',
             href: route('admin.violations.index'),
+            external: false,
             active: route().current('admin.violations.*'),
         });
         items.push({
             label: 'Counter',
             href: route('push-up-station.show'),
+            external: false,
             active: route().current('push-up-station.*'),
         });
         items.push({
             label: 'Database',
-            href: route('admin.database'),
-            active: route().current('admin.database'),
+            href: '/adminer.php',
+            external: true,
+            active: false,
         });
         items.push({
             label: 'Schedules',
             href: route('admin.schedule-templates.index'),
+            external: false,
             active: route().current('admin.schedule-templates.*'),
         });
     } else {
         items.push({
             label: 'Chat',
             href: route('student.chat.show'),
+            external: false,
             active: route().current('student.chat.*'),
         });
         items.push({
             label: 'Announcements',
             href: route('student.announcements.show'),
+            external: false,
             active: route().current('student.announcements.*'),
         });
         items.push({
             label: 'Assignments',
             href: route('student.assignments.index'),
+            external: false,
             active: route().current('student.assignments.*'),
         });
         items.push({
             label: 'Counter',
             href: route('push-up-station.show'),
+            external: false,
             active: route().current('push-up-station.*'),
         });
         items.push({
             label: 'Rules',
             href: route('student.rules.index'),
+            external: false,
             active: route().current('student.rules.*'),
         });
 
@@ -115,6 +131,7 @@ const navItems = computed(() => {
             items.push({
                 label: 'Schedules',
                 href: route('student.schedules.index'),
+                external: false,
                 active: route().current('student.schedules.*'),
             });
         }
@@ -123,6 +140,7 @@ const navItems = computed(() => {
     items.push({
         label: 'Profile',
         href: route('profile.edit'),
+        external: false,
         active: route().current('profile.*'),
     });
 
@@ -174,16 +192,17 @@ const closeMobileNav = () => {
 
             <nav class="flex-1 overflow-y-auto px-3 py-4">
                 <div class="space-y-1">
-                    <Link
+                    <component
                         v-for="item in navItems"
                         :key="item.label"
+                        :is="item.external ? 'a' : Link"
                         :href="item.href"
                         class="flex items-center rounded-[0.9rem] px-3 py-2.5 text-sm font-medium transition"
                         :class="navItemClasses(item.active)"
                         @click="closeMobileNav"
                     >
                         {{ item.label }}
-                    </Link>
+                    </component>
                 </div>
             </nav>
 
