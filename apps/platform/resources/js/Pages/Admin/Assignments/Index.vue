@@ -73,9 +73,9 @@ const markIncomplete = (url?: string | null) => {
     <Head title="Assignments" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto max-w-[108rem] px-5 py-6">
-            <div class="grid gap-6 xl:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.9fr)]">
-                <section class="rounded-[1.75rem] bg-white p-5 shadow-sm ring-1 ring-stone-200">
+        <div class="mx-auto max-w-[112rem] px-3 py-3 sm:px-4 sm:py-4">
+            <div class="grid gap-4 xl:grid-cols-[minmax(18rem,0.82fr)_minmax(0,2.18fr)]">
+                <section class="rounded-[1.4rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
                     <form class="space-y-3" @submit.prevent="submit">
                         <select
                             v-model="form.student_id"
@@ -114,14 +114,14 @@ const markIncomplete = (url?: string | null) => {
                     </form>
                 </section>
 
-                <section class="rounded-[1.75rem] bg-white p-5 shadow-sm ring-1 ring-stone-200">
+                <section class="rounded-[1.4rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
                     <div class="flex items-center justify-between gap-3">
-                        <h2 class="text-2xl font-semibold text-stone-950">
+                        <h2 class="text-xl font-semibold text-stone-950">
                             Assignment board
                         </h2>
                     </div>
 
-                    <div class="mt-5">
+                    <div class="mt-4">
                         <AssignmentBoard
                             :assignments="assignments"
                             mode="admin"

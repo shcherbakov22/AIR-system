@@ -40,18 +40,18 @@ const handInAssignment = (url?: string | null) => {
     <Head title="Assignments" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto max-w-[96rem] px-5 py-6">
-            <div class="rounded-[1.75rem] bg-white shadow-sm ring-1 ring-stone-200">
-                <div class="border-b border-stone-200 px-5 py-4">
-                    <h1 class="text-3xl font-semibold text-stone-950">
+        <div class="mx-auto max-w-[110rem] px-3 py-3 sm:px-4 sm:py-4">
+            <div class="rounded-[1.4rem] bg-white shadow-sm ring-1 ring-stone-200">
+                <div class="border-b border-stone-200 px-4 py-3">
+                    <h1 class="text-2xl font-semibold text-stone-950">
                         Assignments
                     </h1>
-                    <p class="mt-2 text-sm text-stone-600">
+                    <p class="mt-1.5 text-sm text-stone-600">
                         Opening this board marks unread assignments as viewed.
                     </p>
                 </div>
 
-                <div class="px-5 py-5">
+                <div class="px-3 py-3 sm:px-4 sm:py-4">
                     <AssignmentBoard
                         :assignments="assignments"
                         mode="student"

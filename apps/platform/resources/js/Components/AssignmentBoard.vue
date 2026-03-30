@@ -74,38 +74,38 @@ const statusLabel = (status: AssignmentStatus): string => {
 </script>
 
 <template>
-    <div v-if="assignments.length === 0" class="rounded-[1.25rem] bg-stone-50 px-5 py-6 text-sm text-stone-600 ring-1 ring-stone-200">
+    <div v-if="assignments.length === 0" class="rounded-[1.1rem] bg-stone-50 px-4 py-5 text-sm text-stone-600 ring-1 ring-stone-200">
         No assignments yet.
     </div>
 
-    <div v-else class="overflow-x-auto pb-2">
-        <div class="flex min-w-max gap-4">
+    <div v-else>
+        <div class="grid gap-3 xl:grid-cols-5 md:grid-cols-3 sm:grid-cols-2">
             <section
                 v-for="column in groupedAssignments"
                 :key="column.key"
-                class="flex w-[21rem] shrink-0 flex-col rounded-[1.5rem] border p-3"
+                class="flex min-w-0 flex-col rounded-[1.2rem] border p-2.5"
                 :class="column.tone"
             >
-                <div class="mb-3 flex items-center justify-between gap-3 px-1">
-                    <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-700">
+                <div class="mb-2 flex items-center justify-between gap-2 px-0.5">
+                    <h3 class="text-xs font-semibold uppercase tracking-[0.14em] text-stone-700">
                         {{ column.label }}
                     </h3>
-                    <span class="rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-stone-600 ring-1 ring-stone-200">
+                    <span class="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-stone-600 ring-1 ring-stone-200">
                         {{ column.assignments.length }}
                     </span>
                 </div>
 
-                <div class="space-y-3">
+                <div class="space-y-2.5">
                     <article
                         v-for="assignment in column.assignments"
                         :key="assignment.id"
-                        class="rounded-[1.2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200"
+                        class="rounded-[1rem] bg-white p-3 shadow-sm ring-1 ring-stone-200"
                     >
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <div
                                     v-if="mode === 'admin' && assignment.student"
-                                    class="mb-2 flex flex-wrap items-center gap-2 text-xs text-stone-500"
+                                    class="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] text-stone-500"
                                 >
                                     <Link
                                         v-if="assignment.student_view_url"
@@ -117,37 +117,37 @@ const statusLabel = (status: AssignmentStatus): string => {
                                     <span>{{ assignment.student.username }}</span>
                                 </div>
 
-                                <h4 class="text-base font-semibold text-stone-950">
+                                <h4 class="text-sm font-semibold leading-5 text-stone-950">
                                     {{ assignment.title }}
                                 </h4>
-                                <p class="mt-1 text-xs text-stone-500">
+                                <p class="mt-1 text-[11px] text-stone-500">
                                     Created by {{ assignment.creator_name }}<span v-if="assignment.created_at_label">, {{ assignment.created_at_label }}</span>
                                 </p>
                             </div>
 
                             <span
-                                class="shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                                class="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
                                 :class="statusBadgeClasses(assignment.status)"
                             >
                                 {{ statusLabel(assignment.status) }}
                             </span>
                         </div>
 
-                        <p v-if="assignment.body" class="mt-3 whitespace-pre-wrap text-sm leading-6 text-stone-800">
+                        <p v-if="assignment.body" class="mt-2.5 whitespace-pre-wrap text-xs leading-5 text-stone-800">
                             {{ assignment.body }}
                         </p>
 
-                        <div class="mt-3 flex flex-wrap gap-3 text-xs text-stone-500">
+                        <div class="mt-2.5 flex flex-wrap gap-2 text-[11px] text-stone-500">
                             <span v-if="assignment.viewed_at_label">Viewed {{ assignment.viewed_at_label }}</span>
                             <span v-if="assignment.started_at_label">Started {{ assignment.started_at_label }}</span>
                             <span v-if="assignment.completed_at_label">Completed {{ assignment.completed_at_label }}</span>
                         </div>
 
-                        <div class="mt-4 flex flex-wrap gap-2">
+                        <div class="mt-3 flex flex-wrap gap-2">
                             <button
                                 v-if="assignment.start_url"
                                 type="button"
-                                class="rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-stone-800"
+                                class="rounded-full bg-stone-950 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-stone-800"
                                 @click="emit('start', assignment.start_url)"
                             >
                                 Start
@@ -155,7 +155,7 @@ const statusLabel = (status: AssignmentStatus): string => {
                             <button
                                 v-if="assignment.hand_in_url"
                                 type="button"
-                                class="rounded-full bg-indigo-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-indigo-600"
+                                class="rounded-full bg-indigo-700 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-indigo-600"
                                 @click="emit('handIn', assignment.hand_in_url)"
                             >
                                 Hand in
@@ -163,7 +163,7 @@ const statusLabel = (status: AssignmentStatus): string => {
                             <button
                                 v-if="assignment.complete_url"
                                 type="button"
-                                class="rounded-full bg-emerald-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-emerald-600"
+                                class="rounded-full bg-emerald-700 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-emerald-600"
                                 @click="emit('complete', assignment.complete_url)"
                             >
                                 Mark complete
@@ -171,7 +171,7 @@ const statusLabel = (status: AssignmentStatus): string => {
                             <button
                                 v-if="assignment.incomplete_url"
                                 type="button"
-                                class="rounded-full bg-amber-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-amber-500"
+                                class="rounded-full bg-amber-600 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-amber-500"
                                 @click="emit('incomplete', assignment.incomplete_url)"
                             >
                                 Mark incomplete
@@ -181,7 +181,7 @@ const statusLabel = (status: AssignmentStatus): string => {
                                 :href="assignment.delete_url"
                                 method="delete"
                                 as="button"
-                                class="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                class="rounded-full border border-stone-300 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                             >
                                 Delete
                             </Link>

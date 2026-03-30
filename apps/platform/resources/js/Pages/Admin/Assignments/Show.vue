@@ -66,23 +66,23 @@ const markIncomplete = (url?: string | null) => {
     <Head :title="`Assignments - ${student.display_name}`" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto max-w-[108rem] px-5 py-6">
-            <div class="mb-4">
+        <div class="mx-auto max-w-[112rem] px-3 py-3 sm:px-4 sm:py-4">
+            <div class="mb-3">
                 <Link :href="route('admin.assignments.index')" class="text-sm font-medium text-stone-700 underline underline-offset-2">
                     Back to assignments
                 </Link>
             </div>
 
-            <div class="grid gap-6 xl:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.9fr)]">
-                <section class="rounded-[1.75rem] bg-white p-5 shadow-sm ring-1 ring-stone-200">
-                    <h1 class="text-3xl font-semibold text-stone-950">
+            <div class="grid gap-4 xl:grid-cols-[minmax(18rem,0.82fr)_minmax(0,2.18fr)]">
+                <section class="rounded-[1.4rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
+                    <h1 class="text-2xl font-semibold text-stone-950">
                         {{ student.display_name }}
                     </h1>
-                    <p class="mt-2 text-sm text-stone-600">
+                    <p class="mt-1.5 text-sm text-stone-600">
                         {{ student.username }}
                     </p>
 
-                    <form class="mt-5 space-y-3" @submit.prevent="submit">
+                    <form class="mt-4 space-y-3" @submit.prevent="submit">
                         <input
                             v-model="form.title"
                             type="text"
@@ -105,12 +105,12 @@ const markIncomplete = (url?: string | null) => {
                     </form>
                 </section>
 
-                <section class="rounded-[1.75rem] bg-white p-5 shadow-sm ring-1 ring-stone-200">
-                    <h2 class="text-2xl font-semibold text-stone-950">
+                <section class="rounded-[1.4rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
+                    <h2 class="text-xl font-semibold text-stone-950">
                         Assignment board
                     </h2>
 
-                    <div class="mt-5">
+                    <div class="mt-4">
                         <AssignmentBoard
                             :assignments="assignments"
                             mode="admin"
