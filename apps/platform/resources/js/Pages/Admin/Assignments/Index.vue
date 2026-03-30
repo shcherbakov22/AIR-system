@@ -25,6 +25,7 @@ const props = defineProps<{
             username: string;
         };
         complete_url?: string | null;
+        incomplete_url?: string | null;
         delete_url: string;
         student_view_url: string;
     }>;
@@ -53,6 +54,17 @@ const statusClasses = (status: string): string => {
 };
 
 const completeAssignment = (url?: string | null) => {
+    if (!url) {
+        return;
+    }
+
+    router.patch(url, {}, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
+const markIncomplete = (url?: string | null) => {
     if (!url) {
         return;
     }
@@ -148,6 +160,14 @@ const completeAssignment = (url?: string | null) => {
                                         @click="completeAssignment(assignment.complete_url)"
                                     >
                                         Mark complete
+                                    </button>
+                                    <button
+                                        v-if="assignment.incomplete_url"
+                                        type="button"
+                                        class="rounded-full bg-amber-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-amber-500"
+                                        @click="markIncomplete(assignment.incomplete_url)"
+                                    >
+                                        Mark incomplete
                                     </button>
                                     <Link
                                         :href="assignment.delete_url"

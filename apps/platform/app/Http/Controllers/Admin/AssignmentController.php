@@ -105,6 +105,15 @@ class AssignmentController extends Controller
             ->with('success', 'Assignment marked completed.');
     }
 
+    public function incomplete(StudentAssignment $studentAssignment): RedirectResponse
+    {
+        $studentAssignment->markIncomplete();
+
+        return redirect()
+            ->back()
+            ->with('success', 'Assignment marked incomplete.');
+    }
+
     private function payload(StudentAssignment $assignment): array
     {
         $assignment->loadMissing(['student.user', 'creator']);
@@ -127,6 +136,9 @@ class AssignmentController extends Controller
             'delete_url' => route('admin.assignments.destroy', $assignment),
             'complete_url' => $assignment->status === 'handed_in'
                 ? route('admin.assignments.complete', $assignment)
+                : null,
+            'incomplete_url' => in_array($assignment->status, ['handed_in', 'completed'], true)
+                ? route('admin.assignments.incomplete', $assignment)
                 : null,
             'student_view_url' => route('admin.students.assignments.show', $assignment->student),
         ];

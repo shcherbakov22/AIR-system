@@ -98,6 +98,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/assignments', [AdminAssignmentController::class, 'index'])->name('assignments.index');
         Route::post('/assignments', [AdminAssignmentController::class, 'store'])->name('assignments.store');
         Route::patch('/assignments/{studentAssignment}/complete', [AdminAssignmentController::class, 'complete'])->name('assignments.complete');
+        Route::patch('/assignments/{studentAssignment}/incomplete', [AdminAssignmentController::class, 'incomplete'])->name('assignments.incomplete');
         Route::delete('/assignments/{studentAssignment}', [AdminAssignmentController::class, 'destroy'])->name('assignments.destroy');
         Route::get('/chats', [AdminChatController::class, 'index'])->name('chats.index');
         Route::get('/chats/{student}', [AdminChatController::class, 'show'])->name('chats.show');

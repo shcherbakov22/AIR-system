@@ -137,6 +137,15 @@ class StudentAssignmentFlowTest extends TestCase
         $assignment->refresh();
         $this->assertSame('completed', $assignment->status);
         $this->assertNotNull($assignment->completed_at);
+
+        $this->actingAs($mentor)
+            ->patch(route('admin.assignments.incomplete', $assignment))
+            ->assertSessionHas('success', 'Assignment marked incomplete.');
+
+        $assignment->refresh();
+        $this->assertSame('in_progress', $assignment->status);
+        $this->assertNull($assignment->completed_at);
+        $this->assertNotNull($assignment->started_at);
     }
 
     public function test_admin_can_view_single_student_assignments_page(): void
@@ -174,7 +183,7 @@ class StudentAssignmentFlowTest extends TestCase
             );
     }
 
-    public function test_admin_assignments_pages_expose_complete_action_only_for_handed_in_items(): void
+    public function test_admin_assignments_pages_expose_complete_and_incomplete_actions_for_submitted_items(): void
     {
         $mentor = User::factory()->create([
             'role' => UserRole::Admin,
@@ -206,6 +215,14 @@ class StudentAssignmentFlowTest extends TestCase
             'status' => 'handed_in',
         ]);
 
+        $completedAssignment = StudentAssignment::create([
+            'student_id' => $student->id,
+            'created_by_user_id' => $mentor->id,
+            'title' => 'Completed item',
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+
         $this->actingAs($mentor)
             ->get(route('admin.assignments.index'))
             ->assertOk()
@@ -214,9 +231,15 @@ class StudentAssignmentFlowTest extends TestCase
                 ->where('assignments.0.status', 'in_progress')
                 ->where('assignments.0.id', $inProgressAssignment->id)
                 ->where('assignments.0.complete_url', null)
+                ->where('assignments.0.incomplete_url', null)
                 ->where('assignments.1.status', 'handed_in')
                 ->where('assignments.1.id', $handedInAssignment->id)
                 ->where('assignments.1.complete_url', route('admin.assignments.complete', $handedInAssignment))
+                ->where('assignments.1.incomplete_url', route('admin.assignments.incomplete', $handedInAssignment))
+                ->where('assignments.2.status', 'completed')
+                ->where('assignments.2.id', $completedAssignment->id)
+                ->where('assignments.2.complete_url', null)
+                ->where('assignments.2.incomplete_url', route('admin.assignments.incomplete', $completedAssignment))
             );
     }
 }
