@@ -113,6 +113,14 @@ class DashboardController extends Controller
     {
         $actualDurationSeconds = $block->taskSessions
             ->sum(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession));
+        $unfinishedTaskSession = $block->taskSessions
+            ->filter(fn (TaskSession $taskSession) => in_array($taskSession->status, ['active', 'completed'], true))
+            ->sortByDesc(fn (TaskSession $taskSession) => [
+                $taskSession->status === 'active' ? 1 : 0,
+                optional($taskSession->started_at)?->timestamp ?? 0,
+                $taskSession->id,
+            ])
+            ->first();
         $plannedDurationSeconds = max(0, (int) ($block->duration_minutes_snapshot ?? 0) * 60);
         $isPending = in_array($block->status, ['pending', 'planned'], true);
         $displayDurationLabel = $isPending
@@ -131,6 +139,9 @@ class DashboardController extends Controller
             'actual_duration_label' => $this->formatDuration($actualDurationSeconds),
             'display_duration_label' => $displayDurationLabel,
             'display_duration_caption' => $isPending ? 'Planned' : 'Spent',
+            'unfinished_url' => $unfinishedTaskSession
+                ? route('admin.task-sessions.unfinished', $unfinishedTaskSession)
+                : null,
             'started_at' => $block->started_at?->toIso8601String(),
             'started_at_label' => $block->started_at?->format('d M, H:i'),
             'completed_at' => $block->completed_at?->toIso8601String(),

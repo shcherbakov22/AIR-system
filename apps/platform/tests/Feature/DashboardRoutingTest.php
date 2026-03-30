@@ -155,7 +155,7 @@ class DashboardRoutingTest extends TestCase
             'started_at' => Carbon::parse('2026-03-12 14:35:00'),
         ]);
 
-        TaskSession::create([
+        $completedTaskSession = TaskSession::create([
             'student_id' => $student->id,
             'schedule_run_id' => $scheduleRun->id,
             'schedule_run_block_id' => $completedBlock->id,
@@ -169,7 +169,7 @@ class DashboardRoutingTest extends TestCase
             'stopped_by_user_id' => $studentUser->id,
         ]);
 
-        TaskSession::create([
+        $activeTaskSession = TaskSession::create([
             'student_id' => $student->id,
             'schedule_run_id' => $scheduleRun->id,
             'schedule_run_block_id' => $activeBlock->id,
@@ -195,8 +195,10 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.active_schedule_run.total_blocks', 2)
                 ->where('monitorStudents.0.active_schedule_run.blocks.0.task_title', 'Reading')
                 ->where('monitorStudents.0.active_schedule_run.blocks.0.actual_duration_seconds', 1800)
+                ->where('monitorStudents.0.active_schedule_run.blocks.0.unfinished_url', route('admin.task-sessions.unfinished', $completedTaskSession))
                 ->where('monitorStudents.0.active_schedule_run.blocks.1.task_title', 'Coding')
                 ->where('monitorStudents.0.active_schedule_run.blocks.1.actual_duration_seconds', 1500)
+                ->where('monitorStudents.0.active_schedule_run.blocks.1.unfinished_url', route('admin.task-sessions.unfinished', $activeTaskSession))
                 ->where('monitorStudents.0.schedule_board.blocks.0.display_duration_caption', 'Spent')
                 ->where('monitorStudents.0.schedule_board.blocks.1.display_duration_caption', 'Spent')
             );

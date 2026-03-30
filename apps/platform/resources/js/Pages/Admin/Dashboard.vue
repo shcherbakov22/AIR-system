@@ -15,6 +15,7 @@ type DashboardBlock = {
     actual_duration_label: string;
     display_duration_label: string;
     display_duration_caption: string;
+    unfinished_url?: string | null;
     started_at?: string | null;
     started_at_label?: string | null;
     completed_at?: string | null;
@@ -680,6 +681,17 @@ const markTaskSessionUnfinished = (student: DashboardStudent) => {
     });
 };
 
+const markTaskSessionUnfinishedByUrl = (unfinishedUrl?: string | null) => {
+    if (!unfinishedUrl || hasAnyAdminChatGate.value) {
+        return;
+    }
+
+    router.patch(unfinishedUrl, {}, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
 const appPolicyUrl = (template: string, policyId: number): string =>
     template.replace('__APP_POLICY__', String(policyId));
 
@@ -1220,12 +1232,23 @@ const blockTooltip = (block: DashboardBlock): string => {
                                         <p class="min-w-0 truncate font-medium text-stone-900">
                                             {{ block.position }}. {{ block.task_title }}
                                         </p>
-                                        <span
-                                            class="shrink-0 text-[8px] font-semibold"
-                                            :class="block.status === 'paused' ? 'text-stone-200' : 'text-stone-700'"
+                                        <button
+                                            type="button"
+                                            class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-semibold"
+                                            :class="
+                                                block.unfinished_url && !hasAnyAdminChatGate
+                                                    ? block.status === 'paused'
+                                                        ? 'bg-white/10 text-white transition hover:bg-white/20'
+                                                        : 'bg-amber-100 text-amber-900 transition hover:bg-amber-200'
+                                                    : block.status === 'paused'
+                                                        ? 'text-stone-200'
+                                                        : 'text-stone-700'
+                                            "
+                                            :disabled="!block.unfinished_url || hasAnyAdminChatGate"
+                                            @click="markTaskSessionUnfinishedByUrl(block.unfinished_url)"
                                         >
                                             {{ block.displayDurationLabel }}
-                                        </span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
