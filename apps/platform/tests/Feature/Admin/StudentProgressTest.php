@@ -68,7 +68,7 @@ class StudentProgressTest extends TestCase
             'started_at' => Carbon::parse('2026-03-12 08:35:00'),
         ]);
 
-        TaskSession::create([
+        $completedSession = TaskSession::create([
             'student_id' => $student->id,
             'schedule_run_id' => $scheduleRun->id,
             'schedule_run_block_id' => $firstBlock->id,
@@ -82,7 +82,7 @@ class StudentProgressTest extends TestCase
             'stopped_by_user_id' => $studentUser->id,
         ]);
 
-        TaskSession::create([
+        $pausedSession = TaskSession::create([
             'student_id' => $student->id,
             'schedule_run_id' => $scheduleRun->id,
             'schedule_run_block_id' => $secondBlock->id,
@@ -96,7 +96,7 @@ class StudentProgressTest extends TestCase
             'stopped_by_user_id' => $studentUser->id,
         ]);
 
-        TaskSession::create([
+        $activeSession = TaskSession::create([
             'student_id' => $student->id,
             'schedule_run_id' => $scheduleRun->id,
             'schedule_run_block_id' => $secondBlock->id,
@@ -108,7 +108,7 @@ class StudentProgressTest extends TestCase
             'started_by_user_id' => $studentUser->id,
         ]);
 
-        TaskSession::create([
+        $outsideScheduleSession = TaskSession::create([
             'student_id' => $student->id,
             'schedule_run_id' => $scheduleRun->id,
             'schedule_run_block_id' => null,
@@ -138,15 +138,19 @@ class StudentProgressTest extends TestCase
                 ->where('runs.0.schedule_name', 'Focus Day')
                 ->where('runs.0.task_sequence.0.task_title', 'Math')
                 ->where('runs.0.task_sequence.0.actual_duration_seconds', 1800)
+                ->where('runs.0.task_sequence.0.unfinished_url', route('admin.task-sessions.unfinished', $completedSession))
                 ->where('runs.0.task_sequence.1.task_title', 'Reading')
                 ->where('runs.0.task_sequence.1.actual_duration_seconds', 900)
                 ->where('runs.0.task_sequence.1.was_in_schedule', true)
+                ->where('runs.0.task_sequence.1.unfinished_url', null)
                 ->where('runs.0.task_sequence.2.task_title', 'Reading')
                 ->where('runs.0.task_sequence.2.actual_duration_seconds', 4500)
                 ->where('runs.0.task_sequence.2.was_in_schedule', true)
+                ->where('runs.0.task_sequence.2.unfinished_url', route('admin.task-sessions.unfinished', $activeSession))
                 ->where('runs.0.task_sequence.3.task_title', 'Custom timer')
                 ->where('runs.0.task_sequence.3.actual_duration_seconds', 600)
                 ->where('runs.0.task_sequence.3.was_in_schedule', false)
+                ->where('runs.0.task_sequence.3.unfinished_url', route('admin.task-sessions.unfinished', $outsideScheduleSession))
                 ->where('task_summary.0.task_title', 'Reading')
                 ->where('task_summary.0.total_actual_duration_seconds', 5400)
             );

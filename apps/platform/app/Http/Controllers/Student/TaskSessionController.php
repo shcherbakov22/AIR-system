@@ -10,11 +10,35 @@ use App\Models\Student;
 use App\Models\TaskSession;
 use App\Services\AutomaticObserveTheTimeViolationService;
 use App\Services\SpeechAnnouncementService;
+use App\Services\TaskSessionUnfinishService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
 class TaskSessionController extends Controller
 {
+    public function unfinished(
+        StopTaskSessionRequest $request,
+        TaskSession $taskSession,
+        TaskSessionUnfinishService $taskSessionUnfinishService,
+    ): RedirectResponse {
+        $studentId = $request->user()?->student?->id;
+
+        if (! $studentId) {
+            abort(403);
+        }
+
+        $ownedTaskSession = TaskSession::query()
+            ->whereKey($taskSession->id)
+            ->where('student_id', $studentId)
+            ->firstOrFail();
+
+        $result = $taskSessionUnfinishService->markUnfinished($ownedTaskSession, $request->user()->id);
+
+        return redirect()
+            ->route('student.home')
+            ->with($result['success'] ? 'success' : 'error', $result['message']);
+    }
+
     public function stop(
         StopTaskSessionRequest $request,
         TaskSession $taskSession,
@@ -154,5 +178,78 @@ class TaskSessionController extends Controller
         return redirect()
             ->route('student.home')
             ->with('success', $result['message']);
+    }
+
+    public function resume(
+        StopTaskSessionRequest $request,
+        TaskSession $taskSession,
+    ): RedirectResponse {
+        $studentId = $request->user()?->student?->id;
+
+        if (! $studentId) {
+            abort(403);
+        }
+
+        $result = DB::transaction(function () use ($request, $studentId, $taskSession) {
+            $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
+
+            $pausedTaskSession = TaskSession::query()
+                ->whereKey($taskSession->id)
+                ->where('student_id', $studentId)
+                ->where('status', 'paused')
+                ->whereNull('schedule_run_id')
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $hasActiveTaskSession = TaskSession::query()
+                ->where('student_id', $studentId)
+                ->where('status', 'active')
+                ->exists();
+
+            if ($hasActiveTaskSession) {
+                return [
+                    'success' => false,
+                    'message' => 'Stop the current task session before resuming this one.',
+                ];
+            }
+
+            $hasActiveOrPausedScheduleRun = ScheduleRun::query()
+                ->where('student_id', $studentId)
+                ->whereIn('status', ['active', 'paused'])
+                ->exists();
+
+            if ($hasActiveOrPausedScheduleRun) {
+                return [
+                    'success' => false,
+                    'message' => 'Resume or finish the current schedule before resuming this task.',
+                ];
+            }
+
+            TaskSession::create([
+                'student_id' => $student->id,
+                'task_assignment_id' => $pausedTaskSession->task_assignment_id,
+                'schedule_run_id' => null,
+                'schedule_run_block_id' => null,
+                'task_template_id' => $pausedTaskSession->task_template_id,
+                'status' => 'active',
+                'task_title_snapshot' => $pausedTaskSession->task_title_snapshot,
+                'task_summary_snapshot' => $pausedTaskSession->task_summary_snapshot,
+                'task_instructions_snapshot' => $pausedTaskSession->task_instructions_snapshot,
+                'assignment_notes_snapshot' => $pausedTaskSession->assignment_notes_snapshot,
+                'planned_duration_minutes' => $pausedTaskSession->planned_duration_minutes,
+                'duration_seconds' => max(0, (int) ($pausedTaskSession->duration_seconds ?? 0)),
+                'started_at' => now(),
+                'started_by_user_id' => $request->user()->id,
+            ]);
+
+            return [
+                'success' => true,
+                'message' => "Task session {$pausedTaskSession->task_title_snapshot} resumed.",
+            ];
+        });
+
+        return redirect()
+            ->route('student.home')
+            ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 }

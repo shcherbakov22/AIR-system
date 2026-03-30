@@ -116,6 +116,9 @@ class StudentProgressController extends Controller
             'ended_at_label' => $taskSession->ended_at?->format('d M, H:i'),
             'was_in_schedule' => $taskSession->schedule_run_block_id !== null,
             'block_position' => $taskSession->scheduleRunBlock?->position,
+            'unfinished_url' => in_array($taskSession->status, ['active', 'completed'], true)
+                ? route('admin.task-sessions.unfinished', $taskSession)
+                : null,
         ];
     }
 

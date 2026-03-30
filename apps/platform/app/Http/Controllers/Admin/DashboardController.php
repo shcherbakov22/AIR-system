@@ -105,6 +105,7 @@ class DashboardController extends Controller
                     'position' => $taskSession->scheduleRunBlock->position,
                 ]
                 : null,
+            'unfinished_url' => route('admin.task-sessions.unfinished', $taskSession),
         ];
     }
 

@@ -61,6 +61,7 @@ type DashboardStudent = {
         schedule_run_block?: {
             position: number;
         } | null;
+        unfinished_url?: string | null;
     } | null;
     latest_screen_capture?: {
         id: number;
@@ -666,6 +667,19 @@ const openRemoteSession = (student: DashboardStudent) => {
     });
 };
 
+const markTaskSessionUnfinished = (student: DashboardStudent) => {
+    const unfinishedUrl = student.active_task_session?.unfinished_url;
+
+    if (!unfinishedUrl || hasAnyAdminChatGate.value) {
+        return;
+    }
+
+    router.patch(unfinishedUrl, {}, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
 const appPolicyUrl = (template: string, policyId: number): string =>
     template.replace('__APP_POLICY__', String(policyId));
 
@@ -856,7 +870,7 @@ const blockRowClass = (status: string): string => {
     }
 
     if (status === 'paused') {
-        return 'border-sky-300 bg-sky-50';
+        return 'border-stone-900 bg-stone-950';
     }
 
     return 'border-stone-200 bg-white';
@@ -1169,14 +1183,22 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <p class="min-w-0 truncate text-[16px] font-semibold text-stone-900">
                                 {{ student.active_task_session?.task_title ?? 'No active task' }}
                             </p>
-                            <p class="shrink-0 text-[15px] font-semibold leading-tight text-stone-700">
+                            <button
+                                type="button"
+                                class="shrink-0 text-[15px] font-semibold leading-tight"
+                                :class="student.active_task_session?.unfinished_url && !hasAnyAdminChatGate
+                                    ? 'text-stone-700 transition hover:text-stone-950'
+                                    : 'cursor-default text-stone-700'"
+                                :disabled="!student.active_task_session?.unfinished_url || hasAnyAdminChatGate"
+                                @click="markTaskSessionUnfinished(student)"
+                            >
                                 <template v-if="student.active_task_session">
                                     {{ student.active_task_session.elapsedLabel }}
                                 </template>
                                 <template v-else>
                                     Idle
                                 </template>
-                            </p>
+                            </button>
                         </div>
                     </div>
 
@@ -1198,7 +1220,10 @@ const blockTooltip = (block: DashboardBlock): string => {
                                         <p class="min-w-0 truncate font-medium text-stone-900">
                                             {{ block.position }}. {{ block.task_title }}
                                         </p>
-                                        <span class="shrink-0 text-[8px] font-semibold text-stone-700">
+                                        <span
+                                            class="shrink-0 text-[8px] font-semibold"
+                                            :class="block.status === 'paused' ? 'text-stone-200' : 'text-stone-700'"
+                                        >
                                             {{ block.displayDurationLabel }}
                                         </span>
                                     </div>

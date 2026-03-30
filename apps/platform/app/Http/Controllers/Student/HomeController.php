@@ -83,6 +83,13 @@ class HomeController extends Controller
             ? $student->taskSessions
                 ->firstWhere('status', 'active')
             : null;
+        $pausedTaskSession = $student?->taskSessions
+            ? $student->taskSessions
+                ->where('status', 'paused')
+                ->whereNull('schedule_run_id')
+                ->sortByDesc('ended_at')
+                ->first()
+            : null;
 
         $activeScheduleRun = null;
 
@@ -175,6 +182,23 @@ class HomeController extends Controller
                     'schedule_run_name' => $activeTaskSession->scheduleRun?->schedule_name_snapshot,
                     'schedule_run_block_id' => $activeTaskSession->schedule_run_block_id,
                     'schedule_run_block_position' => $activeTaskSession->scheduleRunBlock?->position,
+                    'unfinished_url' => route('student.task-sessions.unfinished', $activeTaskSession),
+                ]
+                : null,
+            'pausedTaskSession' => $pausedTaskSession
+                ? [
+                    'id' => $pausedTaskSession->id,
+                    'status' => $pausedTaskSession->status,
+                    'task_assignment_id' => $pausedTaskSession->task_assignment_id,
+                    'task_title' => $pausedTaskSession->task_title_snapshot,
+                    'task_summary' => $pausedTaskSession->task_summary_snapshot,
+                    'task_instructions' => $pausedTaskSession->task_instructions_snapshot,
+                    'assignment_notes' => $pausedTaskSession->assignment_notes_snapshot,
+                    'planned_duration_minutes' => $pausedTaskSession->planned_duration_minutes,
+                    'duration_seconds' => $pausedTaskSession->duration_seconds,
+                    'ended_at' => $pausedTaskSession->ended_at?->toAtomString(),
+                    'ended_at_label' => $pausedTaskSession->ended_at?->locale(app()->getLocale())->translatedFormat('d M, H:i'),
+                    'resume_url' => route('student.task-sessions.resume', $pausedTaskSession),
                 ]
                 : null,
             'activeScheduleRun' => $activeScheduleRun

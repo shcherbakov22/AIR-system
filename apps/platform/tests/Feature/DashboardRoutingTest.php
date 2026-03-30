@@ -81,7 +81,7 @@ class DashboardRoutingTest extends TestCase
             'notes' => null,
         ]);
 
-        TaskSession::create([
+        $taskSession = TaskSession::create([
             'student_id' => $student->id,
             'status' => 'active',
             'task_title_snapshot' => 'Reading',
@@ -100,6 +100,7 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.display_name', 'Activity Student')
                 ->where('monitorStudents.0.active_task_session.task_title', 'Reading')
                 ->where('monitorStudents.0.active_task_session.planned_duration_minutes', 40)
+                ->where('monitorStudents.0.active_task_session.unfinished_url', route('admin.task-sessions.unfinished', $taskSession))
             );
     }
 

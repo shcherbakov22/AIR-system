@@ -111,6 +111,21 @@ const props = defineProps<{
         schedule_run_name?: string | null;
         schedule_run_block_id?: number | null;
         schedule_run_block_position?: number | null;
+        unfinished_url?: string | null;
+    } | null;
+    pausedTaskSession: {
+        id: number;
+        status: string;
+        task_assignment_id?: number | null;
+        task_title: string;
+        task_summary?: string | null;
+        task_instructions?: string | null;
+        assignment_notes?: string | null;
+        planned_duration_minutes?: number | null;
+        duration_seconds?: number | null;
+        ended_at?: string | null;
+        ended_at_label?: string | null;
+        resume_url: string;
     } | null;
     weeklyScheduleTemplates: Array<{
         id: number;
@@ -145,7 +160,7 @@ const page = usePage<PageProps>();
 const flashSuccess = computed(() => page.props.flash?.success ?? null);
 const flashError = computed(() => page.props.flash?.error ?? null);
 const studentCanUseAdHocTimer = computed(() => props.studentCapabilities.can_use_ad_hoc_timer);
-const canStartScheduleRun = computed(() => !props.activeScheduleRun && !props.activeTaskSession);
+const canStartScheduleRun = computed(() => !props.activeScheduleRun && !props.activeTaskSession && !props.pausedTaskSession);
 const scheduleRunIsPaused = computed(() => props.activeScheduleRun?.status === 'paused');
 const activeScheduleTaskIsRunning = computed(
     () =>
@@ -338,6 +353,10 @@ const activeTaskEndsAtLabel = computed(() => {
 });
 
 const currentSummaryDetail = computed(() => {
+    if (props.pausedTaskSession) {
+        return 'This unfinished task can be resumed from where it stopped.';
+    }
+
     if (props.activeTaskSession?.source_type === 'ad_hoc') {
         return 'Your custom timer is keeping the schedule paused.';
     }
@@ -364,6 +383,27 @@ const stopTaskSession = () => {
             stopTaskSessionForm.reset();
         },
     });
+};
+
+const markTaskSessionUnfinished = () => {
+    if (!props.activeTaskSession?.unfinished_url) {
+        return;
+    }
+
+    stopTaskSessionForm.patch(props.activeTaskSession.unfinished_url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            stopTaskSessionForm.reset();
+        },
+    });
+};
+
+const resumePausedTaskSession = () => {
+    if (!props.pausedTaskSession?.resume_url) {
+        return;
+    }
+
+    router.post(props.pausedTaskSession.resume_url, {}, { preserveScroll: true });
 };
 
 const showBlockingViolationDialog = () => {
@@ -593,6 +633,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
         props.activeScheduleRun !== null &&
         props.activeScheduleRun.status === 'active' &&
         props.activeTaskSession === null &&
+        props.pausedTaskSession === null &&
         block.status === 'pending'
     );
 };
@@ -618,14 +659,18 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
             </div>
 
             <section
-                v-if="activeScheduleRun || activeTaskSession || canStartScheduleRun"
+                v-if="activeScheduleRun || activeTaskSession || pausedTaskSession || canStartScheduleRun"
                 class="rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-stone-200"
             >
                 <div class="grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.2fr)]">
-                    <div class="rounded-[1.25rem] bg-stone-100 p-4">
-                        <p class="truncate text-lg font-semibold text-stone-950">
+                    <div
+                        class="rounded-[1.25rem] p-4"
+                        :class="pausedTaskSession ? 'bg-stone-950 text-white' : 'bg-stone-100'"
+                    >
+                        <p class="truncate text-lg font-semibold" :class="pausedTaskSession ? 'text-white' : 'text-stone-950'">
                             {{
                                 activeTaskSession?.task_title ??
+                                pausedTaskSession?.task_title ??
                                 activeScheduleRun?.schedule_name ??
                                 'Choose a schedule'
                             }}
@@ -633,20 +678,27 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
 
                         <p
                             v-if="currentSummaryDetail"
-                            class="mt-1 text-sm text-stone-600"
+                            class="mt-1 text-sm"
+                            :class="pausedTaskSession ? 'text-stone-300' : 'text-stone-600'"
                         >
                             {{ currentSummaryDetail }}
                         </p>
 
-                        <div class="mt-3 flex flex-wrap gap-3 text-xs text-stone-500">
+                        <div class="mt-3 flex flex-wrap gap-3 text-xs" :class="pausedTaskSession ? 'text-stone-400' : 'text-stone-500'">
                             <span v-if="activeScheduleRun">
                                 {{ activeScheduleRun.completed_blocks }} / {{ activeScheduleRun.total_blocks }} blocks
                             </span>
                             <span v-if="activeTaskSession?.planned_duration_minutes">
                                 {{ activeTaskSession.planned_duration_minutes }} min planned
                             </span>
+                            <span v-if="pausedTaskSession?.planned_duration_minutes">
+                                {{ pausedTaskSession.planned_duration_minutes }} min planned
+                            </span>
                             <span v-if="activeScheduleRun?.started_at_label">
                                 Start {{ activeScheduleRun.started_at_label }}
+                            </span>
+                            <span v-if="pausedTaskSession?.ended_at_label">
+                                Paused {{ pausedTaskSession.ended_at_label }}
                             </span>
                         </div>
                     </div>
@@ -672,6 +724,18 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 <span v-if="activeTaskPlannedLabel">Plan {{ activeTaskPlannedLabel }}</span>
                                 <span v-if="activeTaskEndsAtLabel">Until {{ activeTaskEndsAtLabel }}</span>
                             </div>
+                        </template>
+
+                        <template v-else-if="pausedTaskSession">
+                            <p class="mt-2 text-lg font-semibold text-white">
+                                Unfinished
+                            </p>
+                            <p class="mt-1 text-sm text-stone-300">
+                                {{ pausedTaskSession.task_title }}
+                            </p>
+                            <p class="mt-2 text-sm text-stone-400">
+                                {{ formatDuration(pausedTaskSession.duration_seconds ?? 0) }} spent
+                            </p>
                         </template>
 
                         <template v-else-if="activeScheduleRun?.paused_block">
@@ -759,11 +823,30 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                     v-if="activeTaskSession"
                                     type="button"
                                     :disabled="stopTaskSessionForm.processing"
+                                    class="inline-block rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-60"
+                                    style="display: inline-block; vertical-align: middle; margin-left: 0.5rem;"
+                                    @click="markTaskSessionUnfinished"
+                                >
+                                    Unfinished
+                                </button>
+                                <button
+                                    v-if="activeTaskSession"
+                                    type="button"
+                                    :disabled="stopTaskSessionForm.processing"
                                     class="inline-block rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
                                     style="display: inline-block; vertical-align: middle; margin-left: 0.5rem;"
                                     @click="stopTaskSession"
                                 >
                                     Finish
+                                </button>
+                                <button
+                                    v-if="pausedTaskSession"
+                                    type="button"
+                                    class="inline-block rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800"
+                                    style="display: inline-block; vertical-align: middle; margin-left: 0.5rem;"
+                                    @click="resumePausedTaskSession"
+                                >
+                                    Continue unfinished
                                 </button>
                             </div>
                         </div>
@@ -940,7 +1023,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                     block.status === 'completed'
                                         ? 'bg-emerald-200 text-emerald-950'
                                         : block.status === 'paused'
-                                          ? 'bg-stone-300 text-stone-900'
+                                          ? 'bg-stone-950 text-white'
                                           : block.status === 'in_progress'
                                             ? 'bg-amber-200 text-stone-950'
                                             : block.is_next
