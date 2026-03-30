@@ -148,6 +148,72 @@ class StudentAssignmentFlowTest extends TestCase
         $this->assertNotNull($assignment->started_at);
     }
 
+    public function test_student_assignment_board_exposes_actionable_cards_by_status(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'kanban_student',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Kanban Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $viewedAssignment = StudentAssignment::create([
+            'student_id' => $student->id,
+            'created_by_user_id' => $mentor->id,
+            'title' => 'Viewed item',
+            'status' => 'viewed',
+            'viewed_at' => now(),
+        ]);
+
+        $inProgressAssignment = StudentAssignment::create([
+            'student_id' => $student->id,
+            'created_by_user_id' => $mentor->id,
+            'title' => 'In progress item',
+            'status' => 'in_progress',
+            'viewed_at' => now(),
+            'started_at' => now(),
+        ]);
+
+        $completedAssignment = StudentAssignment::create([
+            'student_id' => $student->id,
+            'created_by_user_id' => $mentor->id,
+            'title' => 'Completed item',
+            'status' => 'completed',
+            'viewed_at' => now(),
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.assignments.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Student/Assignments/Index')
+                ->has('assignments', 3)
+                ->where('assignments.0.id', $viewedAssignment->id)
+                ->where('assignments.0.status', 'viewed')
+                ->where('assignments.0.start_url', route('student.assignments.start', $viewedAssignment))
+                ->where('assignments.0.hand_in_url', null)
+                ->where('assignments.1.id', $inProgressAssignment->id)
+                ->where('assignments.1.status', 'in_progress')
+                ->where('assignments.1.start_url', null)
+                ->where('assignments.1.hand_in_url', route('student.assignments.hand-in', $inProgressAssignment))
+                ->where('assignments.2.id', $completedAssignment->id)
+                ->where('assignments.2.status', 'completed')
+                ->where('assignments.2.start_url', null)
+                ->where('assignments.2.hand_in_url', null)
+            );
+    }
+
     public function test_admin_can_view_single_student_assignments_page(): void
     {
         $mentor = User::factory()->create([
@@ -240,6 +306,62 @@ class StudentAssignmentFlowTest extends TestCase
                 ->where('assignments.2.id', $completedAssignment->id)
                 ->where('assignments.2.complete_url', null)
                 ->where('assignments.2.incomplete_url', route('admin.assignments.incomplete', $completedAssignment))
+            );
+    }
+
+    public function test_admin_assignments_index_filters_by_selected_student(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $firstStudentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'filter_a',
+        ]);
+
+        $secondStudentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'filter_b',
+        ]);
+
+        $firstStudent = Student::create([
+            'user_id' => $firstStudentUser->id,
+            'display_name' => 'Filter A',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $secondStudent = Student::create([
+            'user_id' => $secondStudentUser->id,
+            'display_name' => 'Filter B',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $keptAssignment = StudentAssignment::create([
+            'student_id' => $firstStudent->id,
+            'created_by_user_id' => $mentor->id,
+            'title' => 'Keep me',
+            'status' => 'unread',
+        ]);
+
+        StudentAssignment::create([
+            'student_id' => $secondStudent->id,
+            'created_by_user_id' => $mentor->id,
+            'title' => 'Hide me',
+            'status' => 'unread',
+        ]);
+
+        $this->actingAs($mentor)
+            ->get(route('admin.assignments.index', ['student_id' => $firstStudent->id]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/Assignments/Index')
+                ->where('selectedStudentId', $firstStudent->id)
+                ->has('assignments', 1)
+                ->where('assignments.0.id', $keptAssignment->id)
+                ->where('assignments.0.student.id', $firstStudent->id)
             );
     }
 }
