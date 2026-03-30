@@ -75,6 +75,11 @@ const navItems = computed(() => {
             active: route().current('push-up-station.*'),
         });
         items.push({
+            label: 'Database',
+            href: route('admin.database'),
+            active: route().current('admin.database'),
+        });
+        items.push({
             label: 'Schedules',
             href: route('admin.schedule-templates.index'),
             active: route().current('admin.schedule-templates.*'),

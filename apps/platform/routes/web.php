@@ -95,6 +95,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/announcements', [AdminAnnouncementController::class, 'index'])->name('announcements.index');
         Route::post('/announcements', [AdminAnnouncementController::class, 'store'])->name('announcements.store');
         Route::delete('/announcements/{chatMessage}', [AdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
+        Route::get('/database', fn () => redirect('/cloudbeaver/'))->name('database');
         Route::get('/assignments', [AdminAssignmentController::class, 'index'])->name('assignments.index');
         Route::post('/assignments', [AdminAssignmentController::class, 'store'])->name('assignments.store');
         Route::patch('/assignments/{studentAssignment}/complete', [AdminAssignmentController::class, 'complete'])->name('assignments.complete');

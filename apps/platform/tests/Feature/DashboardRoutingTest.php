@@ -50,6 +50,18 @@ class DashboardRoutingTest extends TestCase
             );
     }
 
+    public function test_admin_database_route_redirects_to_cloudbeaver(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_database',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.database'))
+            ->assertRedirect('/cloudbeaver/');
+    }
+
     public function test_admin_dashboard_shows_active_student_task_sessions(): void
     {
         $admin = User::factory()->create([
