@@ -901,19 +901,13 @@ const blockTitleClass = (block: DashboardBlock): string =>
         : 'text-stone-900';
 
 const blockDurationClass = (block: DashboardBlock): string => {
-    if (isUnfinishedBlock(block)) {
-        return 'bg-stone-950 text-white ring-1 ring-white/20';
-    }
+    const baseClass = 'bg-stone-950 text-white ring-1 ring-white/20';
 
     if (block.unfinished_url && !hasAnyAdminChatGate.value) {
-        return block.status === 'paused'
-            ? 'bg-white/10 text-white transition hover:bg-white/20'
-            : 'bg-amber-100 text-amber-900 transition hover:bg-amber-200';
+        return `${baseClass} transition hover:bg-stone-800`;
     }
 
-    return block.status === 'paused'
-        ? 'text-stone-200'
-        : 'text-stone-700';
+    return `${baseClass} opacity-100`;
 };
 
 const blockTooltip = (block: DashboardBlock): string => {
