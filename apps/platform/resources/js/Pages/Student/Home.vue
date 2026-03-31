@@ -83,6 +83,7 @@ const props = defineProps<{
             id: number;
             position: number;
             status: string;
+            status_label?: string;
             start_time: string;
             duration_minutes: number;
             notes?: string | null;
@@ -90,6 +91,7 @@ const props = defineProps<{
             actual_duration_seconds?: number;
             actual_duration_label?: string | null;
             unfinished_url?: string | null;
+            resume_url?: string | null;
             task: {
                 title: string;
                 summary?: string | null;
@@ -407,6 +409,14 @@ const resumePausedTaskSession = () => {
     }
 
     router.post(props.pausedTaskSession.resume_url, {}, { preserveScroll: true });
+};
+
+const resumeScheduleBlockTask = (resumeUrl?: string | null) => {
+    if (!resumeUrl) {
+        return;
+    }
+
+    router.post(resumeUrl, {}, { preserveScroll: true });
 };
 
 const showBlockingViolationDialog = () => {
@@ -850,7 +860,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                     class="inline-block rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800"
                                     @click="resumePausedTaskSession"
                                 >
-                                    Continue unfinished
+                                    Start unfinished
                                 </button>
                             </div>
                         </div>
@@ -1024,11 +1034,13 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                             <span
                                 class="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]"
                                 :class="
-                                    block.status === 'completed'
+                                    (block.status_label ?? block.status) === 'completed'
                                         ? 'bg-emerald-200 text-emerald-950'
-                                        : block.status === 'paused'
+                                        : (block.status_label ?? block.status) === 'unfinished'
                                           ? 'bg-stone-950 text-white'
-                                          : block.status === 'in_progress'
+                                          : (block.status_label ?? block.status) === 'paused'
+                                          ? 'bg-stone-950 text-white'
+                                          : (block.status_label ?? block.status) === 'in_progress'
                                             ? 'bg-amber-200 text-stone-950'
                                             : block.is_next
                                               ? 'bg-stone-950 text-white'
@@ -1036,11 +1048,13 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 "
                             >
                                 {{
-                                    block.status === 'completed'
+                                    (block.status_label ?? block.status) === 'completed'
                                         ? 'done'
-                                        : block.status === 'paused'
+                                        : (block.status_label ?? block.status) === 'unfinished'
+                                          ? 'unfinished'
+                                          : (block.status_label ?? block.status) === 'paused'
                                           ? 'paused'
-                                          : block.status === 'in_progress'
+                                          : (block.status_label ?? block.status) === 'in_progress'
                                             ? 'running'
                                             : block.is_next
                                               ? 'next'
@@ -1062,7 +1076,15 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 {{ block.duration_minutes }} min
                             </p>
                             <button
-                                v-if="canStartBlock(block)"
+                                v-if="block.resume_url"
+                                type="button"
+                                class="inline-flex shrink-0 rounded-full bg-stone-950 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-stone-800"
+                                @click="resumeScheduleBlockTask(block.resume_url)"
+                            >
+                                Start
+                            </button>
+                            <button
+                                v-else-if="canStartBlock(block)"
                                 type="button"
                                 class="inline-flex shrink-0 rounded-full bg-stone-950 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-stone-800"
                                 @click="startScheduleBlock(block.id)"

@@ -44,11 +44,15 @@ class HomeController extends Controller
         return sprintf('%02d:%02d', $minutes, $seconds);
     }
 
-    protected function scheduleRunBlockPayload(ScheduleRunBlock $block, ?ScheduleRunBlock $nextScheduleRunBlock): array
+    protected function scheduleRunBlockPayload(
+        ScheduleRunBlock $block,
+        ?ScheduleRunBlock $nextScheduleRunBlock,
+        ?TaskSession $unfinishedTaskSession,
+    ): array
     {
         $actualDurationSeconds = $block->taskSessions
             ->sum(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession));
-        $unfinishedTaskSession = $block->taskSessions
+        $actionableTaskSession = $block->taskSessions
             ->filter(fn (TaskSession $taskSession) => in_array($taskSession->status, ['active', 'completed'], true))
             ->sortByDesc(fn (TaskSession $taskSession) => [
                 $taskSession->status === 'active' ? 1 : 0,
@@ -61,15 +65,21 @@ class HomeController extends Controller
             'id' => $block->id,
             'position' => $block->position,
             'status' => $block->status,
+            'status_label' => $unfinishedTaskSession ? 'unfinished' : $block->status,
             'start_time' => $block->start_time_snapshot,
             'duration_minutes' => $block->duration_minutes_snapshot,
             'notes' => $block->entry_notes_snapshot,
             'is_next' => $nextScheduleRunBlock?->id === $block->id,
             'actual_duration_seconds' => $actualDurationSeconds,
             'actual_duration_label' => $this->formatDuration($actualDurationSeconds),
-            'unfinished_url' => $unfinishedTaskSession
-                ? route('student.task-sessions.unfinished', $unfinishedTaskSession)
+            'resume_url' => $unfinishedTaskSession
+                ? route('student.task-sessions.resume', $unfinishedTaskSession)
                 : null,
+            'unfinished_url' => $unfinishedTaskSession
+                ? null
+                : ($actionableTaskSession
+                    ? route('student.task-sessions.unfinished', $actionableTaskSession)
+                    : null),
             'task' => [
                 'title' => $block->task_title_snapshot,
                 'summary' => $block->task_summary_snapshot,
@@ -147,9 +157,16 @@ class HomeController extends Controller
             ? $student->taskSessions
                 ->where('status', 'unfinished')
                 ->whereNull('schedule_run_id')
+                ->whereNull('schedule_run_block_id')
                 ->sortByDesc('ended_at')
                 ->first()
             : null;
+        $unfinishedScheduleTaskSessions = $student?->taskSessions
+            ? $student->taskSessions
+                ->where('status', 'unfinished')
+                ->whereNull('schedule_run_id')
+                ->filter(fn (TaskSession $taskSession) => $taskSession->schedule_run_block_id !== null)
+            : collect();
 
         $activeScheduleRun = null;
 
@@ -292,7 +309,14 @@ class HomeController extends Controller
                     'blocks' => $activeScheduleRun->blocks
                         ->sortBy('position')
                         ->values()
-                        ->map(fn (ScheduleRunBlock $block) => $this->scheduleRunBlockPayload($block, $nextScheduleRunBlock))
+                        ->map(fn (ScheduleRunBlock $block) => $this->scheduleRunBlockPayload(
+                            $block,
+                            $nextScheduleRunBlock,
+                            $unfinishedScheduleTaskSessions
+                                ->where('schedule_run_block_id', $block->id)
+                                ->sortByDesc('ended_at')
+                                ->first(),
+                        ))
                         ->all(),
                 ]
                 : null,

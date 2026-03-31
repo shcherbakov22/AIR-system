@@ -218,7 +218,7 @@ class TaskSessionController extends Controller
                 ->whereIn('status', ['active', 'paused'])
                 ->exists();
 
-            if ($hasActiveOrPausedScheduleRun) {
+            if ($hasActiveOrPausedScheduleRun && $unfinishedTaskSession->schedule_run_block_id === null) {
                 return [
                     'success' => false,
                     'message' => 'Resume or finish the current schedule before resuming this task.',
@@ -229,7 +229,7 @@ class TaskSessionController extends Controller
                 'student_id' => $student->id,
                 'task_assignment_id' => $unfinishedTaskSession->task_assignment_id,
                 'schedule_run_id' => null,
-                'schedule_run_block_id' => null,
+                'schedule_run_block_id' => $unfinishedTaskSession->schedule_run_block_id,
                 'task_template_id' => $unfinishedTaskSession->task_template_id,
                 'status' => 'active',
                 'task_title_snapshot' => $unfinishedTaskSession->task_title_snapshot,

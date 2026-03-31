@@ -64,7 +64,7 @@ class TaskSessionUnfinishService
                     'student_id' => $lockedTaskSession->student_id,
                     'task_assignment_id' => $lockedTaskSession->task_assignment_id,
                     'schedule_run_id' => null,
-                    'schedule_run_block_id' => null,
+                    'schedule_run_block_id' => $lockedTaskSession->schedule_run_block_id,
                     'task_template_id' => $lockedTaskSession->task_template_id,
                     'status' => 'unfinished',
                     'task_title_snapshot' => $lockedTaskSession->task_title_snapshot,
