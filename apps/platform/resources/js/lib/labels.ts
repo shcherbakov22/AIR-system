@@ -4,6 +4,8 @@ export const labelStudentStatus = (status: string): string => {
             return 'active';
         case 'paused':
             return 'paused';
+        case 'unfinished':
+            return 'unfinished';
         default:
             return status;
     }

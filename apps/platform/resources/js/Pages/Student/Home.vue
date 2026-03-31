@@ -163,7 +163,7 @@ const page = usePage<PageProps>();
 const flashSuccess = computed(() => page.props.flash?.success ?? null);
 const flashError = computed(() => page.props.flash?.error ?? null);
 const studentCanUseAdHocTimer = computed(() => props.studentCapabilities.can_use_ad_hoc_timer);
-const canStartScheduleRun = computed(() => !props.activeScheduleRun && !props.activeTaskSession && !props.pausedTaskSession);
+const canStartScheduleRun = computed(() => !props.activeScheduleRun && !props.activeTaskSession);
 const scheduleRunIsPaused = computed(() => props.activeScheduleRun?.status === 'paused');
 const activeScheduleTaskIsRunning = computed(
     () =>
@@ -636,7 +636,6 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
         props.activeScheduleRun !== null &&
         props.activeScheduleRun.status === 'active' &&
         props.activeTaskSession === null &&
-        props.pausedTaskSession === null &&
         block.status === 'pending'
     );
 };
@@ -668,13 +667,16 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                 <div class="grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.2fr)]">
                     <div
                         class="rounded-[1.25rem] p-4"
-                        :class="pausedTaskSession ? 'bg-stone-950 text-white' : 'bg-stone-100'"
+                        :class="pausedTaskSession && !activeScheduleRun && !activeTaskSession ? 'bg-stone-950 text-white' : 'bg-stone-100'"
                     >
-                        <p class="truncate text-lg font-semibold" :class="pausedTaskSession ? 'text-white' : 'text-stone-950'">
+                        <p
+                            class="truncate text-lg font-semibold"
+                            :class="pausedTaskSession && !activeScheduleRun && !activeTaskSession ? 'text-white' : 'text-stone-950'"
+                        >
                             {{
                                 activeTaskSession?.task_title ??
-                                pausedTaskSession?.task_title ??
                                 activeScheduleRun?.schedule_name ??
+                                pausedTaskSession?.task_title ??
                                 'Choose a schedule'
                             }}
                         </p>
@@ -682,12 +684,15 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                         <p
                             v-if="currentSummaryDetail"
                             class="mt-1 text-sm"
-                            :class="pausedTaskSession ? 'text-stone-300' : 'text-stone-600'"
+                            :class="pausedTaskSession && !activeScheduleRun && !activeTaskSession ? 'text-stone-300' : 'text-stone-600'"
                         >
                             {{ currentSummaryDetail }}
                         </p>
 
-                        <div class="mt-3 flex flex-wrap gap-3 text-xs" :class="pausedTaskSession ? 'text-stone-400' : 'text-stone-500'">
+                        <div
+                            class="mt-3 flex flex-wrap gap-3 text-xs"
+                            :class="pausedTaskSession && !activeScheduleRun && !activeTaskSession ? 'text-stone-400' : 'text-stone-500'"
+                        >
                             <span v-if="activeScheduleRun">
                                 {{ activeScheduleRun.completed_blocks }} / {{ activeScheduleRun.total_blocks }} blocks
                             </span>
@@ -701,7 +706,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 Start {{ activeScheduleRun.started_at_label }}
                             </span>
                             <span v-if="pausedTaskSession?.ended_at_label">
-                                Paused {{ pausedTaskSession.ended_at_label }}
+                                Saved {{ pausedTaskSession.ended_at_label }}
                             </span>
                         </div>
                     </div>

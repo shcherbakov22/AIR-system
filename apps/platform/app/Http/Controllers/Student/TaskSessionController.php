@@ -193,10 +193,10 @@ class TaskSessionController extends Controller
         $result = DB::transaction(function () use ($request, $studentId, $taskSession) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
-            $pausedTaskSession = TaskSession::query()
+            $unfinishedTaskSession = TaskSession::query()
                 ->whereKey($taskSession->id)
                 ->where('student_id', $studentId)
-                ->where('status', 'paused')
+                ->where('status', 'unfinished')
                 ->whereNull('schedule_run_id')
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -227,24 +227,26 @@ class TaskSessionController extends Controller
 
             TaskSession::create([
                 'student_id' => $student->id,
-                'task_assignment_id' => $pausedTaskSession->task_assignment_id,
+                'task_assignment_id' => $unfinishedTaskSession->task_assignment_id,
                 'schedule_run_id' => null,
                 'schedule_run_block_id' => null,
-                'task_template_id' => $pausedTaskSession->task_template_id,
+                'task_template_id' => $unfinishedTaskSession->task_template_id,
                 'status' => 'active',
-                'task_title_snapshot' => $pausedTaskSession->task_title_snapshot,
-                'task_summary_snapshot' => $pausedTaskSession->task_summary_snapshot,
-                'task_instructions_snapshot' => $pausedTaskSession->task_instructions_snapshot,
-                'assignment_notes_snapshot' => $pausedTaskSession->assignment_notes_snapshot,
-                'planned_duration_minutes' => $pausedTaskSession->planned_duration_minutes,
-                'duration_seconds' => max(0, (int) ($pausedTaskSession->duration_seconds ?? 0)),
+                'task_title_snapshot' => $unfinishedTaskSession->task_title_snapshot,
+                'task_summary_snapshot' => $unfinishedTaskSession->task_summary_snapshot,
+                'task_instructions_snapshot' => $unfinishedTaskSession->task_instructions_snapshot,
+                'assignment_notes_snapshot' => $unfinishedTaskSession->assignment_notes_snapshot,
+                'planned_duration_minutes' => $unfinishedTaskSession->planned_duration_minutes,
+                'duration_seconds' => max(0, (int) ($unfinishedTaskSession->duration_seconds ?? 0)),
                 'started_at' => now(),
                 'started_by_user_id' => $request->user()->id,
             ]);
 
+            $unfinishedTaskSession->delete();
+
             return [
                 'success' => true,
-                'message' => "Task session {$pausedTaskSession->task_title_snapshot} resumed.",
+                'message' => "Task session {$unfinishedTaskSession->task_title_snapshot} resumed.",
             ];
         });
 

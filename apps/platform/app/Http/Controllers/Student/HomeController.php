@@ -145,7 +145,7 @@ class HomeController extends Controller
             : null;
         $pausedTaskSession = $student?->taskSessions
             ? $student->taskSessions
-                ->where('status', 'paused')
+                ->where('status', 'unfinished')
                 ->whereNull('schedule_run_id')
                 ->sortByDesc('ended_at')
                 ->first()

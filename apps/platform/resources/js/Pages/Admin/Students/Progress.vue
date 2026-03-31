@@ -291,39 +291,39 @@ defineProps<{
                                 v-for="(task, index) in run.task_sequence"
                                 :key="task.id"
                                 class="px-4 py-4 transition hover:bg-stone-50"
-                                :class="task.status === 'paused' ? 'bg-stone-950 text-white hover:bg-stone-900' : ''"
+                                :class="task.status === 'paused' || task.status === 'unfinished' ? 'bg-stone-950 text-white hover:bg-stone-900' : ''"
                             >
                                 <div class="grid gap-2 lg:grid-cols-[5rem_minmax(0,1.6fr)_8rem_8rem_8rem_8rem_8rem] lg:items-center lg:gap-3">
-                                    <div class="text-sm font-semibold" :class="task.status === 'paused' ? 'text-white' : 'text-stone-950'">
+                                    <div class="text-sm font-semibold" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-white' : 'text-stone-950'">
                                         {{ index + 1 }}
                                     </div>
                                     <div>
-                                        <p class="text-sm font-medium" :class="task.status === 'paused' ? 'text-white' : 'text-stone-950'">
+                                        <p class="text-sm font-medium" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-white' : 'text-stone-950'">
                                             {{ task.task_title }}
                                         </p>
-                                        <div class="mt-1 flex flex-wrap gap-3 text-xs" :class="task.status === 'paused' ? 'text-stone-300' : 'text-stone-500'">
+                                        <div class="mt-1 flex flex-wrap gap-3 text-xs" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-300' : 'text-stone-500'">
                                             <span>{{ task.was_in_schedule ? `Block ${task.block_position}` : 'Outside schedule' }}</span>
                                             <span>{{ task.started_at_label || 'Not started' }}</span>
                                             <span>{{ task.actual_duration_label }}</span>
                                         </div>
                                     </div>
-                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' ? 'text-stone-200' : 'text-stone-700'">
+                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-200' : 'text-stone-700'">
                                         {{ task.was_in_schedule ? `Block ${task.block_position}` : 'Outside' }}
                                     </div>
-                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' ? 'text-stone-200' : 'text-stone-700'">
+                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-200' : 'text-stone-700'">
                                         {{ task.started_at_label || '-' }}
                                     </div>
-                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' ? 'text-stone-200' : 'text-stone-700'">
+                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-200' : 'text-stone-700'">
                                         {{ task.ended_at_label || '-' }}
                                     </div>
-                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' ? 'text-stone-200' : 'text-stone-700'">
+                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-200' : 'text-stone-700'">
                                         {{ task.planned_duration_label }}
                                     </div>
                                     <button
                                         v-if="task.unfinished_url"
                                         type="button"
                                         class="hidden text-left text-sm font-medium underline-offset-2 lg:block"
-                                        :class="task.status === 'paused' ? 'text-white hover:underline' : 'text-stone-950 hover:underline'"
+                                        :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-white hover:underline' : 'text-stone-950 hover:underline'"
                                         @click="markTaskSessionUnfinished(task.unfinished_url)"
                                     >
                                         {{ task.actual_duration_label }}
@@ -331,13 +331,13 @@ defineProps<{
                                     <div
                                         v-else
                                         class="hidden text-sm font-medium lg:block"
-                                        :class="task.status === 'paused' ? 'text-white' : 'text-stone-950'"
+                                        :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-white' : 'text-stone-950'"
                                     >
                                         {{ task.actual_duration_label }}
                                     </div>
                                 </div>
 
-                                <div class="mt-3 flex flex-wrap gap-4 text-sm" :class="task.status === 'paused' ? 'text-stone-200' : 'text-stone-700'">
+                                <div class="mt-3 flex flex-wrap gap-4 text-sm" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-200' : 'text-stone-700'">
                                     <span class="capitalize">{{ task.status }}</span>
                                     <span :class="task.delta_seconds > 0 ? 'text-rose-700' : 'text-emerald-700'">
                                         Delta {{ task.delta_label }}
@@ -346,7 +346,7 @@ defineProps<{
                                         v-if="task.unfinished_url"
                                         type="button"
                                         class="text-left font-semibold underline-offset-2 hover:underline lg:hidden"
-                                        :class="task.status === 'paused' ? 'text-white' : 'text-stone-900'"
+                                        :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-white' : 'text-stone-900'"
                                         @click="markTaskSessionUnfinished(task.unfinished_url)"
                                     >
                                         Mark unfinished

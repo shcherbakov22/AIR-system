@@ -232,7 +232,7 @@ class TaskSessionFlowTest extends TestCase
 
         $this->assertDatabaseHas('task_sessions', [
             'id' => $taskSession->id,
-            'status' => 'paused',
+            'status' => 'unfinished',
             'duration_seconds' => 1800,
             'stopped_by_user_id' => $studentUser->id,
         ]);
@@ -343,6 +343,141 @@ class TaskSessionFlowTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_student_can_continue_schedule_after_marking_a_schedule_task_unfinished(): void
+    {
+        Carbon::setTestNow('2026-03-07 11:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedule_continue',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedule_continue',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Schedule Continue',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $firstAssignment = $this->createAssignedTask($admin, $student, 'Math Review');
+        $secondTemplate = TaskTemplate::create([
+            'title' => 'Reading Review',
+            'summary' => 'Read the next section.',
+            'instructions' => 'Read carefully.',
+            'default_duration_minutes' => 20,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $scheduleRun = ScheduleRun::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'schedule_name_snapshot' => 'Morning Run',
+            'schedule_weekday_snapshot' => 'friday',
+            'schedule_notes_snapshot' => null,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:00:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $firstBlock = ScheduleRunBlock::create([
+            'schedule_run_id' => $scheduleRun->id,
+            'task_template_id' => $firstAssignment->task_template_id,
+            'position' => 1,
+            'status' => 'in_progress',
+            'start_time_snapshot' => '10:00',
+            'duration_minutes_snapshot' => 30,
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'entry_notes_snapshot' => null,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:30:00'),
+        ]);
+
+        $secondBlock = ScheduleRunBlock::create([
+            'schedule_run_id' => $scheduleRun->id,
+            'task_template_id' => $secondTemplate->id,
+            'position' => 2,
+            'status' => 'pending',
+            'start_time_snapshot' => '11:00',
+            'duration_minutes_snapshot' => 20,
+            'task_title_snapshot' => 'Reading Review',
+            'task_summary_snapshot' => 'Read the next section.',
+            'task_instructions_snapshot' => 'Read carefully.',
+            'entry_notes_snapshot' => null,
+        ]);
+
+        $activeTaskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $firstAssignment->id,
+            'task_template_id' => $firstAssignment->task_template_id,
+            'schedule_run_id' => $scheduleRun->id,
+            'schedule_run_block_id' => $firstBlock->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:30:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.unfinished', $activeTaskSession))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', 'Task session Math Review marked unfinished.');
+
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $activeTaskSession->id,
+            'status' => 'completed',
+            'schedule_run_id' => $scheduleRun->id,
+            'schedule_run_block_id' => $firstBlock->id,
+        ]);
+
+        $this->assertDatabaseHas('task_sessions', [
+            'student_id' => $student->id,
+            'status' => 'unfinished',
+            'schedule_run_id' => null,
+            'schedule_run_block_id' => null,
+            'task_title_snapshot' => 'Math Review',
+        ]);
+
+        $this->assertDatabaseHas('schedule_run_blocks', [
+            'id' => $firstBlock->id,
+            'status' => 'completed',
+        ]);
+
+        $this->assertDatabaseHas('schedule_runs', [
+            'id' => $scheduleRun->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [$scheduleRun, $secondBlock]))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', 'Task session Reading Review started.');
+
+        $this->assertDatabaseHas('schedule_run_blocks', [
+            'id' => $secondBlock->id,
+            'status' => 'in_progress',
+        ]);
+
+        $this->assertDatabaseHas('task_sessions', [
+            'student_id' => $student->id,
+            'status' => 'active',
+            'schedule_run_id' => $scheduleRun->id,
+            'schedule_run_block_id' => $secondBlock->id,
+            'task_title_snapshot' => 'Reading Review',
+        ]);
+
+        Carbon::setTestNow();
+    }
+
     public function test_student_stop_stores_whole_duration_seconds_when_timestamps_include_microseconds(): void
     {
         Carbon::setTestNow('2026-03-07 11:00:10.500000');
@@ -437,7 +572,7 @@ class TaskSessionFlowTest extends TestCase
 
         $taskSession->refresh();
 
-        $this->assertSame('paused', $taskSession->status);
+        $this->assertSame('unfinished', $taskSession->status);
         $this->assertSame(10, $taskSession->duration_seconds);
     }
 
