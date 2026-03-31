@@ -55,6 +55,18 @@ class TaskSessionFlowTest extends TestCase
         ]);
     }
 
+    protected function createSleepingTemplate(User $admin): TaskTemplate
+    {
+        return TaskTemplate::create([
+            'title' => 'Sleeping',
+            'summary' => 'Sleep.',
+            'instructions' => 'Go to sleep.',
+            'default_duration_minutes' => 900,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+    }
+
     public function test_student_home_shows_the_active_timer_without_assignment_or_recent_work_sections(): void
     {
         Carbon::setTestNow('2026-03-07 09:20:00');
@@ -149,6 +161,7 @@ class TaskSessionFlowTest extends TestCase
             'notes' => null,
         ]);
 
+        $this->createSleepingTemplate($admin);
         $taskAssignment = $this->createAssignedTask($admin, $student);
 
         $taskSession = TaskSession::create([
@@ -172,7 +185,7 @@ class TaskSessionFlowTest extends TestCase
 
         $response
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', 'Task session Math Review finished.');
+            ->assertSessionHas('success', 'Task session Math Review finished. Sleeping started.');
 
         $this->assertDatabaseHas('task_sessions', [
             'id' => $taskSession->id,
@@ -186,6 +199,78 @@ class TaskSessionFlowTest extends TestCase
             'id' => $taskAssignment->id,
             'status' => 'completed',
         ]);
+
+        $this->assertDatabaseHas('task_sessions', [
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Sleeping',
+            'started_by_user_id' => $studentUser->id,
+        ]);
+    }
+
+    public function test_stopping_an_ad_hoc_task_starts_sleeping_when_no_schedule_remains(): void
+    {
+        Carbon::setTestNow('2026-03-07 11:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_sleep_transition',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_sleep_transition',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Sleep Transition',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $this->createSleepingTemplate($admin);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading',
+            'summary' => 'Read.',
+            'instructions' => 'Keep reading.',
+            'default_duration_minutes' => 55,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Reading',
+            'task_summary_snapshot' => 'Read.',
+            'task_instructions_snapshot' => 'Keep reading.',
+            'assignment_notes_snapshot' => null,
+            'planned_duration_minutes' => 55,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:30:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $taskSession))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Sleeping started.'));
+
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $taskSession->id,
+            'status' => 'completed',
+        ]);
+
+        $this->assertDatabaseHas('task_sessions', [
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Sleeping',
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        Carbon::setTestNow();
     }
 
     public function test_student_can_mark_an_active_task_session_unfinished_and_resume_it(): void

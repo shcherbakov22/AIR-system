@@ -3,7 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\ScheduleRun;
+use App\Models\Student;
 use App\Models\TaskSession;
+use App\Services\TaskSessionSleepService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +15,7 @@ class CompleteDailyScheduleRunsCommand extends Command
 
     protected $description = 'Automatically complete open schedules and their active timers at the end of the day.';
 
-    public function handle(): int
+    public function handle(TaskSessionSleepService $taskSessionSleepService): int
     {
         $completedRuns = 0;
         $completedTaskSessions = 0;
@@ -21,9 +23,9 @@ class CompleteDailyScheduleRunsCommand extends Command
         ScheduleRun::query()
             ->whereIn('status', ['active', 'paused'])
             ->orderBy('id')
-            ->chunkById(100, function ($runs) use (&$completedRuns, &$completedTaskSessions) {
+            ->chunkById(100, function ($runs) use ($taskSessionSleepService, &$completedRuns, &$completedTaskSessions) {
                 foreach ($runs as $run) {
-                    DB::transaction(function () use ($run, &$completedRuns, &$completedTaskSessions) {
+                    DB::transaction(function () use ($run, $taskSessionSleepService, &$completedRuns, &$completedTaskSessions) {
                         $lockedRun = ScheduleRun::query()
                             ->whereKey($run->id)
                             ->whereIn('status', ['active', 'paused'])
@@ -85,6 +87,15 @@ class CompleteDailyScheduleRunsCommand extends Command
                             'completed_at' => $finishedAt,
                             'completed_by_user_id' => null,
                         ]);
+
+                        $student = Student::query()
+                            ->whereKey($lockedRun->student_id)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($student) {
+                            $taskSessionSleepService->ensureSleepingSession($student, null, $finishedAt);
+                        }
 
                         $completedRuns++;
                     });

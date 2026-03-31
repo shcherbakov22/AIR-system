@@ -41,6 +41,14 @@ class CompleteDailyScheduleRunsCommandTest extends TestCase
             'is_active' => true,
             'created_by_user_id' => $creator->id,
         ]);
+        $sleepingTemplate = TaskTemplate::create([
+            'title' => 'Sleeping',
+            'summary' => 'Sleep.',
+            'instructions' => 'Go to sleep.',
+            'default_duration_minutes' => 900,
+            'is_active' => true,
+            'created_by_user_id' => $creator->id,
+        ]);
         $scheduleTemplate = ScheduleTemplate::create([
             'student_id' => $student->id,
             'name' => 'Daily plan',
@@ -136,6 +144,13 @@ class CompleteDailyScheduleRunsCommandTest extends TestCase
             'id' => $adHocTaskSession->id,
             'status' => 'completed',
             'completion_notes' => 'Automatically finished at 20:00 end of day.',
+        ]);
+
+        $this->assertDatabaseHas('task_sessions', [
+            'student_id' => $student->id,
+            'task_template_id' => $sleepingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Sleeping',
         ]);
     }
 }

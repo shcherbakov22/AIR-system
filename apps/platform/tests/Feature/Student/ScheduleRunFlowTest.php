@@ -282,6 +282,15 @@ class ScheduleRunFlowTest extends TestCase
 
         $student = $this->createStudent($studentUser);
         $scheduleTemplate = $this->createScheduleTemplate($student);
+        $sleepingTemplate = $this->createTaskTemplate(
+            $catalogOwner = User::factory()->create([
+                'role' => UserRole::Admin,
+            ]),
+            'Sleeping',
+            900,
+            'Sleep.',
+            'Go to sleep.',
+        );
 
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.store', $scheduleTemplate));
@@ -312,7 +321,7 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.complete', $scheduleRun))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tuesday Run') && str_contains($message, 'finished'));
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tuesday Run') && str_contains($message, 'finished') && str_contains($message, 'Sleeping started'));
 
         $scheduleRun->refresh();
         $scheduleRun->load('blocks');
@@ -329,7 +338,15 @@ class ScheduleRunFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/Home')
                 ->where('activeScheduleRun', null)
+                ->where('activeTaskSession.task_title', 'Sleeping')
             );
+
+        $this->assertDatabaseHas('task_sessions', [
+            'student_id' => $student->id,
+            'task_template_id' => $sleepingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Sleeping',
+        ]);
 
         Carbon::setTestNow();
     }
@@ -553,6 +570,13 @@ class ScheduleRunFlowTest extends TestCase
         $student = $this->createStudent($studentUser);
         $scheduleTemplate = $this->createScheduleTemplate($student);
         $this->createObserveTheTimeRule($mentor);
+        $this->createTaskTemplate(
+            $mentor,
+            'Sleeping',
+            900,
+            'Sleep.',
+            'Go to sleep.',
+        );
 
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.store', $scheduleTemplate));
@@ -627,6 +651,13 @@ class ScheduleRunFlowTest extends TestCase
         $student = $this->createStudent($studentUser);
         $scheduleTemplate = $this->createScheduleTemplate($student);
         $this->createObserveTheTimeRule($mentor);
+        $this->createTaskTemplate(
+            $mentor,
+            'Sleeping',
+            900,
+            'Sleep.',
+            'Go to sleep.',
+        );
 
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.store', $scheduleTemplate));
@@ -958,6 +989,13 @@ class ScheduleRunFlowTest extends TestCase
         $student = $this->createStudent($studentUser);
         $scheduleTemplate = $this->createScheduleTemplate($student);
         $this->createObserveTheTimeRule($mentor);
+        $this->createTaskTemplate(
+            $mentor,
+            'Sleeping',
+            900,
+            'Sleep.',
+            'Go to sleep.',
+        );
 
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.store', $scheduleTemplate));
@@ -995,6 +1033,12 @@ class ScheduleRunFlowTest extends TestCase
 
         $this->actingAs($studentUser)
             ->patch(route('student.task-sessions.stop', $secondTaskSession));
+
+        $this->assertDatabaseHas('task_sessions', [
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Sleeping',
+        ]);
 
         Carbon::setTestNow('2026-03-08 10:20:00');
 
@@ -1204,6 +1248,13 @@ class ScheduleRunFlowTest extends TestCase
         $student = $this->createStudent($studentUser);
         $scheduleTemplate = $this->createScheduleTemplate($student);
         $this->createObserveTheTimeRule($mentor);
+        $this->createTaskTemplate(
+            $mentor,
+            'Sleeping',
+            900,
+            'Sleep.',
+            'Go to sleep.',
+        );
 
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.store', $scheduleTemplate));

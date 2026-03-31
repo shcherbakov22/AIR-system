@@ -20,6 +20,7 @@ class AutomaticObserveTheTimeViolationService
     public function __construct(
         private readonly SpeechAnnouncementService $speechAnnouncementService,
         private readonly StudentPushUpCounterService $pushUpCounterService,
+        private readonly TaskSessionSleepService $taskSessionSleepService,
     ) {
     }
 
@@ -38,6 +39,10 @@ class AutomaticObserveTheTimeViolationService
             ->first();
 
         if ($activeTaskSession) {
+            if ($this->taskSessionSleepService->isSleepingSession($activeTaskSession)) {
+                return;
+            }
+
             $this->createOverdueTaskViolationIfNeeded($student, $ruleDefinition, $activeTaskSession);
 
             return;
@@ -45,15 +50,17 @@ class AutomaticObserveTheTimeViolationService
 
         $startedScheduleRun = ScheduleRun::query()
             ->where('student_id', $student->id)
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'paused'])
             ->latest('started_at')
             ->first();
 
-        if (! $startedScheduleRun) {
+        if ($startedScheduleRun) {
+            $this->createIdleScheduleViolationIfNeeded($student, $ruleDefinition, $startedScheduleRun);
+
             return;
         }
 
-        $this->createIdleScheduleViolationIfNeeded($student, $ruleDefinition, $startedScheduleRun);
+        $this->createNoTaskViolationIfNeeded($student, $ruleDefinition);
     }
 
     public function evaluateStoppedTaskSession(
@@ -202,6 +209,40 @@ class AutomaticObserveTheTimeViolationService
             'observe-time:idle:run:'.$scheduleRun->id.':anchor:'.$anchorAt->toAtomString(),
             $violationAt,
             'Automatic violation for staying outside any task for more than 5 minutes after the schedule started.',
+        );
+    }
+
+    private function createNoTaskViolationIfNeeded(
+        Student $student,
+        RuleDefinition $ruleDefinition,
+    ): void {
+        $anchorTaskSession = TaskSession::query()
+            ->where('student_id', $student->id)
+            ->whereIn('status', ['completed', 'paused', 'unfinished'])
+            ->whereNotNull('ended_at')
+            ->latest('ended_at')
+            ->first(['ended_at']);
+
+        $anchorAt = $anchorTaskSession?->ended_at instanceof CarbonInterface
+            ? $anchorTaskSession->ended_at
+            : ($anchorTaskSession?->ended_at ? Carbon::parse((string) $anchorTaskSession->ended_at) : null);
+
+        if (! $anchorAt) {
+            return;
+        }
+
+        $violationAt = $anchorAt->copy()->addMinutes(self::GRACE_MINUTES);
+
+        if (now()->lt($violationAt)) {
+            return;
+        }
+
+        $this->createViolationOnce(
+            $student,
+            $ruleDefinition,
+            'observe-time:no-task:student:'.$student->id.':anchor:'.$anchorAt->toAtomString(),
+            $violationAt,
+            'Automatic violation for staying without any active task for more than 5 minutes.',
         );
     }
 

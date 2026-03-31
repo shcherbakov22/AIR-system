@@ -11,6 +11,7 @@ use App\Models\TaskSession;
 use App\Models\Violation;
 use App\Services\AutomaticObserveTheTimeViolationService;
 use App\Services\StudentCommunicationGateService;
+use App\Services\TaskSessionSleepService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -22,6 +23,7 @@ class ScheduleRunTaskSessionController extends Controller
         ScheduleRunBlock $scheduleRunBlock,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
         StudentCommunicationGateService $communicationGateService,
+        TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -29,7 +31,7 @@ class ScheduleRunTaskSessionController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunBlock, $automaticViolationService, $communicationGateService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunBlock, $automaticViolationService, $communicationGateService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
             $automaticViolationService->evaluate($student);
 
@@ -59,6 +61,12 @@ class ScheduleRunTaskSessionController extends Controller
                 ->where('schedule_run_id', $ownedScheduleRun->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $taskSessionSleepService->completeActiveSleepingSession(
+                $studentId,
+                $request->user()->id,
+                now(),
+            );
 
             $hasActiveTaskSession = TaskSession::query()
                 ->where('student_id', $studentId)

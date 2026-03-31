@@ -17,6 +17,7 @@ use App\Models\Violation;
 use App\Services\AutomaticObserveTheTimeViolationService;
 use App\Services\ScheduleRunFinishWindowService;
 use App\Services\StudentCommunicationGateService;
+use App\Services\TaskSessionSleepService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -40,6 +41,7 @@ class ScheduleRunController extends Controller
         ScheduleTemplate $scheduleTemplate,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
         StudentCommunicationGateService $communicationGateService,
+        TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -47,7 +49,7 @@ class ScheduleRunController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleTemplate, $automaticViolationService, $communicationGateService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleTemplate, $automaticViolationService, $communicationGateService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
             $automaticViolationService->evaluate($student);
 
@@ -90,6 +92,12 @@ class ScheduleRunController extends Controller
                     'message' => 'Finish the current schedule before starting another one.',
                 ];
             }
+
+            $taskSessionSleepService->completeActiveSleepingSession(
+                $studentId,
+                $request->user()->id,
+                now(),
+            );
 
             $hasActiveTaskSession = TaskSession::query()
                 ->where('student_id', $studentId)
@@ -145,6 +153,7 @@ class ScheduleRunController extends Controller
         ScheduleRun $scheduleRun,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
         StudentCommunicationGateService $communicationGateService,
+        TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
         $student = $request->user()?->student?->loadMissing('setting');
@@ -159,7 +168,7 @@ class ScheduleRunController extends Controller
                 ->with('error', 'Custom timers are disabled for this student.');
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $communicationGateService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $communicationGateService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             $activeTaskSession = TaskSession::query()
@@ -277,6 +286,7 @@ class ScheduleRunController extends Controller
         ScheduleRun $scheduleRun,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
         StudentCommunicationGateService $communicationGateService,
+        TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -284,7 +294,7 @@ class ScheduleRunController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $communicationGateService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $communicationGateService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             $activeTaskSession = TaskSession::query()
@@ -318,6 +328,18 @@ class ScheduleRunController extends Controller
                 ->where('status', 'paused')
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $taskSessionSleepService->completeActiveSleepingSession(
+                $studentId,
+                $request->user()->id,
+                now(),
+            );
+
+            $activeTaskSession = TaskSession::query()
+                ->where('student_id', $studentId)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
 
             if ($activeTaskSession && $activeTaskSession->schedule_run_id !== null) {
                 return [
@@ -426,6 +448,7 @@ class ScheduleRunController extends Controller
         ScheduleRun $scheduleRun,
         ScheduleRunFinishWindowService $scheduleRunFinishWindowService,
         StudentCommunicationGateService $communicationGateService,
+        TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -433,7 +456,7 @@ class ScheduleRunController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunFinishWindowService, $communicationGateService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunFinishWindowService, $communicationGateService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             if (! $scheduleRunFinishWindowService->canManuallyFinish(now())) {
@@ -486,9 +509,15 @@ class ScheduleRunController extends Controller
                 'completed_by_user_id' => $request->user()->id,
             ]);
 
+            $taskSessionSleepService->ensureSleepingSession(
+                $student,
+                $request->user()->id,
+                $completedAt,
+            );
+
             return [
                 'success' => true,
-                'message' => "Schedule {$ownedScheduleRun->schedule_name_snapshot} finished.",
+                'message' => "Schedule {$ownedScheduleRun->schedule_name_snapshot} finished. Sleeping started.",
             ];
         });
 

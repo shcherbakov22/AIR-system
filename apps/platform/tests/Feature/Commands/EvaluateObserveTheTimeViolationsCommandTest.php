@@ -8,6 +8,7 @@ use App\Models\RuleDefinition;
 use App\Models\ScheduleRun;
 use App\Models\Student;
 use App\Models\TaskSession;
+use App\Models\TaskTemplate;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -120,6 +121,74 @@ class EvaluateObserveTheTimeViolationsCommandTest extends TestCase
             'started_at' => CarbonImmutable::parse('2026-03-23 10:00:00'),
             'ended_at' => CarbonImmutable::parse('2026-03-23 10:10:00'),
             'duration_seconds' => 600,
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->artisan(EvaluateObserveTheTimeViolationsCommand::class)
+            ->expectsOutput('Evaluated Observe the time for 1 students.')
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Observe the time',
+            'status' => 'open',
+        ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_command_creates_no_task_observe_the_time_violation_without_page_load(): void
+    {
+        Carbon::setTestNow('2026-03-23 10:16:00');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        RuleDefinition::create([
+            'title' => 'Observe the time',
+            'description' => 'Imported legacy rule.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $mentor->id,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'observe_no_task_student',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Observe No Task Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading',
+            'summary' => null,
+            'instructions' => null,
+            'default_duration_minutes' => 30,
+            'is_active' => true,
+            'created_by_user_id' => $mentor->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Reading',
+            'task_summary_snapshot' => null,
+            'task_instructions_snapshot' => null,
+            'assignment_notes_snapshot' => null,
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-23 09:30:00'),
+            'ended_at' => CarbonImmutable::parse('2026-03-23 10:10:00'),
+            'duration_seconds' => 2400,
             'started_by_user_id' => $studentUser->id,
             'stopped_by_user_id' => $studentUser->id,
         ]);

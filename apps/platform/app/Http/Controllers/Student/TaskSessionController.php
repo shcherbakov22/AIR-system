@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\TaskSession;
 use App\Services\AutomaticObserveTheTimeViolationService;
 use App\Services\SpeechAnnouncementService;
+use App\Services\TaskSessionSleepService;
 use App\Services\TaskSessionUnfinishService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -44,6 +45,7 @@ class TaskSessionController extends Controller
         TaskSession $taskSession,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
         SpeechAnnouncementService $speechAnnouncementService,
+        TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -51,7 +53,7 @@ class TaskSessionController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $taskSession, $automaticViolationService, $speechAnnouncementService) {
+        $result = DB::transaction(function () use ($request, $studentId, $taskSession, $automaticViolationService, $speechAnnouncementService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             $lockedTaskSession = TaskSession::query()
@@ -163,6 +165,20 @@ class TaskSessionController extends Controller
                 $message .= " Resume schedule {$resumePausedScheduleName} when you're ready.";
             }
 
+            $hasActiveOrPausedScheduleRun = ScheduleRun::query()
+                ->where('student_id', $studentId)
+                ->whereIn('status', ['active', 'paused'])
+                ->exists();
+
+            if (! $hasActiveOrPausedScheduleRun) {
+                $taskSessionSleepService->ensureSleepingSession(
+                    $student,
+                    $request->user()->id,
+                    $endedAt,
+                );
+                $message .= ' Sleeping started.';
+            }
+
             return [
                 'success' => true,
                 'message' => $message,
@@ -183,6 +199,7 @@ class TaskSessionController extends Controller
     public function resume(
         StopTaskSessionRequest $request,
         TaskSession $taskSession,
+        TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
         $studentId = $request->user()?->student?->id;
 
@@ -190,7 +207,7 @@ class TaskSessionController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $taskSession) {
+        $result = DB::transaction(function () use ($request, $studentId, $taskSession, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             $unfinishedTaskSession = TaskSession::query()
@@ -200,6 +217,12 @@ class TaskSessionController extends Controller
                 ->whereNull('schedule_run_id')
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $taskSessionSleepService->completeActiveSleepingSession(
+                $studentId,
+                $request->user()->id,
+                now(),
+            );
 
             $hasActiveTaskSession = TaskSession::query()
                 ->where('student_id', $studentId)

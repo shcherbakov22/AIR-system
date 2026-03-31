@@ -17,10 +17,7 @@ class EvaluateObserveTheTimeViolationsCommand extends Command
         $evaluated = 0;
 
         Student::query()
-            ->where(function ($query) {
-                $query->whereHas('taskSessions', fn ($taskSessions) => $taskSessions->where('status', 'active'))
-                    ->orWhereHas('scheduleRuns', fn ($scheduleRuns) => $scheduleRuns->where('status', 'active'));
-            })
+            ->where('status', 'active')
             ->orderBy('id')
             ->chunkById(100, function ($students) use ($automaticViolationService, &$evaluated) {
                 foreach ($students as $student) {
