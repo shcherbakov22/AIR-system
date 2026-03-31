@@ -31,7 +31,8 @@ class TaskSessionUnfinishService
 
             if ($lockedTaskSession->status === 'active') {
                 $pausedAt = now();
-                $durationSeconds += $lockedTaskSession->started_at?->diffInSeconds($pausedAt) ?? 0;
+                $elapsedSeconds = (int) ($lockedTaskSession->started_at?->diffInSeconds($pausedAt) ?? 0);
+                $durationSeconds = max(0, $durationSeconds + $elapsedSeconds);
             }
 
             $lockedTaskSession->update([

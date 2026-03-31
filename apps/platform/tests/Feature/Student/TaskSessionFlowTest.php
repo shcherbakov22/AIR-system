@@ -391,6 +391,56 @@ class TaskSessionFlowTest extends TestCase
         $this->assertSame(10, $taskSession->duration_seconds);
     }
 
+    public function test_student_unfinished_stores_whole_duration_seconds_when_timestamps_include_microseconds(): void
+    {
+        Carbon::setTestNow('2026-03-07 11:00:10.500000');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_unfinished_microseconds',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_unfinished_microseconds',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Unfinished Microseconds',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskAssignment = $this->createAssignedTask($admin, $student);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 11:00:00.200000'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.unfinished', $taskSession))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', 'Task session Math Review marked unfinished.');
+
+        Carbon::setTestNow();
+
+        $taskSession->refresh();
+
+        $this->assertSame('paused', $taskSession->status);
+        $this->assertSame(10, $taskSession->duration_seconds);
+    }
+
     public function test_student_can_not_stop_another_students_task_session(): void
     {
         $admin = User::factory()->create([
