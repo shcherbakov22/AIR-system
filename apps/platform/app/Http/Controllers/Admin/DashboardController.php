@@ -114,6 +114,13 @@ class DashboardController extends Controller
         $actualDurationSeconds = $block->taskSessions
             ->sum(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession));
         $unfinishedTaskSession = $block->taskSessions
+            ->filter(fn (TaskSession $taskSession) => $taskSession->status === 'unfinished')
+            ->sortByDesc(fn (TaskSession $taskSession) => [
+                optional($taskSession->ended_at)?->timestamp ?? 0,
+                $taskSession->id,
+            ])
+            ->first();
+        $actionableTaskSession = $block->taskSessions
             ->filter(fn (TaskSession $taskSession) => in_array($taskSession->status, ['active', 'completed'], true))
             ->sortByDesc(fn (TaskSession $taskSession) => [
                 $taskSession->status === 'active' ? 1 : 0,
@@ -126,12 +133,15 @@ class DashboardController extends Controller
         $displayDurationLabel = $isPending
             ? $this->formatDuration($plannedDurationSeconds)
             : $this->formatDuration($actualDurationSeconds);
+        $statusLabel = $unfinishedTaskSession
+            ? 'Unfinished'
+            : $this->formatStatus($block->status);
 
         return [
             'id' => $block->id,
             'position' => $block->position,
             'status' => $block->status,
-            'status_label' => $this->formatStatus($block->status),
+            'status_label' => $statusLabel,
             'task_title' => $block->task_title_snapshot,
             'planned_duration_minutes' => $block->duration_minutes_snapshot,
             'planned_duration_label' => $this->formatDuration($plannedDurationSeconds),
@@ -139,8 +149,8 @@ class DashboardController extends Controller
             'actual_duration_label' => $this->formatDuration($actualDurationSeconds),
             'display_duration_label' => $displayDurationLabel,
             'display_duration_caption' => $isPending ? 'Planned' : 'Spent',
-            'unfinished_url' => $unfinishedTaskSession
-                ? route('admin.task-sessions.unfinished', $unfinishedTaskSession)
+            'unfinished_url' => $actionableTaskSession
+                ? route('admin.task-sessions.unfinished', $actionableTaskSession)
                 : null,
             'started_at' => $block->started_at?->toIso8601String(),
             'started_at_label' => $block->started_at?->format('d M, H:i'),

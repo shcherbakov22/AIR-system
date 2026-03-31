@@ -872,20 +872,48 @@ const handleCaptureWheel = (event: WheelEvent) => {
     }
 };
 
-const blockRowClass = (status: string): string => {
-    if (status === 'completed') {
+const isUnfinishedBlock = (block: DashboardBlock): boolean =>
+    block.status_label.toLowerCase() === 'unfinished';
+
+const blockRowClass = (block: DashboardBlock): string => {
+    if (isUnfinishedBlock(block)) {
+        return 'border-stone-900 bg-stone-950';
+    }
+
+    if (block.status === 'completed') {
         return 'border-emerald-200 bg-emerald-50';
     }
 
-    if (status === 'in_progress') {
+    if (block.status === 'in_progress') {
         return 'border-amber-300 bg-amber-50';
     }
 
-    if (status === 'paused') {
+    if (block.status === 'paused') {
         return 'border-stone-900 bg-stone-950';
     }
 
     return 'border-stone-200 bg-white';
+};
+
+const blockTitleClass = (block: DashboardBlock): string =>
+    isUnfinishedBlock(block) || block.status === 'paused'
+        ? 'text-white'
+        : 'text-stone-900';
+
+const blockDurationClass = (block: DashboardBlock): string => {
+    if (isUnfinishedBlock(block)) {
+        return 'bg-stone-950 text-white ring-1 ring-white/20';
+    }
+
+    if (block.unfinished_url && !hasAnyAdminChatGate.value) {
+        return block.status === 'paused'
+            ? 'bg-white/10 text-white transition hover:bg-white/20'
+            : 'bg-amber-100 text-amber-900 transition hover:bg-amber-200';
+    }
+
+    return block.status === 'paused'
+        ? 'text-stone-200'
+        : 'text-stone-700';
 };
 
 const blockTooltip = (block: DashboardBlock): string => {
@@ -1224,26 +1252,21 @@ const blockTooltip = (block: DashboardBlock): string => {
                                     v-for="block in student.schedule_board.blocks"
                                     :key="`${student.id}-${student.schedule_board.source_type}-${block.id}`"
                                     class="rounded-[0.35rem] border px-1 py-[3px]"
-                                    :class="blockRowClass(block.status)"
+                                    :class="blockRowClass(block)"
                                     :title="blockTooltip(block)"
                                     :data-active-block="block.status === 'in_progress' || block.status === 'paused' ? 'true' : 'false'"
                                 >
                                     <div class="flex items-center justify-between gap-1.5 text-[9px] leading-none">
-                                        <p class="min-w-0 truncate font-medium text-stone-900">
+                                        <p
+                                            class="min-w-0 truncate font-medium"
+                                            :class="blockTitleClass(block)"
+                                        >
                                             {{ block.position }}. {{ block.task_title }}
                                         </p>
                                         <button
                                             type="button"
                                             class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-semibold"
-                                            :class="
-                                                block.unfinished_url && !hasAnyAdminChatGate
-                                                    ? block.status === 'paused'
-                                                        ? 'bg-white/10 text-white transition hover:bg-white/20'
-                                                        : 'bg-amber-100 text-amber-900 transition hover:bg-amber-200'
-                                                    : block.status === 'paused'
-                                                        ? 'text-stone-200'
-                                                        : 'text-stone-700'
-                                            "
+                                            :class="blockDurationClass(block)"
                                             :disabled="!block.unfinished_url || hasAnyAdminChatGate"
                                             @click="markTaskSessionUnfinishedByUrl(block.unfinished_url)"
                                         >
