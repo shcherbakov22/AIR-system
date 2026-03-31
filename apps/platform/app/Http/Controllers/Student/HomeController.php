@@ -6,7 +6,9 @@ use App\Enums\ScheduleWeekday;
 use App\Http\Controllers\Controller;
 use App\Models\Violation;
 use App\Models\ScheduleRun;
+use App\Models\ScheduleRunBlock;
 use App\Models\ScheduleTemplate;
+use App\Models\TaskSession;
 use App\Models\TaskTemplate;
 use App\Services\AutomaticObserveTheTimeViolationService;
 use App\Services\ScheduleRunFinishWindowService;
@@ -18,6 +20,64 @@ use Inertia\Response;
 
 class HomeController extends Controller
 {
+    protected function actualDurationSeconds(TaskSession $taskSession): int
+    {
+        $baseDuration = (int) ($taskSession->duration_seconds ?? 0);
+
+        if ($taskSession->status !== 'active' || ! $taskSession->started_at) {
+            return $baseDuration;
+        }
+
+        return max(0, $baseDuration + $taskSession->started_at->diffInSeconds(now()));
+    }
+
+    protected function formatDuration(int $totalSeconds): string
+    {
+        $hours = intdiv($totalSeconds, 3600);
+        $minutes = intdiv($totalSeconds % 3600, 60);
+        $seconds = $totalSeconds % 60;
+
+        if ($hours > 0) {
+            return sprintf('%d:%02d:%02d', $hours, $minutes, $seconds);
+        }
+
+        return sprintf('%02d:%02d', $minutes, $seconds);
+    }
+
+    protected function scheduleRunBlockPayload(ScheduleRunBlock $block, ?ScheduleRunBlock $nextScheduleRunBlock): array
+    {
+        $actualDurationSeconds = $block->taskSessions
+            ->sum(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession));
+        $unfinishedTaskSession = $block->taskSessions
+            ->filter(fn (TaskSession $taskSession) => in_array($taskSession->status, ['active', 'completed'], true))
+            ->sortByDesc(fn (TaskSession $taskSession) => [
+                $taskSession->status === 'active' ? 1 : 0,
+                optional($taskSession->started_at)?->timestamp ?? 0,
+                $taskSession->id,
+            ])
+            ->first();
+
+        return [
+            'id' => $block->id,
+            'position' => $block->position,
+            'status' => $block->status,
+            'start_time' => $block->start_time_snapshot,
+            'duration_minutes' => $block->duration_minutes_snapshot,
+            'notes' => $block->entry_notes_snapshot,
+            'is_next' => $nextScheduleRunBlock?->id === $block->id,
+            'actual_duration_seconds' => $actualDurationSeconds,
+            'actual_duration_label' => $this->formatDuration($actualDurationSeconds),
+            'unfinished_url' => $unfinishedTaskSession
+                ? route('student.task-sessions.unfinished', $unfinishedTaskSession)
+                : null,
+            'task' => [
+                'title' => $block->task_title_snapshot,
+                'summary' => $block->task_summary_snapshot,
+                'instructions' => $block->task_instructions_snapshot,
+            ],
+        ];
+    }
+
     protected function scheduleWeekdayValue(mixed $weekday): string
     {
         if ($weekday instanceof ScheduleWeekday) {
@@ -72,7 +132,7 @@ class HomeController extends Controller
             $student->load([
                 'setting',
                 'scheduleTemplates.entries.taskTemplate',
-                'scheduleRuns.blocks',
+                'scheduleRuns.blocks.taskSessions',
                 'taskSessions.scheduleRun',
                 'taskSessions.scheduleRunBlock',
                 'violations',
@@ -232,20 +292,7 @@ class HomeController extends Controller
                     'blocks' => $activeScheduleRun->blocks
                         ->sortBy('position')
                         ->values()
-                        ->map(fn ($block) => [
-                            'id' => $block->id,
-                            'position' => $block->position,
-                            'status' => $block->status,
-                            'start_time' => $block->start_time_snapshot,
-                            'duration_minutes' => $block->duration_minutes_snapshot,
-                            'notes' => $block->entry_notes_snapshot,
-                            'is_next' => $nextScheduleRunBlock?->id === $block->id,
-                            'task' => [
-                                'title' => $block->task_title_snapshot,
-                                'summary' => $block->task_summary_snapshot,
-                                'instructions' => $block->task_instructions_snapshot,
-                            ],
-                        ])
+                        ->map(fn (ScheduleRunBlock $block) => $this->scheduleRunBlockPayload($block, $nextScheduleRunBlock))
                         ->all(),
                 ]
                 : null,

@@ -4,6 +4,8 @@ namespace Tests\Feature\Student;
 
 use App\Enums\UserRole;
 use App\Models\RuleDefinition;
+use App\Models\ScheduleRun;
+use App\Models\ScheduleRunBlock;
 use App\Models\Student;
 use App\Models\TaskAssignment;
 use App\Models\TaskSession;
@@ -258,6 +260,85 @@ class TaskSessionFlowTest extends TestCase
             'duration_seconds' => 1800,
             'started_by_user_id' => $studentUser->id,
         ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_student_home_exposes_unfinished_action_for_schedule_blocks_with_existing_task_sessions(): void
+    {
+        Carbon::setTestNow('2026-03-07 11:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_schedule_unfinished',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_schedule_unfinished',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Schedule Unfinished',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskAssignment = $this->createAssignedTask($admin, $student);
+
+        $scheduleRun = ScheduleRun::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'schedule_name_snapshot' => 'Morning Run',
+            'schedule_weekday_snapshot' => 'friday',
+            'schedule_notes_snapshot' => null,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:00:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $completedBlock = ScheduleRunBlock::create([
+            'schedule_run_id' => $scheduleRun->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'position' => 1,
+            'status' => 'completed',
+            'start_time_snapshot' => '10:00',
+            'duration_minutes_snapshot' => 30,
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'entry_notes_snapshot' => null,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:00:00'),
+            'completed_at' => CarbonImmutable::parse('2026-03-07 10:30:00'),
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'schedule_run_id' => $scheduleRun->id,
+            'schedule_run_block_id' => $completedBlock->id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:00:00'),
+            'ended_at' => CarbonImmutable::parse('2026-03-07 10:30:00'),
+            'duration_seconds' => 1800,
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/Home')
+                ->where('activeScheduleRun.blocks.0.actual_duration_label', '30:00')
+                ->where('activeScheduleRun.blocks.0.unfinished_url', route('student.task-sessions.unfinished', $taskSession))
+            );
 
         Carbon::setTestNow();
     }

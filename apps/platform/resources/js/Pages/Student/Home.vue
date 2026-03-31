@@ -87,6 +87,9 @@ const props = defineProps<{
             duration_minutes: number;
             notes?: string | null;
             is_next: boolean;
+            actual_duration_seconds?: number;
+            actual_duration_label?: string | null;
+            unfinished_url?: string | null;
             task: {
                 title: string;
                 summary?: string | null;
@@ -1046,7 +1049,15 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                             <p class="min-w-0 flex-1 truncate font-semibold text-stone-950">
                                 {{ block.task.title }}
                             </p>
-                            <p class="text-xs text-stone-600">
+                            <button
+                                v-if="block.unfinished_url"
+                                type="button"
+                                class="text-xs font-semibold text-stone-700 underline-offset-2 transition hover:text-stone-950 hover:underline"
+                                @click="stopTaskSessionForm.patch(block.unfinished_url, { preserveScroll: true })"
+                            >
+                                {{ block.actual_duration_label }}
+                            </button>
+                            <p v-else class="text-xs text-stone-600">
                                 {{ block.duration_minutes }} min
                             </p>
                             <button
