@@ -854,14 +854,6 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 >
                                     Finish
                                 </button>
-                                <button
-                                    v-if="pausedTaskSession"
-                                    type="button"
-                                    class="inline-block rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800"
-                                    @click="resumePausedTaskSession"
-                                >
-                                    Start unfinished
-                                </button>
                             </div>
                         </div>
                         <div
