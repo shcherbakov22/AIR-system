@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 type DashboardBlock = {
     id: number;
@@ -305,25 +305,6 @@ const setScheduleBoardRef = (studentId: number, element: unknown) => {
     scheduleBoardRefs.delete(studentId);
 };
 
-const scrollScheduleBoardsToActiveBlock = () => {
-    scheduleBoardRefs.forEach((board) => {
-        const activeBlock = board.querySelector<HTMLElement>('[data-active-block="true"]');
-
-        if (!activeBlock) {
-            board.scrollTop = 0;
-            return;
-        }
-
-        const boardHeight = board.clientHeight;
-        const targetTop = Math.max(activeBlock.offsetTop - Math.max((boardHeight - activeBlock.offsetHeight) / 2, 24), 0);
-
-        board.scrollTo({
-            top: targetTop,
-            behavior: 'smooth',
-        });
-    });
-};
-
 const loadSpeechLogs = async () => {
     speechLogsLoading.value = true;
 
@@ -481,7 +462,6 @@ onMounted(() => {
     }, 3000);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', reloadMonitorBoard);
-    nextTick(scrollScheduleBoardsToActiveBlock);
     initializeSpeechWatermark().catch(() => {});
 });
 
@@ -505,15 +485,6 @@ onBeforeUnmount(() => {
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('focus', reloadMonitorBoard);
 });
-
-watch(
-    () => props.monitorStudents,
-    async () => {
-        await nextTick();
-        scrollScheduleBoardsToActiveBlock();
-    },
-    { deep: true },
-);
 
 const monitorStudents = computed(() => {
     const liveDeltaSeconds = Math.max(0, Math.floor((liveNowMs.value - serverNowMs.value) / 1000));
