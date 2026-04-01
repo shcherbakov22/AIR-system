@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ss/upl1.php',
             'ss/uplcam.php',
             'ss/uplscr.php',
+            'push-up-station/*',
         ]);
 
         $middleware->alias([
