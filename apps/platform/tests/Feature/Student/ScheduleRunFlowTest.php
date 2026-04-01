@@ -271,6 +271,67 @@ class ScheduleRunFlowTest extends TestCase
             );
     }
 
+    public function test_student_can_start_a_schedule_after_finishing_sleeping(): void
+    {
+        Carbon::setTestNow('2026-03-08 09:00:00');
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_from_sleep_student',
+        ]);
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'schedule_from_sleep_admin',
+        ]);
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+        $sleepingTemplate = $this->createTaskTemplate(
+            $admin,
+            'Sleeping',
+            900,
+            'Sleep.',
+            'Go to sleep.',
+        );
+
+        $sleepingSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $sleepingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Sleeping',
+            'task_summary_snapshot' => 'Sleep.',
+            'task_instructions_snapshot' => 'Go to sleep.',
+            'assignment_notes_snapshot' => null,
+            'planned_duration_minutes' => 900,
+            'started_at' => Carbon::parse('2026-03-08 08:30:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $sleepingSession))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', 'Task session Sleeping finished.');
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Schedule Tuesday Run started.'));
+
+        $this->assertDatabaseHas('schedule_runs', [
+            'student_id' => $student->id,
+            'status' => 'active',
+            'schedule_name_snapshot' => 'Tuesday Run',
+        ]);
+
+        $this->assertDatabaseMissing('task_sessions', [
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Sleeping',
+        ]);
+
+        Carbon::setTestNow();
+    }
+
     public function test_student_can_finish_a_schedule_with_uncompleted_blocks(): void
     {
         Carbon::setTestNow('2026-03-08 19:00:00');

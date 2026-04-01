@@ -273,6 +273,61 @@ class TaskSessionFlowTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_stopping_sleeping_does_not_immediately_restart_sleeping(): void
+    {
+        Carbon::setTestNow('2026-03-07 11:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_stop_sleeping',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_stop_sleeping',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Stop Sleeping',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $sleepingTemplate = $this->createSleepingTemplate($admin);
+
+        $sleepingSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $sleepingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Sleeping',
+            'task_summary_snapshot' => 'Sleep.',
+            'task_instructions_snapshot' => 'Go to sleep.',
+            'assignment_notes_snapshot' => null,
+            'planned_duration_minutes' => 900,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:30:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $sleepingSession))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', 'Task session Sleeping finished.');
+
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $sleepingSession->id,
+            'status' => 'completed',
+        ]);
+
+        $this->assertDatabaseMissing('task_sessions', [
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Sleeping',
+        ]);
+
+        Carbon::setTestNow();
+    }
+
     public function test_student_can_mark_an_active_task_session_unfinished_and_resume_it(): void
     {
         Carbon::setTestNow('2026-03-07 11:00:00');

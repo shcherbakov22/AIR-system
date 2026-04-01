@@ -170,7 +170,7 @@ class TaskSessionController extends Controller
                 ->whereIn('status', ['active', 'paused'])
                 ->exists();
 
-            if (! $hasActiveOrPausedScheduleRun) {
+            if (! $hasActiveOrPausedScheduleRun && ! $taskSessionSleepService->isSleepingSession($lockedTaskSession)) {
                 $taskSessionSleepService->ensureSleepingSession(
                     $student,
                     $request->user()->id,
