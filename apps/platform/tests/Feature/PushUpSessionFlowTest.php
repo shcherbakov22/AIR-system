@@ -40,12 +40,18 @@ class PushUpSessionFlowTest extends TestCase
             ->post(route('admin.violations.push-up-sessions.store', $violation))
             ->assertRedirect();
 
-        $this->assertDatabaseHas('push_up_sessions', [
-            'violation_id' => $violation->id,
-            'student_id' => $student->id,
-            'status' => 'pending',
-            'required_push_ups' => 12,
-        ]);
+        $session = PushUpSession::query()->where('violation_id', $violation->id)->firstOrFail();
+
+        $this->assertSame(12, $session->required_push_ups);
+        $this->assertSame([
+            'sets' => 1,
+            'reps' => 12,
+            'rest_seconds' => 30,
+            'penalty_reps' => 5,
+            'drop_threshold' => 20,
+            'up_gap' => 6,
+            'down_tolerance' => 3,
+        ], $session->configuration);
     }
 
     public function test_completing_push_up_session_resolves_violation(): void

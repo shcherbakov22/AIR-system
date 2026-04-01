@@ -20,9 +20,11 @@ class PushUpSessionService
 
     public function defaultConfiguration(int $requiredPushUps): array
     {
+        $requiredPushUps = max(1, $requiredPushUps);
+
         return [
-            'sets' => 3,
-            'reps' => 10,
+            'sets' => 1,
+            'reps' => $requiredPushUps,
             'rest_seconds' => 30,
             'penalty_reps' => 5,
             'drop_threshold' => 20,

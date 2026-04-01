@@ -239,7 +239,7 @@ const sendWorkoutConfig = async (session: PushUpSessionPayload) => {
     }
 
     const config = session.configuration;
-    await sendSerial(`${config.reps},${config.penalty_reps},${config.drop_threshold},${config.up_gap},${config.down_tolerance}`);
+    await sendSerial(`${config.reps},${config.penalty_reps},${config.drop_threshold},${config.up_gap},${config.down_tolerance},${config.rest_seconds},${config.sets}`);
 };
 
 const ensureSessionLaunched = async () => {
