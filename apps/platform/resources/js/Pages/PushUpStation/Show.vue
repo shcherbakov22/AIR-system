@@ -332,6 +332,8 @@ const setWorkingStatus = () => {
     statusText.value = `Working ${currentSession.value.student.display_name}`;
 };
 
+const formatError = (error: unknown) => error instanceof Error ? error.message : String(error);
+
 const readLoop = async () => {
     if (!port?.readable) {
         return;
@@ -355,7 +357,11 @@ const readLoop = async () => {
             const normalizedChunk = chunk.replace(/\r/g, '\n');
 
             if (normalizedChunk.includes('STATE:ALL_COMPLETE')) {
-                await completeCurrentSession();
+                try {
+                    await completeCurrentSession();
+                } catch (error) {
+                    statusText.value = `Completion sync failed: ${formatError(error)}`;
+                }
             }
 
             if (normalizedChunk.includes('STATE:SEARCHING_BACK')) {
@@ -394,7 +400,12 @@ const readLoop = async () => {
                     if (repCount.value > 0) {
                         setWorkingStatus();
                     }
-                    await pushProgress(repCount.value);
+
+                    try {
+                        await pushProgress(repCount.value);
+                    } catch (error) {
+                        statusText.value = `Progress sync failed: ${formatError(error)}`;
+                    }
                 }
 
                 if (part.startsWith('S:')) {
@@ -424,9 +435,15 @@ const readLoop = async () => {
             }
 
             if (currentSession.value && serialConnected.value) {
-                await ensureSessionLaunched();
+                try {
+                    await ensureSessionLaunched();
+                } catch (error) {
+                    statusText.value = `Launch sync failed: ${formatError(error)}`;
+                }
             }
         }
+    } catch (error) {
+        statusText.value = `Serial reader stopped: ${formatError(error)}`;
     } finally {
         reader.releaseLock();
     }
