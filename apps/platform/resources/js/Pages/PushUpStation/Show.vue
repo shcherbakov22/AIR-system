@@ -197,6 +197,9 @@ const attachSerialPort = async (candidatePort: SerialPortLike) => {
 
     serialConnected.value = true;
     lastSerialDataAt.value = null;
+    serialBuffer = '';
+    clearLaunchedSessionId();
+    restTimeText.value = null;
     statusText.value = 'Arduino connected, waiting for data';
     readLoop();
     await heartbeat();
@@ -287,6 +290,10 @@ const sendWorkoutConfig = async (session: PushUpSessionPayload) => {
 
 const ensureSessionLaunched = async () => {
     if (!currentSession.value || !serialConnected.value || launchBusy.value) {
+        return;
+    }
+
+    if (!hasFreshSerialData()) {
         return;
     }
 
