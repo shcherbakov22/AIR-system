@@ -294,7 +294,9 @@ const ensureSessionLaunched = async () => {
         syncSessionState(payload.session);
         await sendWorkoutConfig(payload.session);
         setLaunchedSessionId(payload.session.id);
-        statusText.value = `Working ${payload.session.student.display_name}`;
+        statusText.value = 'Searching back position';
+    } catch (error) {
+        statusText.value = `Launch failed: ${formatError(error)}`;
     } finally {
         launchBusy.value = false;
     }
@@ -439,9 +441,6 @@ const readLoop = async () => {
                 if (part.startsWith('SET:')) {
                     const nextSet = Number(part.split(':')[1] ?? '1');
                     currentSet.value = Number.isNaN(nextSet) ? currentSet.value : nextSet;
-                    if (currentSet.value > 0) {
-                        setWorkingStatus();
-                    }
                 }
 
                 if (part.startsWith('ST:')) {
@@ -453,17 +452,15 @@ const readLoop = async () => {
                     }
 
                     if (state === 'IDLE' && currentSession.value) {
-                        statusText.value = `Starting ${currentSession.value.student.display_name}`;
+                        statusText.value = launchedSessionId.value === currentSession.value.id
+                            ? 'Searching back position'
+                            : `Starting ${currentSession.value.student.display_name}`;
                     }
                 }
             }
 
             if (currentSession.value && serialConnected.value) {
-                try {
-                    await ensureSessionLaunched();
-                } catch (error) {
-                    statusText.value = `Launch sync failed: ${formatError(error)}`;
-                }
+                await ensureSessionLaunched();
             }
         }
     } catch (error) {
