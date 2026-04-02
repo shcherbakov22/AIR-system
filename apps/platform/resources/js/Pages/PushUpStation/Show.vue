@@ -113,6 +113,27 @@ const clearLaunchedSessionId = () => {
     setLaunchedSessionId(null);
 };
 
+const syncStatusFromSession = () => {
+    if (!currentSession.value) {
+        if (serialConnected.value) {
+            statusText.value = 'Arduino connected';
+        }
+        return;
+    }
+
+    if (!serialConnected.value) {
+        statusText.value = 'Session claimed, waiting for Arduino';
+        return;
+    }
+
+    if (currentSession.value.status === 'running' || launchedSessionId.value === currentSession.value.id) {
+        statusText.value = `Working ${currentSession.value.student.display_name}`;
+        return;
+    }
+
+    statusText.value = `Starting ${currentSession.value.student.display_name}`;
+};
+
 const csrfToken = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 
 const postJson = async <T>(url: string, method: 'POST' | 'PATCH', body: Record<string, unknown>): Promise<T> => {
@@ -162,6 +183,7 @@ const attachSerialPort = async (candidatePort: SerialPortLike) => {
     statusText.value = 'Arduino connected';
     readLoop();
     await heartbeat();
+    syncStatusFromSession();
     await ensureSessionLaunched();
 };
 
@@ -174,6 +196,8 @@ const syncSessionState = (session: PushUpSessionPayload | null) => {
     if (!session) {
         clearLaunchedSessionId();
     }
+
+    syncStatusFromSession();
 };
 
 const heartbeat = async () => {
