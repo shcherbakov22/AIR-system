@@ -192,7 +192,7 @@ const heartbeat = async () => {
     pendingCount.value = payload.pending_count;
     syncSessionState(payload.current_session);
 
-    if (!payload.current_session && serialConnected.value && !claimBusy.value && payload.pending_count > 0) {
+    if (!payload.current_session && !claimBusy.value && payload.pending_count > 0) {
         await claimNext();
         return;
     }
@@ -223,7 +223,9 @@ const claimNext = async () => {
         pendingCount.value = payload.pending_count;
         claimedSession = payload.session;
         syncSessionState(claimedSession);
-        statusText.value = claimedSession ? 'Session claimed' : 'No pending sessions';
+        statusText.value = claimedSession
+            ? (serialConnected.value ? 'Session claimed' : 'Session claimed, waiting for Arduino')
+            : 'No pending sessions';
     } finally {
         claimBusy.value = false;
     }
@@ -322,6 +324,14 @@ const completeCurrentSession = async () => {
     await heartbeat();
 };
 
+const setWorkingStatus = () => {
+    if (!currentSession.value) {
+        return;
+    }
+
+    statusText.value = `Working ${currentSession.value.student.display_name}`;
+};
+
 const readLoop = async () => {
     if (!port?.readable) {
         return;
@@ -381,6 +391,9 @@ const readLoop = async () => {
                 if (part.startsWith('W:')) {
                     const nextRep = Number(part.split(':')[1] ?? '0');
                     repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
+                    if (repCount.value > 0) {
+                        setWorkingStatus();
+                    }
                     await pushProgress(repCount.value);
                 }
 
@@ -391,11 +404,22 @@ const readLoop = async () => {
                 if (part.startsWith('SET:')) {
                     const nextSet = Number(part.split(':')[1] ?? '1');
                     currentSet.value = Number.isNaN(nextSet) ? currentSet.value : nextSet;
+                    if (currentSet.value > 0) {
+                        setWorkingStatus();
+                    }
                 }
 
                 if (part.startsWith('ST:')) {
                     const state = part.split(':')[1] ?? 'IDLE';
                     movementText.value = state === 'REST' ? 'Rest' : state === 'WORK' ? 'Working' : 'Standby';
+
+                    if (state === 'WORK') {
+                        setWorkingStatus();
+                    }
+
+                    if (state === 'IDLE' && currentSession.value) {
+                        statusText.value = `Starting ${currentSession.value.student.display_name}`;
+                    }
                 }
             }
 
