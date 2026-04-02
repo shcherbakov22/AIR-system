@@ -72,6 +72,7 @@ const statusText = ref('Idle');
 const distanceText = ref('---');
 const repCount = ref(0);
 const movementText = ref('Standby');
+const restTimeText = ref<string | null>(null);
 const currentSet = ref(1);
 const totalSets = ref(0);
 const claimBusy = ref(false);
@@ -91,6 +92,8 @@ const sessionStatusLabel = computed(() => {
 
     return currentSession.value.status;
 });
+
+const counterSubtext = computed(() => restTimeText.value ?? movementText.value);
 
 watch(stationName, (value) => {
     localStorage.setItem(stationNameStorageKey, value);
@@ -275,7 +278,7 @@ const sendWorkoutConfig = async (session: PushUpSessionPayload) => {
     }
 
     const config = session.configuration;
-    await sendSerial(`${config.reps},${config.penalty_reps},${config.drop_threshold},${config.up_gap},${config.down_tolerance},${config.rest_seconds},${config.sets}`);
+    await sendSerial(`${config.reps},7,${config.drop_threshold},5,4,${config.rest_seconds},${config.sets}`);
 };
 
 const ensureSessionLaunched = async () => {
@@ -304,6 +307,7 @@ const ensureSessionLaunched = async () => {
         syncSessionState(payload.session);
         await sendWorkoutConfig(payload.session);
         setLaunchedSessionId(payload.session.id);
+        restTimeText.value = null;
         statusText.value = 'Searching back position';
     } catch (error) {
         statusText.value = `Launch failed: ${formatError(error)}`;
@@ -355,6 +359,7 @@ const completeCurrentSession = async () => {
     currentSession.value = null;
     repCount.value = 0;
     movementText.value = 'Standby';
+    restTimeText.value = null;
     currentSet.value = 1;
     totalSets.value = 0;
     await heartbeat();
@@ -392,11 +397,13 @@ const processSerialPart = async (part: string) => {
     }
 
     if (part === 'STATE:SET_START') {
+        restTimeText.value = null;
         statusText.value = `Set ${Math.max(currentSet.value, 1)}/${Math.max(totalSets.value, 1)} started`;
         return;
     }
 
     if (part === 'STATE:RESTING') {
+        movementText.value = 'Rest';
         statusText.value = `Resting before set ${Math.min(currentSet.value + 1, Math.max(totalSets.value, currentSet.value + 1))}`;
         return;
     }
@@ -415,6 +422,7 @@ const processSerialPart = async (part: string) => {
         const nextRep = Number(part.split(':')[1] ?? '0');
         repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
         if (repCount.value > 0) {
+            restTimeText.value = null;
             setWorkingStatus();
         }
 
@@ -427,8 +435,18 @@ const processSerialPart = async (part: string) => {
         return;
     }
 
+    if (part.startsWith('REST_TIME:')) {
+        const secondsLeft = Number(part.split(':')[1] ?? '');
+        restTimeText.value = Number.isNaN(secondsLeft) ? null : `${secondsLeft}s`;
+        movementText.value = 'Rest';
+        statusText.value = 'Resting';
+        return;
+    }
+
     if (part.startsWith('S:')) {
-        movementText.value = part.split(':')[1] === '1' ? 'Up' : 'Down';
+        if (!restTimeText.value) {
+            movementText.value = part.split(':')[1] === '1' ? 'Up' : 'Down';
+        }
         return;
     }
 
@@ -443,11 +461,18 @@ const processSerialPart = async (part: string) => {
         movementText.value = state === 'REST' ? 'Rest' : state === 'WORK' ? 'Working' : 'Standby';
 
         if (state === 'WORK') {
+            restTimeText.value = null;
             setWorkingStatus();
             return;
         }
 
+        if (state === 'REST') {
+            statusText.value = 'Resting';
+            return;
+        }
+
         if (state === 'IDLE' && currentSession.value) {
+            restTimeText.value = null;
             statusText.value = launchedSessionId.value === currentSession.value.id
                 ? 'Searching back position'
                 : `Starting ${currentSession.value.student.display_name}`;
@@ -607,7 +632,7 @@ onBeforeUnmount(() => {
             <div class="mt-5 rounded-[1.25rem] bg-stone-950 px-5 py-6 text-center text-lime-400">
                 <p class="text-[11px] uppercase tracking-[0.3em] text-lime-300">Rep count</p>
                 <p class="mt-3 text-7xl font-semibold leading-none">{{ repCount }}</p>
-                <p class="mt-3 text-sm uppercase tracking-[0.18em] text-lime-300">{{ movementText }}</p>
+                <p class="mt-3 text-sm uppercase tracking-[0.18em] text-lime-300">{{ counterSubtext }}</p>
                 <p class="mt-2 text-xs uppercase tracking-[0.16em] text-lime-200">
                     <template v-if="currentSession">
                         Set {{ currentSet }}/{{ totalSets }}
