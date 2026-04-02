@@ -82,6 +82,7 @@ let heartbeatTimer: number | null = null;
 let port: SerialPortLike | null = null;
 let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 let progressThrottleAt = 0;
+let serialBuffer = '';
 
 const sessionStatusLabel = computed(() => {
     if (!currentSession.value) {
@@ -369,6 +370,91 @@ const setWorkingStatus = () => {
 
 const formatError = (error: unknown) => error instanceof Error ? error.message : String(error);
 
+const processSerialPart = async (part: string) => {
+    if (part === 'STATE:ALL_COMPLETE') {
+        try {
+            await completeCurrentSession();
+        } catch (error) {
+            statusText.value = `Completion sync failed: ${formatError(error)}`;
+        }
+
+        return;
+    }
+
+    if (part === 'STATE:SEARCHING_BACK') {
+        statusText.value = 'Searching back position';
+        return;
+    }
+
+    if (part === 'STATE:BACK_DETECTED') {
+        statusText.value = 'Back detected, start moving';
+        return;
+    }
+
+    if (part === 'STATE:SET_START') {
+        statusText.value = `Set ${Math.max(currentSet.value, 1)}/${Math.max(totalSets.value, 1)} started`;
+        return;
+    }
+
+    if (part === 'STATE:RESTING') {
+        statusText.value = `Resting before set ${Math.min(currentSet.value + 1, Math.max(totalSets.value, currentSet.value + 1))}`;
+        return;
+    }
+
+    if (part === 'STATE:TOTAL_RESET_OK') {
+        statusText.value = 'Device reset';
+        return;
+    }
+
+    if (part.startsWith('D:')) {
+        distanceText.value = part.split(':')[1] ?? '---';
+        return;
+    }
+
+    if (part.startsWith('W:')) {
+        const nextRep = Number(part.split(':')[1] ?? '0');
+        repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
+        if (repCount.value > 0) {
+            setWorkingStatus();
+        }
+
+        try {
+            await pushProgress(repCount.value);
+        } catch (error) {
+            statusText.value = `Progress sync failed: ${formatError(error)}`;
+        }
+
+        return;
+    }
+
+    if (part.startsWith('S:')) {
+        movementText.value = part.split(':')[1] === '1' ? 'Up' : 'Down';
+        return;
+    }
+
+    if (part.startsWith('SET:')) {
+        const nextSet = Number(part.split(':')[1] ?? '1');
+        currentSet.value = Number.isNaN(nextSet) ? currentSet.value : nextSet;
+        return;
+    }
+
+    if (part.startsWith('ST:')) {
+        const state = part.split(':')[1] ?? 'IDLE';
+        movementText.value = state === 'REST' ? 'Rest' : state === 'WORK' ? 'Working' : 'Standby';
+
+        if (state === 'WORK') {
+            setWorkingStatus();
+            return;
+        }
+
+        if (state === 'IDLE' && currentSession.value) {
+            statusText.value = launchedSessionId.value === currentSession.value.id
+                ? 'Searching back position'
+                : `Starting ${currentSession.value.student.display_name}`;
+        }
+    }
+};
+
 const readLoop = async () => {
     if (!port?.readable) {
         return;
@@ -390,84 +476,17 @@ const readLoop = async () => {
             }
 
             lastSerialDataAt.value = Date.now();
+            serialBuffer += chunk.replace(/\r/g, '\n');
+            const parts = serialBuffer.split(/[;\n]+/);
+            serialBuffer = parts.pop() ?? '';
 
-            const normalizedChunk = chunk.replace(/\r/g, '\n');
-
-            if (normalizedChunk.includes('STATE:ALL_COMPLETE')) {
-                try {
-                    await completeCurrentSession();
-                } catch (error) {
-                    statusText.value = `Completion sync failed: ${formatError(error)}`;
-                }
-            }
-
-            if (normalizedChunk.includes('STATE:SEARCHING_BACK')) {
-                statusText.value = 'Searching back position';
-            }
-
-            if (normalizedChunk.includes('STATE:BACK_DETECTED')) {
-                statusText.value = 'Back detected, start moving';
-            }
-
-            if (normalizedChunk.includes('STATE:SET_START')) {
-                statusText.value = `Set ${Math.max(currentSet.value, 1)}/${Math.max(totalSets.value, 1)} started`;
-            }
-
-            if (normalizedChunk.includes('STATE:RESTING')) {
-                statusText.value = `Resting before set ${Math.min(currentSet.value + 1, Math.max(totalSets.value, currentSet.value + 1))}`;
-            }
-
-            if (normalizedChunk.includes('STATE:TOTAL_RESET_OK')) {
-                statusText.value = 'Device reset';
-            }
-
-            for (const rawPart of normalizedChunk.split(/[;\n]+/)) {
+            for (const rawPart of parts) {
                 const part = rawPart.trim();
                 if (!part) {
                     continue;
                 }
 
-                if (part.startsWith('D:')) {
-                    distanceText.value = part.split(':')[1] ?? '---';
-                }
-
-                if (part.startsWith('W:')) {
-                    const nextRep = Number(part.split(':')[1] ?? '0');
-                    repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
-                    if (repCount.value > 0) {
-                        setWorkingStatus();
-                    }
-
-                    try {
-                        await pushProgress(repCount.value);
-                    } catch (error) {
-                        statusText.value = `Progress sync failed: ${formatError(error)}`;
-                    }
-                }
-
-                if (part.startsWith('S:')) {
-                    movementText.value = part.split(':')[1] === '1' ? 'Up' : 'Down';
-                }
-
-                if (part.startsWith('SET:')) {
-                    const nextSet = Number(part.split(':')[1] ?? '1');
-                    currentSet.value = Number.isNaN(nextSet) ? currentSet.value : nextSet;
-                }
-
-                if (part.startsWith('ST:')) {
-                    const state = part.split(':')[1] ?? 'IDLE';
-                    movementText.value = state === 'REST' ? 'Rest' : state === 'WORK' ? 'Working' : 'Standby';
-
-                    if (state === 'WORK') {
-                        setWorkingStatus();
-                    }
-
-                    if (state === 'IDLE' && currentSession.value) {
-                        statusText.value = launchedSessionId.value === currentSession.value.id
-                            ? 'Searching back position'
-                            : `Starting ${currentSession.value.student.display_name}`;
-                    }
-                }
+                await processSerialPart(part);
             }
 
             if (currentSession.value && serialConnected.value) {
