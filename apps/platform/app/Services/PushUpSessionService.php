@@ -79,6 +79,9 @@ class PushUpSessionService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            $latestRequiredPushUps = (int) $lockedViolation->penalty_units;
+            $latestConfiguration = $this->defaultConfiguration($latestRequiredPushUps);
+
             $existing = PushUpSession::query()
                 ->where('violation_id', $lockedViolation->id)
                 ->whereIn('status', [
@@ -90,6 +93,16 @@ class PushUpSessionService
                 ->first();
 
             if ($existing) {
+                if (in_array($existing->status, [self::STATUS_PENDING, self::STATUS_CLAIMED], true)) {
+                    $existing->forceFill([
+                        'requested_by_user_id' => $requestedBy?->id ?? $existing->requested_by_user_id,
+                        'required_push_ups' => $latestRequiredPushUps,
+                        'configuration' => $latestConfiguration,
+                        'current_rep' => 0,
+                        'current_set' => 1,
+                    ])->save();
+                }
+
                 return $existing;
             }
 
@@ -98,8 +111,8 @@ class PushUpSessionService
                 'violation_id' => $lockedViolation->id,
                 'requested_by_user_id' => $requestedBy?->id,
                 'status' => self::STATUS_PENDING,
-                'required_push_ups' => $lockedViolation->penalty_units,
-                'configuration' => $this->defaultConfiguration($lockedViolation->penalty_units),
+                'required_push_ups' => $latestRequiredPushUps,
+                'configuration' => $latestConfiguration,
                 'current_rep' => 0,
                 'current_set' => 1,
             ]);

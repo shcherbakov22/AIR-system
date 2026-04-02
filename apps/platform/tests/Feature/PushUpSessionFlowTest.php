@@ -169,4 +169,65 @@ class PushUpSessionFlowTest extends TestCase
             ->post(route('student.violations.push-up-sessions.store', $otherViolation))
             ->assertNotFound();
     }
+
+    public function test_queueing_refreshes_stale_pending_push_up_session_configuration(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $studentUser = User::factory()->create(['role' => UserRole::Student]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Counter Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Observe the time',
+            'penalty_units' => 48,
+            'occurred_at' => now(),
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $staleSession = PushUpSession::create([
+            'student_id' => $student->id,
+            'violation_id' => $violation->id,
+            'requested_by_user_id' => $admin->id,
+            'status' => 'pending',
+            'required_push_ups' => 30,
+            'configuration' => [
+                'sets' => 3,
+                'reps' => 10,
+                'rest_seconds' => 30,
+                'penalty_reps' => 7,
+                'drop_threshold' => 18,
+                'up_gap' => 5,
+                'down_tolerance' => 4,
+            ],
+            'current_rep' => 8,
+            'current_set' => 2,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.violations.push-up-sessions.store', $violation))
+            ->assertRedirect();
+
+        $staleSession->refresh();
+
+        $this->assertSame(48, $staleSession->required_push_ups);
+        $this->assertSame([
+            'sets' => 1,
+            'reps' => 48,
+            'rest_seconds' => 30,
+            'penalty_reps' => 5,
+            'drop_threshold' => 20,
+            'up_gap' => 6,
+            'down_tolerance' => 3,
+        ], $staleSession->configuration);
+        $this->assertSame(0, $staleSession->current_rep);
+        $this->assertSame(1, $staleSession->current_set);
+    }
 }
