@@ -81,7 +81,6 @@ const lastSerialDataAt = ref<number | null>(null);
 
 let heartbeatTimer: number | null = null;
 let port: SerialPortLike | null = null;
-let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 let progressThrottleAt = 0;
 let serialBuffer = '';
 
@@ -169,11 +168,17 @@ const postJson = async <T>(url: string, method: 'POST' | 'PATCH', body: Record<s
 };
 
 const sendSerial = async (message: string) => {
-    if (!writer) {
+    if (!port?.writable) {
         return;
     }
 
-    await writer.write(new TextEncoder().encode(`${message}\n`));
+    const activeWriter = port.writable.getWriter();
+
+    try {
+        await activeWriter.write(new TextEncoder().encode(`${message}\n`));
+    } finally {
+        activeWriter.releaseLock();
+    }
 };
 
 const attachSerialPort = async (candidatePort: SerialPortLike) => {
@@ -190,7 +195,6 @@ const attachSerialPort = async (candidatePort: SerialPortLike) => {
         }
     }
 
-    writer = port.writable?.getWriter() ?? null;
     serialConnected.value = true;
     lastSerialDataAt.value = null;
     statusText.value = 'Arduino connected, waiting for data';
@@ -520,11 +524,9 @@ const readLoop = async () => {
         }
     } catch (error) {
         serialConnected.value = false;
-        writer = null;
         statusText.value = `Serial reader stopped: ${formatError(error)}`;
     } finally {
         serialConnected.value = false;
-        writer = null;
         reader.releaseLock();
     }
 };
