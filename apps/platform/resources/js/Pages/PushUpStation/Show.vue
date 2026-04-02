@@ -76,6 +76,7 @@ const currentSet = ref(1);
 const totalSets = ref(0);
 const claimBusy = ref(false);
 const launchBusy = ref(false);
+const lastSerialDataAt = ref<number | null>(null);
 
 let heartbeatTimer: number | null = null;
 let port: SerialPortLike | null = null;
@@ -113,16 +114,23 @@ const clearLaunchedSessionId = () => {
     setLaunchedSessionId(null);
 };
 
+const hasFreshSerialData = () => lastSerialDataAt.value !== null && (Date.now() - lastSerialDataAt.value) < 4000;
+
 const syncStatusFromSession = () => {
     if (!currentSession.value) {
         if (serialConnected.value) {
-            statusText.value = 'Arduino connected';
+            statusText.value = hasFreshSerialData() ? 'Arduino connected' : 'Arduino connected, waiting for data';
         }
         return;
     }
 
     if (!serialConnected.value) {
         statusText.value = 'Session claimed, waiting for Arduino';
+        return;
+    }
+
+    if (!hasFreshSerialData()) {
+        statusText.value = 'Arduino connected, waiting for data';
         return;
     }
 
@@ -180,7 +188,8 @@ const attachSerialPort = async (candidatePort: SerialPortLike) => {
 
     writer = port.writable?.getWriter() ?? null;
     serialConnected.value = true;
-    statusText.value = 'Arduino connected';
+    lastSerialDataAt.value = null;
+    statusText.value = 'Arduino connected, waiting for data';
     readLoop();
     await heartbeat();
     syncStatusFromSession();
@@ -380,6 +389,8 @@ const readLoop = async () => {
                 continue;
             }
 
+            lastSerialDataAt.value = Date.now();
+
             const normalizedChunk = chunk.replace(/\r/g, '\n');
 
             if (normalizedChunk.includes('STATE:ALL_COMPLETE')) {
@@ -464,8 +475,12 @@ const readLoop = async () => {
             }
         }
     } catch (error) {
+        serialConnected.value = false;
+        writer = null;
         statusText.value = `Serial reader stopped: ${formatError(error)}`;
     } finally {
+        serialConnected.value = false;
+        writer = null;
         reader.releaseLock();
     }
 };
