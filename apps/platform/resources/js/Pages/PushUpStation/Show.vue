@@ -82,8 +82,6 @@ const lastSerialDataAt = ref<number | null>(null);
 let heartbeatTimer: number | null = null;
 let port: SerialPortLike | null = null;
 let progressThrottleAt = 0;
-let serialBuffer = '';
-
 const sessionStatusLabel = computed(() => {
     if (!currentSession.value) {
         return 'No claimed session';
@@ -118,6 +116,18 @@ const clearLaunchedSessionId = () => {
 };
 
 const hasFreshSerialData = () => lastSerialDataAt.value !== null && (Date.now() - lastSerialDataAt.value) < 4000;
+
+const latestMatchValue = (chunk: string, pattern: RegExp) => {
+    const matches = [...chunk.matchAll(pattern)];
+
+    if (matches.length === 0) {
+        return null;
+    }
+
+    const value = matches[matches.length - 1]?.[1];
+
+    return value ?? null;
+};
 
 const syncStatusFromSession = () => {
     if (!currentSession.value) {
@@ -197,7 +207,6 @@ const attachSerialPort = async (candidatePort: SerialPortLike) => {
 
     serialConnected.value = true;
     lastSerialDataAt.value = null;
-    serialBuffer = '';
     clearLaunchedSessionId();
     restTimeText.value = null;
     statusText.value = 'Arduino connected, waiting for data';
@@ -386,8 +395,8 @@ const setWorkingStatus = () => {
 
 const formatError = (error: unknown) => error instanceof Error ? error.message : String(error);
 
-const processSerialPart = async (part: string) => {
-    if (part === 'STATE:ALL_COMPLETE') {
+const processSerialChunk = async (chunk: string) => {
+    if (chunk.includes('STATE:ALL_COMPLETE')) {
         try {
             await completeCurrentSession();
         } catch (error) {
@@ -397,40 +406,36 @@ const processSerialPart = async (part: string) => {
         return;
     }
 
-    if (part === 'STATE:SEARCHING_BACK') {
+    if (chunk.includes('STATE:SEARCHING_BACK')) {
         statusText.value = 'Searching back position';
-        return;
     }
 
-    if (part === 'STATE:BACK_DETECTED') {
+    if (chunk.includes('STATE:BACK_DETECTED')) {
         statusText.value = 'Back detected, start moving';
-        return;
     }
 
-    if (part === 'STATE:SET_START') {
+    if (chunk.includes('STATE:SET_START')) {
         restTimeText.value = null;
         statusText.value = `Set ${Math.max(currentSet.value, 1)}/${Math.max(totalSets.value, 1)} started`;
-        return;
     }
 
-    if (part === 'STATE:RESTING') {
+    if (chunk.includes('STATE:RESTING')) {
         movementText.value = 'Rest';
         statusText.value = `Resting before set ${Math.min(currentSet.value + 1, Math.max(totalSets.value, currentSet.value + 1))}`;
-        return;
     }
 
-    if (part === 'STATE:TOTAL_RESET_OK') {
+    if (chunk.includes('STATE:TOTAL_RESET_OK')) {
         statusText.value = 'Device reset';
-        return;
     }
 
-    if (part.startsWith('D:')) {
-        distanceText.value = part.split(':')[1] ?? '---';
-        return;
+    const distanceValue = latestMatchValue(chunk, /D:(\d+)/g);
+    if (distanceValue !== null) {
+        distanceText.value = distanceValue;
     }
 
-    if (part.startsWith('W:')) {
-        const nextRep = Number(part.split(':')[1] ?? '0');
+    const repValue = latestMatchValue(chunk, /W:(\d+)/g);
+    if (repValue !== null) {
+        const nextRep = Number(repValue);
         repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
         if (repCount.value > 0) {
             restTimeText.value = null;
@@ -442,33 +447,30 @@ const processSerialPart = async (part: string) => {
         } catch (error) {
             statusText.value = `Progress sync failed: ${formatError(error)}`;
         }
-
-        return;
     }
 
-    if (part.startsWith('REST_TIME:')) {
-        const secondsLeft = Number(part.split(':')[1] ?? '');
+    const restTimeValue = latestMatchValue(chunk, /REST_TIME:(\d+)/g);
+    if (restTimeValue !== null) {
+        const secondsLeft = Number(restTimeValue);
         restTimeText.value = Number.isNaN(secondsLeft) ? null : `${secondsLeft}s`;
         movementText.value = 'Rest';
         statusText.value = 'Resting';
-        return;
     }
 
-    if (part.startsWith('S:')) {
-        if (!restTimeText.value) {
-            movementText.value = part.split(':')[1] === '1' ? 'Up' : 'Down';
-        }
-        return;
+    const movementValue = latestMatchValue(chunk, /S:(\d+)/g);
+    if (movementValue !== null && !restTimeText.value) {
+        movementText.value = movementValue === '1' ? 'Up' : 'Down';
     }
 
-    if (part.startsWith('SET:')) {
-        const nextSet = Number(part.split(':')[1] ?? '1');
+    const setValue = latestMatchValue(chunk, /SET:(\d+)/g);
+    if (setValue !== null) {
+        const nextSet = Number(setValue);
         currentSet.value = Number.isNaN(nextSet) ? currentSet.value : nextSet;
-        return;
     }
 
-    if (part.startsWith('ST:')) {
-        const state = part.split(':')[1] ?? 'IDLE';
+    const stateValue = latestMatchValue(chunk, /ST:(\w+)/g);
+    if (stateValue !== null) {
+        const state = stateValue;
         movementText.value = state === 'REST' ? 'Rest' : state === 'WORK' ? 'Working' : 'Standby';
 
         if (state === 'WORK') {
@@ -512,18 +514,7 @@ const readLoop = async () => {
             }
 
             lastSerialDataAt.value = Date.now();
-            serialBuffer += chunk.replace(/\r/g, '\n');
-            const parts = serialBuffer.split(/[;\n]+/);
-            serialBuffer = parts.pop() ?? '';
-
-            for (const rawPart of parts) {
-                const part = rawPart.trim();
-                if (!part) {
-                    continue;
-                }
-
-                await processSerialPart(part);
-            }
+            await processSerialChunk(chunk);
 
             if (currentSession.value && serialConnected.value) {
                 await ensureSessionLaunched();
