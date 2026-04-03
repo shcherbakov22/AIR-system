@@ -78,6 +78,7 @@ const totalSets = ref(0);
 const claimBusy = ref(false);
 const launchBusy = ref(false);
 const lastSerialDataAt = ref<number | null>(null);
+const firmwareReady = ref(false);
 
 let heartbeatTimer: number | null = null;
 let port: SerialPortLike | null = null;
@@ -207,10 +208,12 @@ const attachSerialPort = async (candidatePort: SerialPortLike) => {
 
     serialConnected.value = true;
     lastSerialDataAt.value = null;
+    firmwareReady.value = false;
     clearLaunchedSessionId();
     restTimeText.value = null;
     statusText.value = 'Arduino connected, waiting for data';
     readLoop();
+    await sendSerial('PING');
     await heartbeat();
     syncStatusFromSession();
     await ensureSessionLaunched();
@@ -294,7 +297,7 @@ const sendWorkoutConfig = async (session: PushUpSessionPayload) => {
     }
 
     const config = session.configuration;
-    await sendSerial(`${config.reps},${config.penalty_reps},${config.drop_threshold},${config.up_gap},${config.down_tolerance},${config.rest_seconds},${config.sets}`);
+    await sendSerial(`START ${session.id} ${config.reps} ${config.drop_threshold} ${config.up_gap} ${config.down_tolerance}`);
 };
 
 const ensureSessionLaunched = async () => {
@@ -302,7 +305,7 @@ const ensureSessionLaunched = async () => {
         return;
     }
 
-    if (!hasFreshSerialData()) {
+    if (!hasFreshSerialData() || !firmwareReady.value) {
         return;
     }
 
@@ -328,7 +331,7 @@ const ensureSessionLaunched = async () => {
         await sendWorkoutConfig(payload.session);
         setLaunchedSessionId(payload.session.id);
         restTimeText.value = null;
-        statusText.value = 'Searching back position';
+        statusText.value = 'Launch command sent';
     } catch (error) {
         statusText.value = `Launch failed: ${formatError(error)}`;
     } finally {
@@ -396,7 +399,18 @@ const setWorkingStatus = () => {
 const formatError = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 const processSerialChunk = async (chunk: string) => {
-    if (chunk.includes('STATE:ALL_COMPLETE')) {
+    if (chunk.includes('HELLO 1')) {
+        firmwareReady.value = true;
+        if (!currentSession.value) {
+            statusText.value = 'Arduino ready';
+        }
+    }
+
+    if (chunk.includes('PONG')) {
+        firmwareReady.value = true;
+    }
+
+    if (chunk.includes('STATE COMPLETE')) {
         try {
             await completeCurrentSession();
         } catch (error) {
@@ -406,34 +420,36 @@ const processSerialChunk = async (chunk: string) => {
         return;
     }
 
-    if (chunk.includes('STATE:SEARCHING_BACK')) {
+    if (chunk.includes('STATE SEARCHING_BACK')) {
         statusText.value = 'Searching back position';
     }
 
-    if (chunk.includes('STATE:BACK_DETECTED')) {
-        statusText.value = 'Back detected, start moving';
-    }
-
-    if (chunk.includes('STATE:SET_START')) {
+    if (chunk.includes('STATE WORK')) {
         restTimeText.value = null;
-        statusText.value = `Set ${Math.max(currentSet.value, 1)}/${Math.max(totalSets.value, 1)} started`;
+        movementText.value = 'Working';
+        setWorkingStatus();
     }
 
-    if (chunk.includes('STATE:RESTING')) {
-        movementText.value = 'Rest';
-        statusText.value = `Resting before set ${Math.min(currentSet.value + 1, Math.max(totalSets.value, currentSet.value + 1))}`;
+    if (chunk.includes('STATE IDLE')) {
+        movementText.value = 'Standby';
+        if (!currentSession.value) {
+            statusText.value = 'Arduino ready';
+        } else if (launchedSessionId.value === currentSession.value.id) {
+            statusText.value = 'Searching back position';
+        }
     }
 
-    if (chunk.includes('STATE:TOTAL_RESET_OK')) {
-        statusText.value = 'Device reset';
+    const errorValue = latestMatchValue(chunk, /STATE ERROR ([A-Z_]+)/g);
+    if (errorValue !== null) {
+        statusText.value = `Device error: ${errorValue}`;
     }
 
-    const distanceValue = latestMatchValue(chunk, /D:(\d+)/g);
+    const distanceValue = latestMatchValue(chunk, /DIST (\d+)/g);
     if (distanceValue !== null) {
         distanceText.value = distanceValue;
     }
 
-    const repValue = latestMatchValue(chunk, /W:(\d+)/g);
+    const repValue = latestMatchValue(chunk, /REP (\d+)/g);
     if (repValue !== null) {
         const nextRep = Number(repValue);
         repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
@@ -449,47 +465,15 @@ const processSerialChunk = async (chunk: string) => {
         }
     }
 
-    const restTimeValue = latestMatchValue(chunk, /REST_TIME:(\d+)/g);
-    if (restTimeValue !== null) {
-        const secondsLeft = Number(restTimeValue);
-        restTimeText.value = Number.isNaN(secondsLeft) ? null : `${secondsLeft}s`;
-        movementText.value = 'Rest';
-        statusText.value = 'Resting';
-    }
-
-    const movementValue = latestMatchValue(chunk, /S:(\d+)/g);
-    if (movementValue !== null && !restTimeText.value) {
-        movementText.value = movementValue === '1' ? 'Up' : 'Down';
-    }
-
-    const setValue = latestMatchValue(chunk, /SET:(\d+)/g);
+    const setValue = latestMatchValue(chunk, /SET (\d+)/g);
     if (setValue !== null) {
         const nextSet = Number(setValue);
         currentSet.value = Number.isNaN(nextSet) ? currentSet.value : nextSet;
     }
 
-    const stateValue = latestMatchValue(chunk, /ST:(\w+)/g);
-    if (stateValue !== null) {
-        const state = stateValue;
-        movementText.value = state === 'REST' ? 'Rest' : state === 'WORK' ? 'Working' : 'Standby';
-
-        if (state === 'WORK') {
-            restTimeText.value = null;
-            setWorkingStatus();
-            return;
-        }
-
-        if (state === 'REST') {
-            statusText.value = 'Resting';
-            return;
-        }
-
-        if (state === 'IDLE' && currentSession.value) {
-            restTimeText.value = null;
-            statusText.value = launchedSessionId.value === currentSession.value.id
-                ? 'Searching back position'
-                : `Starting ${currentSession.value.student.display_name}`;
-        }
+    const setSummaryValue = latestMatchValue(chunk, /SET \d+ (\d+) (\d+)/g);
+    if (setSummaryValue !== null) {
+        totalSets.value = 1;
     }
 };
 
