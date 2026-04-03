@@ -109,6 +109,39 @@ class DashboardController extends Controller
         ];
     }
 
+    protected function idleForPayload(Student $student, ?TaskSession $activeTaskSession, ?ScheduleRun $activeScheduleRun): ?array
+    {
+        if ($activeTaskSession) {
+            return null;
+        }
+
+        $latestTaskSession = $student->latestTaskSession;
+        $latestTaskActivityAt = $latestTaskSession?->ended_at ?? $latestTaskSession?->started_at;
+        $scheduleStartedAt = $activeScheduleRun?->started_at;
+        $dayStartedAt = now()->copy()->startOfDay();
+
+        $idleStartedAt = match (true) {
+            $latestTaskActivityAt && $scheduleStartedAt
+                => $latestTaskActivityAt->greaterThan($scheduleStartedAt) ? $latestTaskActivityAt : $scheduleStartedAt,
+            $latestTaskActivityAt !== null => $latestTaskActivityAt,
+            $scheduleStartedAt !== null => $scheduleStartedAt,
+            default => $dayStartedAt,
+        };
+
+        if ($idleStartedAt->lessThan($dayStartedAt)) {
+            $idleStartedAt = $dayStartedAt;
+        }
+
+        $idleForSeconds = max(0, $idleStartedAt->diffInSeconds(now()));
+
+        return [
+            'started_at' => $idleStartedAt->toIso8601String(),
+            'started_at_label' => $idleStartedAt->format('d M, H:i'),
+            'seconds' => $idleForSeconds,
+            'label' => $this->formatDuration($idleForSeconds),
+        ];
+    }
+
     protected function scheduleRunBlockPayload(ScheduleRunBlock $block): array
     {
         $actualDurationSeconds = $block->taskSessions
@@ -271,6 +304,7 @@ class DashboardController extends Controller
         $activeTaskSession = $student->taskSessions->first();
         $activeScheduleRun = $student->activeOrPausedScheduleRun;
         $scheduleBoard = $this->scheduleBoardPayload($student);
+        $idleFor = $this->idleForPayload($student, $activeTaskSession, $activeScheduleRun);
         $violationRuleOptions = RuleDefinition::query()
             ->where('is_active', true)
             ->where(function ($query) use ($student) {
@@ -301,6 +335,7 @@ class DashboardController extends Controller
             'active_schedule_run' => $this->activeScheduleRunPayload($activeScheduleRun),
             'schedule_board' => $scheduleBoard,
             'active_task_session' => $this->activeTaskSessionPayload($activeTaskSession),
+            'idle_for' => $idleFor,
             'latest_screen_capture' => $this->capturePayload($student->latestScreenCapture),
             'latest_camera_capture' => $this->capturePayload($student->latestCameraCapture),
             'remote_control' => $latestDevice ? [
@@ -392,6 +427,7 @@ class DashboardController extends Controller
                     ->with(['scheduleRun', 'scheduleRunBlock'])
                     ->where('status', 'active')
                     ->latest('started_at'),
+                'latestTaskSession',
                 'latestScreenCapture',
                 'latestCameraCapture',
                 'appPolicies',

@@ -136,23 +136,117 @@ class StudentProgressTest extends TestCase
                 ->where('summary.total_blocks', 2)
                 ->where('summary.active_schedule_name', 'Focus Day')
                 ->where('runs.0.schedule_name', 'Focus Day')
+                ->where('runs.0.task_sequence.0.kind', 'task')
                 ->where('runs.0.task_sequence.0.task_title', 'Math')
                 ->where('runs.0.task_sequence.0.actual_duration_seconds', 1800)
                 ->where('runs.0.task_sequence.0.unfinished_url', route('admin.task-sessions.unfinished', $completedSession))
-                ->where('runs.0.task_sequence.1.task_title', 'Reading')
-                ->where('runs.0.task_sequence.1.actual_duration_seconds', 900)
-                ->where('runs.0.task_sequence.1.was_in_schedule', true)
-                ->where('runs.0.task_sequence.1.unfinished_url', null)
+                ->where('runs.0.task_sequence.1.kind', 'idle_gap')
+                ->where('runs.0.task_sequence.1.actual_duration_seconds', 300)
                 ->where('runs.0.task_sequence.2.task_title', 'Reading')
-                ->where('runs.0.task_sequence.2.actual_duration_seconds', 4500)
+                ->where('runs.0.task_sequence.2.actual_duration_seconds', 900)
                 ->where('runs.0.task_sequence.2.was_in_schedule', true)
-                ->where('runs.0.task_sequence.2.unfinished_url', route('admin.task-sessions.unfinished', $activeSession))
-                ->where('runs.0.task_sequence.3.task_title', 'Custom timer')
+                ->where('runs.0.task_sequence.2.unfinished_url', null)
+                ->where('runs.0.task_sequence.3.kind', 'idle_gap')
                 ->where('runs.0.task_sequence.3.actual_duration_seconds', 600)
-                ->where('runs.0.task_sequence.3.was_in_schedule', false)
-                ->where('runs.0.task_sequence.3.unfinished_url', route('admin.task-sessions.unfinished', $outsideScheduleSession))
+                ->where('runs.0.task_sequence.4.task_title', 'Reading')
+                ->where('runs.0.task_sequence.4.actual_duration_seconds', 4500)
+                ->where('runs.0.task_sequence.4.was_in_schedule', true)
+                ->where('runs.0.task_sequence.4.unfinished_url', route('admin.task-sessions.unfinished', $activeSession))
+                ->where('runs.0.task_sequence.5.task_title', 'Custom timer')
+                ->where('runs.0.task_sequence.5.actual_duration_seconds', 600)
+                ->where('runs.0.task_sequence.5.was_in_schedule', false)
+                ->where('runs.0.task_sequence.5.unfinished_url', route('admin.task-sessions.unfinished', $outsideScheduleSession))
                 ->where('task_summary.0.task_title', 'Reading')
                 ->where('task_summary.0.total_actual_duration_seconds', 5400)
+            );
+
+        Carbon::setTestNow();
+    }
+
+    public function test_admin_progress_inserts_idle_gap_entries_between_task_sessions(): void
+    {
+        Carbon::setTestNow('2026-03-12 10:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_progress_gaps',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'progress_gap_student',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Progress Gap Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $scheduleRun = ScheduleRun::create([
+            'student_id' => $student->id,
+            'status' => 'completed',
+            'schedule_name_snapshot' => 'Gap Day',
+            'schedule_weekday_snapshot' => 'Thursday',
+            'started_at' => Carbon::parse('2026-03-12 08:00:00'),
+            'completed_at' => Carbon::parse('2026-03-12 09:00:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $block = ScheduleRunBlock::create([
+            'schedule_run_id' => $scheduleRun->id,
+            'position' => 1,
+            'status' => 'completed',
+            'start_time_snapshot' => '08:00',
+            'duration_minutes_snapshot' => 60,
+            'task_title_snapshot' => 'Math',
+            'started_at' => Carbon::parse('2026-03-12 08:00:00'),
+            'completed_at' => Carbon::parse('2026-03-12 09:00:00'),
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'schedule_run_id' => $scheduleRun->id,
+            'schedule_run_block_id' => $block->id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Math',
+            'planned_duration_minutes' => 20,
+            'started_at' => Carbon::parse('2026-03-12 08:00:00'),
+            'ended_at' => Carbon::parse('2026-03-12 08:20:00'),
+            'duration_seconds' => 1200,
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'schedule_run_id' => $scheduleRun->id,
+            'schedule_run_block_id' => $block->id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 20,
+            'started_at' => Carbon::parse('2026-03-12 08:35:00'),
+            'ended_at' => Carbon::parse('2026-03-12 08:55:00'),
+            'duration_seconds' => 1200,
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.students.progress', $student))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Students/Progress')
+                ->where('runs.0.task_sequence.0.kind', 'task')
+                ->where('runs.0.task_sequence.0.task_title', 'Math')
+                ->where('runs.0.task_sequence.1.kind', 'idle_gap')
+                ->where('runs.0.task_sequence.1.task_title', 'Idle gap')
+                ->where('runs.0.task_sequence.1.actual_duration_seconds', 900)
+                ->where('runs.0.task_sequence.2.kind', 'task')
+                ->where('runs.0.task_sequence.2.task_title', 'Reading')
+                ->where('task_summary.0.task_title', 'Math')
+                ->where('task_summary.1.task_title', 'Reading')
             );
 
         Carbon::setTestNow();

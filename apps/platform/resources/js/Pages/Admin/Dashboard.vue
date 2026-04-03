@@ -64,6 +64,12 @@ type DashboardStudent = {
         } | null;
         unfinished_url?: string | null;
     } | null;
+    idle_for?: {
+        started_at?: string | null;
+        started_at_label?: string | null;
+        seconds: number;
+        label: string;
+    } | null;
     latest_screen_capture?: {
         id: number;
         capture_kind: string;
@@ -506,6 +512,12 @@ const monitorStudents = computed(() => {
         const remainingSeconds = elapsedSeconds === null || plannedSeconds === null
             ? null
             : Math.max(plannedSeconds - elapsedSeconds, 0);
+        const idleFor = !student.idle_for
+            ? null
+            : {
+                ...student.idle_for,
+                label: formatDuration(student.idle_for.seconds + liveDeltaSeconds),
+            };
         const scheduleBoard = student.schedule_board
             ? {
                 ...student.schedule_board,
@@ -528,6 +540,7 @@ const monitorStudents = computed(() => {
 
         return {
             ...student,
+            idle_for: idleFor,
             schedule_board: scheduleBoard,
             active_task_session: taskSession
                 ? {
@@ -1201,7 +1214,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                     {{ student.active_task_session.elapsedLabel }}
                                 </template>
                                 <template v-else>
-                                    Idle
+                                    {{ student.idle_for?.label ?? 'Idle' }}
                                 </template>
                             </button>
                         </div>

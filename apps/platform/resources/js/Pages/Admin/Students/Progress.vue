@@ -62,7 +62,8 @@ defineProps<{
         total_actual_duration_seconds: number;
         total_actual_duration_label: string;
         task_sequence: Array<{
-            id: number;
+            id: number | string;
+            kind: 'task' | 'idle_gap';
             status: string;
             task_title: string;
             planned_duration_minutes: number;
@@ -291,33 +292,65 @@ defineProps<{
                                 v-for="(task, index) in run.task_sequence"
                                 :key="task.id"
                                 class="px-4 py-4 transition hover:bg-stone-50"
-                                :class="task.status === 'paused' || task.status === 'unfinished' ? 'bg-stone-950 text-white hover:bg-stone-900' : ''"
+                                :class="task.kind === 'idle_gap'
+                                    ? 'bg-stone-200/80 text-stone-900 hover:bg-stone-200'
+                                    : task.status === 'paused' || task.status === 'unfinished'
+                                        ? 'bg-stone-950 text-white hover:bg-stone-900'
+                                        : ''"
                             >
                                 <div class="grid gap-2 lg:grid-cols-[5rem_minmax(0,1.6fr)_8rem_8rem_8rem_8rem_8rem] lg:items-center lg:gap-3">
-                                    <div class="text-sm font-semibold" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-white' : 'text-stone-950'">
+                                    <div class="text-sm font-semibold" :class="task.kind === 'idle_gap'
+                                        ? 'text-stone-700'
+                                        : task.status === 'paused' || task.status === 'unfinished'
+                                            ? 'text-white'
+                                            : 'text-stone-950'">
                                         {{ index + 1 }}
                                     </div>
                                     <div>
-                                        <p class="text-sm font-medium" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-white' : 'text-stone-950'">
+                                        <p class="text-sm font-medium" :class="task.kind === 'idle_gap'
+                                            ? 'text-stone-900'
+                                            : task.status === 'paused' || task.status === 'unfinished'
+                                                ? 'text-white'
+                                                : 'text-stone-950'">
                                             {{ task.task_title }}
                                         </p>
-                                        <div class="mt-1 flex flex-wrap gap-3 text-xs" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-300' : 'text-stone-500'">
-                                            <span>{{ task.was_in_schedule ? `Block ${task.block_position}` : 'Outside schedule' }}</span>
+                                        <div class="mt-1 flex flex-wrap gap-3 text-xs" :class="task.kind === 'idle_gap'
+                                            ? 'text-stone-600'
+                                            : task.status === 'paused' || task.status === 'unfinished'
+                                                ? 'text-stone-300'
+                                                : 'text-stone-500'">
+                                            <span>{{ task.kind === 'idle_gap' ? 'Gap' : (task.was_in_schedule ? `Block ${task.block_position}` : 'Outside schedule') }}</span>
                                             <span>{{ task.started_at_label || 'Not started' }}</span>
                                             <span>{{ task.actual_duration_label }}</span>
                                         </div>
                                     </div>
-                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-200' : 'text-stone-700'">
-                                        {{ task.was_in_schedule ? `Block ${task.block_position}` : 'Outside' }}
+                                    <div class="hidden text-sm lg:block" :class="task.kind === 'idle_gap'
+                                        ? 'text-stone-700'
+                                        : task.status === 'paused' || task.status === 'unfinished'
+                                            ? 'text-stone-200'
+                                            : 'text-stone-700'">
+                                        {{ task.kind === 'idle_gap' ? 'Gap' : (task.was_in_schedule ? `Block ${task.block_position}` : 'Outside') }}
                                     </div>
-                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-200' : 'text-stone-700'">
+                                    <div class="hidden text-sm lg:block" :class="task.kind === 'idle_gap'
+                                        ? 'text-stone-700'
+                                        : task.status === 'paused' || task.status === 'unfinished'
+                                            ? 'text-stone-200'
+                                            : 'text-stone-700'">
                                         {{ task.started_at_label || '-' }}
                                     </div>
-                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-200' : 'text-stone-700'">
+                                    <div class="hidden text-sm lg:block" :class="task.kind === 'idle_gap'
+                                        ? 'text-stone-700'
+                                        : task.status === 'paused' || task.status === 'unfinished'
+                                            ? 'text-stone-200'
+                                            : 'text-stone-700'">
                                         {{ task.ended_at_label || '-' }}
                                     </div>
-                                    <div class="hidden text-sm lg:block" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-200' : 'text-stone-700'">
-                                        {{ task.planned_duration_label }}
+                                    <div class="hidden text-sm lg:block" :class="task.kind === 'idle_gap'
+                                        ? 'text-stone-700'
+                                        : task.status === 'paused' || task.status === 'unfinished'
+                                            ? 'text-stone-200'
+                                            : 'text-stone-700'">
+                                        {{ task.kind === 'idle_gap' ? '—' : task.planned_duration_label }}
                                     </div>
                                     <button
                                         v-if="task.unfinished_url"
@@ -337,9 +370,16 @@ defineProps<{
                                     </div>
                                 </div>
 
-                                <div class="mt-3 flex flex-wrap gap-4 text-sm" :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-200' : 'text-stone-700'">
+                                <div class="mt-3 flex flex-wrap gap-4 text-sm" :class="task.kind === 'idle_gap'
+                                    ? 'text-stone-700'
+                                    : task.status === 'paused' || task.status === 'unfinished'
+                                        ? 'text-stone-200'
+                                        : 'text-stone-700'">
                                     <span class="capitalize">{{ task.status }}</span>
-                                    <span :class="task.delta_seconds > 0 ? 'text-rose-700' : 'text-emerald-700'">
+                                    <span v-if="task.kind === 'idle_gap'" class="text-stone-700">
+                                        Did nothing for {{ task.actual_duration_label }}
+                                    </span>
+                                    <span v-else :class="task.delta_seconds > 0 ? 'text-rose-700' : 'text-emerald-700'">
                                         Delta {{ task.delta_label }}
                                     </span>
                                     <button

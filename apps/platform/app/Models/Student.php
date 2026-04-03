@@ -84,6 +84,14 @@ class Student extends Model
         return $this->hasMany(TaskSession::class);
     }
 
+    public function latestTaskSession(): HasOne
+    {
+        return $this->hasOne(TaskSession::class)->ofMany([
+            'started_at' => 'max',
+            'id' => 'max',
+        ]);
+    }
+
     public function ruleDefinitions(): HasMany
     {
         return $this->hasMany(RuleDefinition::class);

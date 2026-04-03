@@ -683,4 +683,87 @@ class DashboardRoutingTest extends TestCase
                                 ->where('violationSummary.open_violations', 1)
             );
     }
+
+    public function test_admin_dashboard_includes_idle_duration_when_student_has_no_active_task(): void
+    {
+        Carbon::setTestNow('2026-03-12 15:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_idle_duration',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_idle_duration',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Idle Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 20,
+            'started_at' => Carbon::parse('2026-03-12 14:20:00'),
+            'ended_at' => Carbon::parse('2026-03-12 14:40:00'),
+            'duration_seconds' => 1200,
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Dashboard')
+                ->has('monitorStudents', 1)
+                ->where('monitorStudents.0.display_name', 'Idle Student')
+                ->where('monitorStudents.0.active_task_session', null)
+                ->where('monitorStudents.0.idle_for.seconds', 1200)
+                ->where('monitorStudents.0.idle_for.label', '20:00')
+            );
+
+        Carbon::setTestNow();
+    }
+
+    public function test_admin_dashboard_uses_start_of_day_when_student_has_no_task_history(): void
+    {
+        Carbon::setTestNow('2026-03-12 15:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_idle_start_of_day',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_idle_start_of_day',
+        ]);
+
+        Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Idle Since Morning',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Dashboard')
+                ->where('monitorStudents.0.display_name', 'Idle Since Morning')
+                ->where('monitorStudents.0.active_task_session', null)
+                ->where('monitorStudents.0.idle_for.seconds', 54000)
+                ->where('monitorStudents.0.idle_for.label', '15:00:00')
+            );
+
+        Carbon::setTestNow();
+    }
 }

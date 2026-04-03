@@ -8,6 +8,7 @@ use App\Models\ScheduleRunBlock;
 use App\Models\Student;
 use App\Models\TaskSession;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -102,6 +103,7 @@ class StudentProgressController extends Controller
 
         return [
             'id' => $taskSession->id,
+            'kind' => 'task',
             'status' => $taskSession->status,
             'task_title' => $taskSession->task_title_snapshot,
             'planned_duration_minutes' => $taskSession->planned_duration_minutes,
@@ -122,6 +124,69 @@ class StudentProgressController extends Controller
         ];
     }
 
+    protected function idleGapPayload(array $previousTask, array $nextTask): array
+    {
+        $startedAt = $previousTask['ended_at'] ?? $previousTask['started_at'] ?? null;
+        $endedAt = $nextTask['started_at'] ?? null;
+
+        if (! $startedAt || ! $endedAt) {
+            throw new \InvalidArgumentException('Idle gap payload requires bounded timestamps.');
+        }
+
+        $startedAtMoment = now()->parse($startedAt);
+        $endedAtMoment = now()->parse($endedAt);
+        $durationSeconds = max(0, $startedAtMoment->diffInSeconds($endedAtMoment));
+
+        return [
+            'id' => sprintf('gap-%s-%s', $previousTask['id'], $nextTask['id']),
+            'kind' => 'idle_gap',
+            'status' => 'idle_gap',
+            'task_title' => 'Idle gap',
+            'planned_duration_minutes' => 0,
+            'planned_duration_label' => '00:00',
+            'actual_duration_seconds' => $durationSeconds,
+            'actual_duration_label' => $this->formatDuration($durationSeconds),
+            'delta_seconds' => $durationSeconds,
+            'delta_label' => $this->formatDuration($durationSeconds),
+            'started_at' => $startedAtMoment->toIso8601String(),
+            'started_at_label' => $startedAtMoment->format('d M, H:i'),
+            'ended_at' => $endedAtMoment->toIso8601String(),
+            'ended_at_label' => $endedAtMoment->format('d M, H:i'),
+            'was_in_schedule' => false,
+            'block_position' => null,
+            'unfinished_url' => null,
+        ];
+    }
+
+    protected function withIdleGaps(Collection $taskSequence): Collection
+    {
+        $withGaps = collect();
+        $previousTask = null;
+
+        foreach ($taskSequence as $task) {
+            if (
+                $previousTask
+                && ! empty($previousTask['ended_at'])
+                && ! empty($task['started_at'])
+            ) {
+                $previousEndedAt = now()->parse($previousTask['ended_at']);
+                $currentStartedAt = now()->parse($task['started_at']);
+
+                if ($currentStartedAt->greaterThan($previousEndedAt)) {
+                    $withGaps->push($this->idleGapPayload($previousTask, $task));
+                }
+            }
+
+            $withGaps->push($task);
+
+            if (($task['kind'] ?? 'task') === 'task') {
+                $previousTask = $task;
+            }
+        }
+
+        return $withGaps->values();
+    }
+
     protected function runPayload(ScheduleRun $scheduleRun): array
     {
         $blocks = $scheduleRun->blocks
@@ -129,13 +194,13 @@ class StudentProgressController extends Controller
             ->values()
             ->map(fn (ScheduleRunBlock $block) => $this->blockPayload($block));
 
-        $taskSequence = $scheduleRun->taskSessions
+        $taskSequence = $this->withIdleGaps($scheduleRun->taskSessions
             ->sortBy([
                 ['started_at', 'asc'],
                 ['id', 'asc'],
             ])
             ->values()
-            ->map(fn (TaskSession $taskSession) => $this->taskSequencePayload($taskSession));
+            ->map(fn (TaskSession $taskSession) => $this->taskSequencePayload($taskSession)));
 
         $totalActualDurationSeconds = $blocks->sum('actual_duration_seconds');
         $totalPlannedDurationMinutes = $scheduleRun->blocks->sum('duration_minutes_snapshot');
@@ -217,7 +282,8 @@ class StudentProgressController extends Controller
             ->values();
 
         $taskSummary = $runs
-            ->flatMap(fn (array $run) => $run['task_sequence'])
+            ->flatMap(fn (array $run) => collect($run['task_sequence'])
+                ->filter(fn (array $task) => ($task['kind'] ?? 'task') === 'task'))
             ->groupBy('task_title')
             ->map(function ($blocks, string $taskTitle): array {
                 $totalActualSeconds = $blocks->sum('actual_duration_seconds');
