@@ -85,7 +85,7 @@ const navItems = computed(() => {
         });
         items.push({
             label: 'Database',
-            href: '/adminer.php',
+            href: route('admin.database'),
             external: true,
             active: false,
         });

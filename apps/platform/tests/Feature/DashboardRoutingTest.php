@@ -50,7 +50,7 @@ class DashboardRoutingTest extends TestCase
             );
     }
 
-    public function test_admin_database_route_redirects_to_adminer(): void
+    public function test_admin_database_route_renders_adminer_auto_login_bridge(): void
     {
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
@@ -59,7 +59,14 @@ class DashboardRoutingTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('admin.database'))
-            ->assertRedirect('/adminer.php');
+            ->assertOk()
+            ->assertSee('Opening database', false)
+            ->assertSee('name="auth[driver]"', false)
+            ->assertSee('name="auth[server]"', false)
+            ->assertSee('name="auth[username]"', false)
+            ->assertSee('name="auth[password]"', false)
+            ->assertSee('name="auth[db]"', false)
+            ->assertSee('fetch(\'/adminer.php\'', false);
     }
 
     public function test_admin_dashboard_shows_active_student_task_sessions(): void

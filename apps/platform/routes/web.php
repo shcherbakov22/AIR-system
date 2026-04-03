@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\AnnouncementController as AdminAnnouncementController;
 use App\Http\Controllers\Admin\AssignmentController as AdminAssignmentController;
+use App\Http\Controllers\Admin\AdminerController as AdminAdminerController;
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\PushUpSessionController as AdminPushUpSessionController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
@@ -96,7 +97,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/announcements', [AdminAnnouncementController::class, 'index'])->name('announcements.index');
         Route::post('/announcements', [AdminAnnouncementController::class, 'store'])->name('announcements.store');
         Route::delete('/announcements/{chatMessage}', [AdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
-        Route::get('/database', fn () => redirect('/adminer.php'))->name('database');
+        Route::get('/database', AdminAdminerController::class)->name('database');
         Route::get('/assignments', [AdminAssignmentController::class, 'index'])->name('assignments.index');
         Route::post('/assignments', [AdminAssignmentController::class, 'store'])->name('assignments.store');
         Route::patch('/assignments/{studentAssignment}/complete', [AdminAssignmentController::class, 'complete'])->name('assignments.complete');
