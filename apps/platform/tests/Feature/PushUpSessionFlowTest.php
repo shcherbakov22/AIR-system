@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\PushUpSession;
 use App\Models\PushUpStation;
 use App\Models\Student;
+use App\Models\StudentDevice;
 use App\Models\User;
 use App\Models\Violation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -122,6 +123,116 @@ class PushUpSessionFlowTest extends TestCase
         $this->assertDatabaseHas('violation_resolutions', [
             'violation_id' => $violation->id,
             'action' => 'resolved',
+        ]);
+    }
+
+    public function test_companion_device_can_claim_and_complete_push_up_session(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $studentUser = User::factory()->create(['role' => UserRole::Student]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Counter Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'companion-device',
+            'label' => 'Student PC',
+            'hostname' => 'student-pc',
+            'platform' => 'windows',
+            'app_version' => 'test',
+        ]);
+        $deviceToken = $device->issueToken();
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Stay on task',
+            'penalty_units' => 10,
+            'occurred_at' => now(),
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        PushUpSession::create([
+            'student_id' => $student->id,
+            'violation_id' => $violation->id,
+            'requested_by_user_id' => $admin->id,
+            'status' => 'pending',
+            'required_push_ups' => 10,
+            'configuration' => [
+                'sets' => 1,
+                'reps' => 10,
+                'rest_seconds' => 30,
+                'penalty_reps' => 5,
+                'drop_threshold' => 20,
+                'up_gap' => 6,
+                'down_tolerance' => 3,
+            ],
+            'current_rep' => 0,
+            'current_set' => 1,
+        ]);
+
+        $heartbeat = $this
+            ->withHeader('Authorization', 'Bearer '.$deviceToken)
+            ->postJson(route('api.companion.push-up-station.heartbeat'), [
+                'station_key' => 'companion-station',
+                'station_name' => 'Companion station',
+            ])
+            ->assertOk()
+            ->json();
+
+        $this->assertSame(1, $heartbeat['pending_count']);
+        $this->assertNull($heartbeat['session']);
+
+        $claim = $this
+            ->withHeader('Authorization', 'Bearer '.$deviceToken)
+            ->postJson(route('api.companion.push-up-station.claim-next'), [
+                'station_key' => 'companion-station',
+                'station_name' => 'Companion station',
+            ])
+            ->assertOk()
+            ->json();
+
+        $this->assertSame(10, $claim['session']['required_push_ups']);
+
+        $sessionId = $claim['session']['id'];
+
+        $this
+            ->withHeader('Authorization', 'Bearer '.$deviceToken)
+            ->postJson(route('api.companion.push-up-station.sessions.start', $sessionId), [
+                'station_key' => 'companion-station',
+            ])
+            ->assertOk();
+
+        $this
+            ->withHeader('Authorization', 'Bearer '.$deviceToken)
+            ->postJson(route('api.companion.push-up-station.sessions.progress', $sessionId), [
+                'station_key' => 'companion-station',
+                'current_rep' => 10,
+                'current_set' => 1,
+            ])
+            ->assertOk();
+
+        $this
+            ->withHeader('Authorization', 'Bearer '.$deviceToken)
+            ->postJson(route('api.companion.push-up-station.sessions.complete', $sessionId), [
+                'station_key' => 'companion-station',
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('violations', [
+            'id' => $violation->id,
+            'status' => 'resolved',
+        ]);
+
+        $this->assertDatabaseHas('push_up_sessions', [
+            'id' => $sessionId,
+            'status' => 'completed',
         ]);
     }
 
