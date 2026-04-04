@@ -51,7 +51,7 @@ class StudentMonitorCaptureController extends Controller
 
         return response()->file($disk->path($studentMonitorCapture->path), [
             'Content-Type' => $studentMonitorCapture->mime_type ?: 'application/octet-stream',
-            'Cache-Control' => 'private, max-age=60',
+            'Cache-Control' => 'private, max-age=3600, stale-while-revalidate=86400',
         ]);
     }
 }

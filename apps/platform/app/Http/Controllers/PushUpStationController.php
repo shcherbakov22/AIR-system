@@ -17,6 +17,7 @@ class PushUpStationController extends Controller
             'defaults' => (new PushUpSessionService())->defaultConfiguration(10),
             'station_state_url' => route('push-up-station.heartbeat'),
             'claim_next_url' => route('push-up-station.claim-next'),
+            'watchdog_timeout_seconds' => 60,
         ]);
     }
 

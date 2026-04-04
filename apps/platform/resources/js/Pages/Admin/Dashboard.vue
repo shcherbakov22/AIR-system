@@ -180,6 +180,19 @@ const props = defineProps<{
         enabled: boolean;
         pending_count: number;
     };
+    pushUpStation?: {
+        name: string;
+        is_active: boolean;
+        last_seen_at?: string | null;
+        last_seen_at_label?: string | null;
+        pending_count: number;
+        session?: {
+            id: number;
+            status: string;
+            student_name: string;
+            required_push_ups: number;
+        } | null;
+    } | null;
     monitorStudents: DashboardStudent[];
 }>();
 
@@ -189,8 +202,10 @@ const selectedCapture = ref<(DashboardCapture & { studentName: string }) | null>
 const selectedCaptureHistory = ref<Array<DashboardCapture & { studentName: string }>>([]);
 const selectedCaptureHistoryIndex = ref(0);
 const captureHistoryLoading = ref(false);
+const capturePreloadCache = new Map<string, Promise<void>>();
 const selectedAppsStudent = ref<DashboardStudent | null>(null);
 const selectedViolationRuleIds = ref<Record<number, string>>({});
+const pushUpStationMenuOpen = ref(false);
 const browserSpeechStorageKey = 'air-dashboard-browser-speech-enabled';
 const browserSpeechWatermarkStorageKey = 'air-dashboard-browser-speech-watermark';
 const browserSpeechEnabled = ref(localStorage.getItem(browserSpeechStorageKey) !== '0');
@@ -289,7 +304,7 @@ const reloadMonitorBoard = () => {
     isReloading = true;
 
     router.reload({
-        only: ['serverNow', 'monitorStudents', 'serverSpeech'],
+        only: ['serverNow', 'monitorStudents', 'serverSpeech', 'pushUpStation'],
         onFinish: () => {
             isReloading = false;
         },
@@ -553,6 +568,68 @@ const monitorStudents = computed(() => {
     });
 });
 
+const pushUpStationIndicatorClass = computed(() => {
+    if (!props.pushUpStation) {
+        return 'bg-stone-200 text-stone-700';
+    }
+
+    return props.pushUpStation.is_active
+        ? 'bg-emerald-50 text-emerald-900'
+        : 'bg-amber-50 text-amber-900';
+});
+
+const togglePushUpStationMenu = () => {
+    if (!props.pushUpStation) {
+        return;
+    }
+
+    pushUpStationMenuOpen.value = !pushUpStationMenuOpen.value;
+};
+
+const preloadCaptureImage = (imageUrl?: string | null): Promise<void> => {
+    if (!imageUrl) {
+        return Promise.resolve();
+    }
+
+    const existing = capturePreloadCache.get(imageUrl);
+    if (existing) {
+        return existing;
+    }
+
+    const preloadPromise = new Promise<void>((resolve) => {
+        const image = new Image();
+        image.decoding = 'async';
+        image.onload = () => resolve();
+        image.onerror = () => resolve();
+        image.src = imageUrl;
+    });
+
+    capturePreloadCache.set(imageUrl, preloadPromise);
+
+    return preloadPromise;
+};
+
+const preloadCaptureNeighbors = (index: number) => {
+    [
+        selectedCaptureHistory.value[index - 2],
+        selectedCaptureHistory.value[index - 1],
+        selectedCaptureHistory.value[index + 1],
+        selectedCaptureHistory.value[index + 2],
+    ].forEach((capture) => {
+        if (capture?.image_url) {
+            void preloadCaptureImage(capture.image_url);
+        }
+    });
+};
+
+const preloadCaptureHistory = (captures: Array<DashboardCapture & { studentName: string }>) => {
+    captures.forEach((capture) => {
+        if (capture.image_url) {
+            void preloadCaptureImage(capture.image_url);
+        }
+    });
+};
+
 const deleteViolation = (violationId: number) => {
     if (!window.confirm('Delete this violation?')) {
         return;
@@ -608,6 +685,7 @@ const openCapture = (studentName: string, capture: DashboardCapture) => {
         studentName,
     }];
     selectedCaptureHistoryIndex.value = 0;
+    void preloadCaptureImage(capture.image_url);
     loadCaptureHistory(studentName, capture.id);
 };
 
@@ -795,12 +873,14 @@ const loadCaptureHistory = async (studentName: string, captureId: number) => {
             ...historyCapture,
             studentName,
         }));
+        preloadCaptureHistory(selectedCaptureHistory.value);
 
         const currentIndex = selectedCaptureHistory.value.findIndex((historyCapture) => historyCapture.id === captureId);
 
         if (currentIndex >= 0) {
             selectedCaptureHistoryIndex.value = currentIndex;
             selectedCapture.value = selectedCaptureHistory.value[currentIndex];
+            preloadCaptureNeighbors(currentIndex);
         }
     } finally {
         captureHistoryLoading.value = false;
@@ -816,6 +896,7 @@ const showCaptureHistoryItem = (index: number) => {
 
     selectedCaptureHistoryIndex.value = index;
     selectedCapture.value = nextCapture;
+    preloadCaptureNeighbors(index);
 };
 
 const jumpToCaptureHistory = (event: Event) => {
@@ -916,6 +997,76 @@ const blockTooltip = (block: DashboardBlock): string => {
 
     <AuthenticatedLayout :sidebar-drawer="true" :full-width="true" :disable-sidebar-toggle="hasAnyAdminChatGate">
         <div class="fixed right-2 top-1.5 z-30 flex items-center gap-2">
+            <div v-if="props.pushUpStation" class="relative">
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold"
+                    :class="pushUpStationIndicatorClass"
+                    @click="togglePushUpStationMenu"
+                >
+                    <span class="inline-block h-2 w-2 rounded-full" :class="props.pushUpStation.is_active ? 'bg-emerald-500' : 'bg-amber-500'" />
+                    <span>
+                        {{ props.pushUpStation.is_active ? 'Counter active' : 'Counter stale' }}
+                    </span>
+                    <span class="text-[10px] opacity-70">
+                        {{ props.pushUpStation.pending_count }}
+                    </span>
+                </button>
+
+                <div
+                    v-if="pushUpStationMenuOpen"
+                    class="absolute right-0 mt-2 w-72 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl"
+                >
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-semibold text-stone-900">{{ props.pushUpStation.name }}</p>
+                            <p class="text-[11px] uppercase tracking-[0.14em]" :class="props.pushUpStation.is_active ? 'text-emerald-700' : 'text-amber-700'">
+                                {{ props.pushUpStation.is_active ? 'Active' : 'Stale' }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-full border border-stone-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700"
+                            @click="pushUpStationMenuOpen = false"
+                        >
+                            Close
+                        </button>
+                    </div>
+
+                    <div class="mt-3 grid gap-2 text-xs text-stone-600">
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Pending queue</span>
+                            <span class="font-semibold text-stone-900">{{ props.pushUpStation.pending_count }}</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Last seen</span>
+                            <span class="font-semibold text-stone-900">{{ props.pushUpStation.last_seen_at_label ?? 'Never' }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                        <template v-if="props.pushUpStation.session">
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">Current session</p>
+                            <p class="mt-1 text-sm font-semibold text-stone-900">{{ props.pushUpStation.session.student_name }}</p>
+                            <div class="mt-2 grid gap-1 text-xs text-stone-600">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span>Status</span>
+                                    <span class="font-semibold text-stone-900">{{ props.pushUpStation.session.status }}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span>Push-ups</span>
+                                    <span class="font-semibold text-stone-900">{{ props.pushUpStation.session.required_push_ups }}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span>Session</span>
+                                    <span class="font-semibold text-stone-900">#{{ props.pushUpStation.session.id }}</span>
+                                </div>
+                            </div>
+                        </template>
+                        <p v-else class="text-xs font-medium text-stone-500">No active push-up session.</p>
+                    </div>
+                </div>
+            </div>
             <span
                 v-if="hasAnyAdminChatGate"
                 class="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-400 opacity-50"

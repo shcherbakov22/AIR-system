@@ -40,6 +40,7 @@ const props = defineProps<{
     };
     station_state_url: string;
     claim_next_url: string;
+    watchdog_timeout_seconds: number;
 }>();
 
 type SerialPortLike = {
@@ -97,6 +98,61 @@ const sessionStatusLabel = computed(() => {
 });
 
 const counterSubtext = computed(() => restTimeText.value ?? movementText.value);
+const lastSerialAgeSeconds = computed(() => {
+    if (lastSerialDataAt.value === null) {
+        return null;
+    }
+
+    return Math.max(0, Math.floor((Date.now() - lastSerialDataAt.value) / 1000));
+});
+
+const lastSessionActivityAgeSeconds = computed(() => {
+    if (lastSessionActivityAt.value === null) {
+        return null;
+    }
+
+    return Math.max(0, Math.floor((Date.now() - lastSessionActivityAt.value) / 1000));
+});
+
+const watchdogState = computed(() => {
+    if (!serialConnected.value) {
+        return {
+            label: 'Arduino disconnected',
+            detail: 'No serial connection',
+            tone: 'text-rose-700 bg-rose-50 ring-rose-200',
+        };
+    }
+
+    if (!hasFreshSerialData()) {
+        return {
+            label: 'Waiting for serial data',
+            detail: 'Port is open but telemetry is stale',
+            tone: 'text-amber-700 bg-amber-50 ring-amber-200',
+        };
+    }
+
+    if (currentSession.value && lastSessionActivityAgeSeconds.value !== null && lastSessionActivityAgeSeconds.value >= props.watchdog_timeout_seconds) {
+        return {
+            label: 'Session idle timeout',
+            detail: `No meaningful activity for ${lastSessionActivityAgeSeconds.value}s`,
+            tone: 'text-rose-700 bg-rose-50 ring-rose-200',
+        };
+    }
+
+    if (currentSession.value) {
+        return {
+            label: 'Watching active session',
+            detail: `Last activity ${lastSessionActivityAgeSeconds.value ?? 0}s ago`,
+            tone: 'text-emerald-700 bg-emerald-50 ring-emerald-200',
+        };
+    }
+
+    return {
+        label: 'Station healthy',
+        detail: `Last sensor data ${lastSerialAgeSeconds.value ?? 0}s ago`,
+        tone: 'text-emerald-700 bg-emerald-50 ring-emerald-200',
+    };
+});
 
 watch(stationName, (value) => {
     localStorage.setItem(stationNameStorageKey, value);
@@ -702,6 +758,21 @@ onBeforeUnmount(() => {
                 <div class="rounded-[1rem] bg-stone-50 p-4 ring-1 ring-stone-200">
                     <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">Status</p>
                     <p class="mt-2 text-sm font-medium text-stone-950">{{ statusText }}</p>
+                </div>
+            </div>
+
+            <div class="mt-4 rounded-[1rem] p-4 ring-1" :class="watchdogState.tone">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.16em]">Watchdog</p>
+                        <p class="mt-2 text-sm font-semibold">{{ watchdogState.label }}</p>
+                        <p class="mt-1 text-xs">{{ watchdogState.detail }}</p>
+                    </div>
+                    <div class="grid gap-2 text-xs sm:text-right">
+                        <p>Serial age: {{ lastSerialAgeSeconds ?? '—' }}s</p>
+                        <p>Session activity age: {{ lastSessionActivityAgeSeconds ?? '—' }}s</p>
+                        <p>Timeout: {{ props.watchdog_timeout_seconds }}s</p>
+                    </div>
                 </div>
             </div>
 

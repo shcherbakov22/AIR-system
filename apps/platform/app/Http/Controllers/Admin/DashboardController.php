@@ -13,7 +13,9 @@ use App\Models\ScheduleTemplate;
 use App\Models\TaskSession;
 use App\Models\SpeechAnnouncement;
 use App\Models\StudentDevice;
+use App\Models\PushUpStation;
 use App\Services\DevicePolicyService;
+use App\Services\PushUpSessionService;
 use App\Services\SpeechAnnouncementPlaybackService;
 use App\Services\StudentAppPolicyService;
 use App\Services\StudentCommunicationGateService;
@@ -276,6 +278,48 @@ class DashboardController extends Controller
         ];
     }
 
+    protected function pushUpStationPayload(): ?array
+    {
+        $station = PushUpStation::query()
+            ->with(['sessions' => fn ($query) => $query
+                ->with(['student.user'])
+                ->whereIn('status', [
+                    PushUpSessionService::STATUS_CLAIMED,
+                    PushUpSessionService::STATUS_RUNNING,
+                ])
+                ->latest('id')
+                ->limit(1),
+            ])
+            ->latest('last_seen_at')
+            ->latest('id')
+            ->first();
+
+        if (! $station) {
+            return null;
+        }
+
+        $isActive = $station->last_seen_at !== null
+            && $station->last_seen_at->greaterThanOrEqualTo(now()->subSeconds(PushUpSessionService::STATION_STALE_AFTER_SECONDS));
+
+        $activeSession = $station->sessions->first();
+
+        return [
+            'name' => $station->name ?: 'Push-up station',
+            'is_active' => $isActive,
+            'last_seen_at' => $station->last_seen_at?->toIso8601String(),
+            'last_seen_at_label' => $station->last_seen_at?->format('d M, H:i:s'),
+            'pending_count' => \App\Models\PushUpSession::query()
+                ->where('status', PushUpSessionService::STATUS_PENDING)
+                ->count(),
+            'session' => $activeSession ? [
+                'id' => $activeSession->id,
+                'status' => $activeSession->status,
+                'student_name' => $activeSession->student->display_name,
+                'required_push_ups' => $activeSession->required_push_ups,
+            ] : null,
+        ];
+    }
+
     protected function scheduleBoardPayload(Student $student): ?array
     {
         if ($student->activeOrPausedScheduleRun) {
@@ -461,6 +505,7 @@ class DashboardController extends Controller
         return Inertia::render('Admin/Dashboard', [
             'serverNow' => now()->toIso8601String(),
             'monitorStudents' => $monitorStudents,
+            'pushUpStation' => $this->pushUpStationPayload(),
             'serverSpeech' => [
                 'enabled' => $this->speechPlaybackService->isEnabled(),
                 'pending_count' => SpeechAnnouncement::query()->whereNull('spoken_at')->count(),
