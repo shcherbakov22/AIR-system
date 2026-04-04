@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\UserRole;
 use App\Models\PushUpSession;
+use App\Models\PushUpStation;
 use App\Models\Student;
 use App\Models\User;
 use App\Models\Violation;
@@ -227,6 +228,71 @@ class PushUpSessionFlowTest extends TestCase
             'up_gap' => 6,
             'down_tolerance' => 3,
         ], $staleSession->configuration);
+        $this->assertSame(0, $staleSession->current_rep);
+        $this->assertSame(1, $staleSession->current_set);
+    }
+
+    public function test_queueing_requeues_claimed_session_if_station_is_stale(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $studentUser = User::factory()->create(['role' => UserRole::Student]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Counter Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Observe the time',
+            'penalty_units' => 16,
+            'occurred_at' => now(),
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $station = PushUpStation::create([
+            'station_key' => 'stale-station',
+            'name' => 'Stale station',
+            'last_seen_at' => now()->subMinutes(5),
+            'last_claimed_at' => now()->subMinutes(5),
+        ]);
+
+        $staleSession = PushUpSession::create([
+            'student_id' => $student->id,
+            'violation_id' => $violation->id,
+            'requested_by_user_id' => $admin->id,
+            'push_up_station_id' => $station->id,
+            'status' => 'claimed',
+            'required_push_ups' => 10,
+            'configuration' => [
+                'sets' => 1,
+                'reps' => 10,
+                'rest_seconds' => 30,
+                'penalty_reps' => 5,
+                'drop_threshold' => 20,
+                'up_gap' => 6,
+                'down_tolerance' => 3,
+            ],
+            'claimed_at' => now()->subMinutes(5),
+            'current_rep' => 4,
+            'current_set' => 1,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.violations.push-up-sessions.store', $violation))
+            ->assertRedirect();
+
+        $staleSession->refresh();
+
+        $this->assertSame('pending', $staleSession->status);
+        $this->assertNull($staleSession->push_up_station_id);
+        $this->assertNull($staleSession->claimed_at);
+        $this->assertNull($staleSession->started_at);
+        $this->assertSame(16, $staleSession->required_push_ups);
         $this->assertSame(0, $staleSession->current_rep);
         $this->assertSame(1, $staleSession->current_set);
     }

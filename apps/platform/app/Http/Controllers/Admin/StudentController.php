@@ -30,6 +30,7 @@ class StudentController extends Controller
             'settings' => [
                 'can_manage_own_schedule' => $student->canManageOwnSchedule(),
                 'can_use_ad_hoc_timer' => $student->canUseAdHocTimer(),
+                'look_away_event_threshold' => $student->setting?->look_away_event_threshold ?? 3,
                 'preferred_timezone' => $student->setting?->preferred_timezone,
             ],
             'consequence_profile' => [
@@ -75,6 +76,9 @@ class StudentController extends Controller
                 'student_id' => $student->id,
                 'can_manage_own_schedule' => $request->boolean('can_manage_own_schedule'),
                 'can_use_ad_hoc_timer' => $request->boolean('can_use_ad_hoc_timer'),
+                'look_away_event_threshold' => (int) $request->input('look_away_event_threshold'),
+                'look_away_event_count' => 0,
+                'look_away_task_session_id' => null,
                 'preferred_timezone' => $request->input('preferred_timezone') ?: null,
             ]);
 
@@ -122,6 +126,7 @@ class StudentController extends Controller
                 [
                     'can_manage_own_schedule' => $request->boolean('can_manage_own_schedule'),
                     'can_use_ad_hoc_timer' => $request->boolean('can_use_ad_hoc_timer'),
+                    'look_away_event_threshold' => (int) $request->input('look_away_event_threshold'),
                     'preferred_timezone' => $request->input('preferred_timezone') ?: null,
                 ],
             );

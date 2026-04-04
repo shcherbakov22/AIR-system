@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\TaskSessionController as AdminTaskSessionControll
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
 use App\Http\Controllers\ChatAttachmentController;
+use App\Http\Controllers\CompanionBrowserLoginController;
 use App\Http\Controllers\CompanionRootCertificateController;
 use App\Http\Controllers\Api\CompanionUpdateController;
 use App\Http\Controllers\DashboardController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\Student\CompanionEnrollmentController as StudentCompani
 use App\Http\Controllers\Student\ChatController as StudentChatController;
 use App\Http\Controllers\Student\AnnouncementController as StudentAnnouncementController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
+use App\Http\Controllers\Student\AttentionEventController as StudentAttentionEventController;
 use App\Http\Controllers\Student\HomeController as StudentHomeController;
 use App\Http\Controllers\Student\PushUpSessionController as StudentPushUpSessionController;
 use App\Http\Controllers\Student\RuleController as StudentRuleController;
@@ -63,6 +65,8 @@ Route::get($companionRootCertificateRoute, CompanionRootCertificateController::c
     ->name('companion.root-ca');
 Route::get('/companion/downloads/windows/installer', [CompanionUpdateController::class, 'installerBundle'])
     ->name('companion.installer.download');
+Route::get('/companion/browser-login/{token}', CompanionBrowserLoginController::class)
+    ->name('companion.browser-login.consume');
 
 Route::prefix('ss')
     ->withoutMiddleware([
@@ -173,6 +177,9 @@ Route::middleware('auth')->group(function () {
         Route::patch('/assignments/{studentAssignment}/hand-in', [StudentAssignmentController::class, 'handIn'])->name('assignments.hand-in');
         Route::get('/companion/enroll', [StudentCompanionEnrollmentController::class, 'show'])->name('companion.enroll');
         Route::get('/companion/enroll/bootstrap.ps1', [StudentCompanionEnrollmentController::class, 'bootstrapScript'])->name('companion.enroll.bootstrap');
+        Route::post('/attention/events', [StudentAttentionEventController::class, 'store'])
+            ->withoutMiddleware([VerifyCsrfToken::class])
+            ->name('attention.events.store');
         Route::get('/chat', [StudentChatController::class, 'show'])->name('chat.show');
         Route::post('/chat', [StudentChatController::class, 'store'])->name('chat.store');
         Route::get('/rules', StudentRuleController::class)->name('rules.index');

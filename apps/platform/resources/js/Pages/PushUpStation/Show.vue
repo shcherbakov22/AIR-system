@@ -58,6 +58,7 @@ const browserSerial = navigator as Navigator & {
 const stationKeyStorageKey = 'air-push-up-station-key';
 const stationNameStorageKey = 'air-push-up-station-name';
 const launchedSessionStorageKey = 'air-push-up-station-launched-session-id';
+const SESSION_IDLE_TIMEOUT_MS = 60_000;
 
 const randomKey = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 const stationKey = ref(localStorage.getItem(stationKeyStorageKey) || randomKey());
@@ -79,10 +80,14 @@ const claimBusy = ref(false);
 const launchBusy = ref(false);
 const lastSerialDataAt = ref<number | null>(null);
 const firmwareReady = ref(false);
+const lastSessionActivityAt = ref<number | null>(null);
 
 let heartbeatTimer: number | null = null;
 let port: SerialPortLike | null = null;
 let progressThrottleAt = 0;
+let progressSyncInFlight = false;
+let queuedProgressRep: number | null = null;
+let sessionFailInFlight = false;
 const sessionStatusLabel = computed(() => {
     if (!currentSession.value) {
         return 'No claimed session';
@@ -114,6 +119,10 @@ const setLaunchedSessionId = (sessionId: number | null) => {
 
 const clearLaunchedSessionId = () => {
     setLaunchedSessionId(null);
+};
+
+const touchSessionActivity = () => {
+    lastSessionActivityAt.value = Date.now();
 };
 
 const hasFreshSerialData = () => lastSerialDataAt.value !== null && (Date.now() - lastSerialDataAt.value) < 4000;
@@ -220,6 +229,7 @@ const attachSerialPort = async (candidatePort: SerialPortLike) => {
 };
 
 const syncSessionState = (session: PushUpSessionPayload | null) => {
+    const previousSessionId = currentSession.value?.id ?? null;
     currentSession.value = session;
     repCount.value = session?.current_rep ?? 0;
     currentSet.value = session?.current_set ?? 1;
@@ -227,6 +237,13 @@ const syncSessionState = (session: PushUpSessionPayload | null) => {
 
     if (!session) {
         clearLaunchedSessionId();
+        lastSessionActivityAt.value = null;
+    } else if (session.status === 'running') {
+        setLaunchedSessionId(session.id);
+    }
+
+    if (session && session.id !== previousSessionId) {
+        touchSessionActivity();
     }
 
     syncStatusFromSession();
@@ -309,7 +326,7 @@ const ensureSessionLaunched = async () => {
         return;
     }
 
-    if (currentSession.value.status === 'running' && launchedSessionId.value === currentSession.value.id) {
+    if (launchedSessionId.value === currentSession.value.id) {
         return;
     }
 
@@ -330,6 +347,7 @@ const ensureSessionLaunched = async () => {
         syncSessionState(payload.session);
         await sendWorkoutConfig(payload.session);
         setLaunchedSessionId(payload.session.id);
+        touchSessionActivity();
         restTimeText.value = null;
         statusText.value = 'Launch command sent';
     } catch (error) {
@@ -344,24 +362,44 @@ const pushProgress = async (currentRep: number) => {
         return;
     }
 
+    queuedProgressRep = currentRep;
+
+    if (progressSyncInFlight) {
+        return;
+    }
+
     const now = Date.now();
     if (now - progressThrottleAt < 700) {
         return;
     }
 
+    progressSyncInFlight = true;
     progressThrottleAt = now;
 
-    const payload = await postJson<{ session: PushUpSessionPayload }>(
-        route('push-up-station.sessions.progress', currentSession.value.id),
-        'PATCH',
-        {
-            station_key: stationKey.value,
-            current_rep: ((Math.max(currentSet.value, 1) - 1) * currentSession.value.configuration.reps) + currentRep,
-            current_set: currentSet.value,
-        },
-    );
+    try {
+        const repToSync = queuedProgressRep ?? currentRep;
+        queuedProgressRep = null;
 
-    currentSession.value = payload.session;
+        const payload = await postJson<{ session: PushUpSessionPayload }>(
+            route('push-up-station.sessions.progress', currentSession.value.id),
+            'PATCH',
+            {
+                station_key: stationKey.value,
+                current_rep: ((Math.max(currentSet.value, 1) - 1) * currentSession.value.configuration.reps) + repToSync,
+                current_set: currentSet.value,
+            },
+        );
+
+        currentSession.value = payload.session;
+    } finally {
+        progressSyncInFlight = false;
+
+        if (queuedProgressRep !== null && currentSession.value) {
+            window.setTimeout(() => {
+                void pushProgress(queuedProgressRep ?? repCount.value);
+            }, 0);
+        }
+    }
 };
 
 const completeCurrentSession = async () => {
@@ -386,6 +424,38 @@ const completeCurrentSession = async () => {
     currentSet.value = 1;
     totalSets.value = 0;
     await heartbeat();
+};
+
+const failCurrentSession = async (notes: string) => {
+    if (!currentSession.value || sessionFailInFlight) {
+        return;
+    }
+
+    sessionFailInFlight = true;
+
+    try {
+        const payload = await postJson<{ session: PushUpSessionPayload }>(
+            route('push-up-station.sessions.fail', currentSession.value.id),
+            'PATCH',
+            {
+                station_key: stationKey.value,
+                notes,
+            },
+        );
+
+        statusText.value = `Cancelled ${payload.session.student.display_name}`;
+        clearLaunchedSessionId();
+        currentSession.value = null;
+        repCount.value = 0;
+        movementText.value = 'Standby';
+        restTimeText.value = null;
+        currentSet.value = 1;
+        totalSets.value = 0;
+        lastSessionActivityAt.value = null;
+        await heartbeat();
+    } finally {
+        sessionFailInFlight = false;
+    }
 };
 
 const setWorkingStatus = () => {
@@ -421,10 +491,12 @@ const processSerialChunk = async (chunk: string) => {
     }
 
     if (chunk.includes('STATE SEARCHING_BACK')) {
+        touchSessionActivity();
         statusText.value = 'Searching back position';
     }
 
     if (chunk.includes('STATE WORK')) {
+        touchSessionActivity();
         restTimeText.value = null;
         movementText.value = 'Working';
         setWorkingStatus();
@@ -446,23 +518,28 @@ const processSerialChunk = async (chunk: string) => {
 
     const distanceValue = latestMatchValue(chunk, /DIST (\d+)/g);
     if (distanceValue !== null) {
+        firmwareReady.value = true;
         distanceText.value = distanceValue;
+        if (currentSession.value?.status === 'running') {
+            setLaunchedSessionId(currentSession.value.id);
+            setWorkingStatus();
+        }
     }
 
     const repValue = latestMatchValue(chunk, /REP (\d+)/g);
     if (repValue !== null) {
+        firmwareReady.value = true;
         const nextRep = Number(repValue);
         repCount.value = Number.isNaN(nextRep) ? repCount.value : nextRep;
         if (repCount.value > 0) {
+            touchSessionActivity();
             restTimeText.value = null;
             setWorkingStatus();
         }
 
-        try {
-            await pushProgress(repCount.value);
-        } catch (error) {
+        void pushProgress(repCount.value).catch((error) => {
             statusText.value = `Progress sync failed: ${formatError(error)}`;
-        }
+        });
     }
 
     const setValue = latestMatchValue(chunk, /SET (\d+)/g);
@@ -506,9 +583,14 @@ const readLoop = async () => {
         }
     } catch (error) {
         serialConnected.value = false;
+        firmwareReady.value = false;
+        clearLaunchedSessionId();
         statusText.value = `Serial reader stopped: ${formatError(error)}`;
     } finally {
         serialConnected.value = false;
+        firmwareReady.value = false;
+        clearLaunchedSessionId();
+        port = null;
         reader.releaseLock();
     }
 };
@@ -549,6 +631,16 @@ onMounted(async () => {
         heartbeat().catch(() => {
             stationOnline.value = false;
         });
+
+        if (
+            currentSession.value &&
+            ['claimed', 'running'].includes(currentSession.value.status) &&
+            lastSessionActivityAt.value !== null &&
+            (Date.now() - lastSessionActivityAt.value) >= SESSION_IDLE_TIMEOUT_MS &&
+            !sessionFailInFlight
+        ) {
+            void failCurrentSession('Cancelled automatically after 60 seconds of inactivity on the station.');
+        }
     }, 3000);
 });
 

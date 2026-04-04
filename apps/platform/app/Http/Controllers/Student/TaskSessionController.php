@@ -9,6 +9,7 @@ use App\Models\ScheduleRunBlock;
 use App\Models\Student;
 use App\Models\TaskSession;
 use App\Services\AutomaticObserveTheTimeViolationService;
+use App\Services\AttentionTrackingViolationService;
 use App\Services\SpeechAnnouncementService;
 use App\Services\TaskSessionSleepService;
 use App\Services\TaskSessionUnfinishService;
@@ -44,6 +45,7 @@ class TaskSessionController extends Controller
         StopTaskSessionRequest $request,
         TaskSession $taskSession,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
+        AttentionTrackingViolationService $attentionTrackingViolationService,
         SpeechAnnouncementService $speechAnnouncementService,
         TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
@@ -53,7 +55,7 @@ class TaskSessionController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $taskSession, $automaticViolationService, $speechAnnouncementService, $taskSessionSleepService) {
+        $result = DB::transaction(function () use ($request, $studentId, $taskSession, $automaticViolationService, $attentionTrackingViolationService, $speechAnnouncementService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             $lockedTaskSession = TaskSession::query()
@@ -94,6 +96,7 @@ class TaskSessionController extends Controller
             );
 
             $speechAnnouncementService->queueTaskSessionFinished($lockedTaskSession, $durationSeconds);
+            $attentionTrackingViolationService->resetLookAwayCountForStudent($student);
 
             if ($lockedTaskSession->taskAssignment && $lockedTaskSession->taskAssignment->status === 'assigned') {
                 $lockedTaskSession->taskAssignment->update([

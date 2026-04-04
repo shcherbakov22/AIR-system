@@ -19,6 +19,7 @@ class UpdateStudentRequest extends FormRequest
             'name' => trim((string) $this->input('name')),
             'can_manage_own_schedule' => $this->boolean('can_manage_own_schedule', true),
             'can_use_ad_hoc_timer' => $this->boolean('can_use_ad_hoc_timer', true),
+            'look_away_event_threshold' => max(1, (int) $this->input('look_away_event_threshold', 3)),
             'preferred_timezone' => $preferredTimezone === '' ? null : $preferredTimezone,
         ]);
     }
@@ -48,6 +49,7 @@ class UpdateStudentRequest extends FormRequest
             'display_name' => ['required', 'string', 'max:255'],
             'can_manage_own_schedule' => ['required', 'boolean'],
             'can_use_ad_hoc_timer' => ['required', 'boolean'],
+            'look_away_event_threshold' => ['required', 'integer', 'min:1', 'max:1000'],
             'preferred_timezone' => ['nullable', 'string', 'max:64'],
             'default_push_up_count' => ['required', 'integer', 'min:0', 'max:1000'],
             'rest_duration_seconds' => ['required', 'integer', 'min:0', 'max:86400'],

@@ -53,6 +53,9 @@ class DatabaseSeeder extends Seeder
         ], [
             'can_manage_own_schedule' => true,
             'can_use_ad_hoc_timer' => true,
+            'look_away_event_threshold' => 3,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
             'preferred_timezone' => 'UTC',
         ]);
 

@@ -14,6 +14,9 @@ class StudentSetting extends Model
         'student_id',
         'can_manage_own_schedule',
         'can_use_ad_hoc_timer',
+        'look_away_event_threshold',
+        'look_away_event_count',
+        'look_away_task_session_id',
         'preferred_timezone',
     ];
 
@@ -22,6 +25,8 @@ class StudentSetting extends Model
         return [
             'can_manage_own_schedule' => 'boolean',
             'can_use_ad_hoc_timer' => 'boolean',
+            'look_away_event_threshold' => 'integer',
+            'look_away_event_count' => 'integer',
         ];
     }
 

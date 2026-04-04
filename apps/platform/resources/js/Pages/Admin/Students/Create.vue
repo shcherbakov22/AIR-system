@@ -14,6 +14,7 @@ const form = useForm({
     password: '',
     can_manage_own_schedule: true,
     can_use_ad_hoc_timer: true,
+    look_away_event_threshold: '3',
     preferred_timezone: 'UTC',
     default_push_up_count: '0',
     rest_duration_seconds: '0',
@@ -79,6 +80,12 @@ const submit = () => {
                                     </span>
                                 </label>
                                 <InputError class="mt-2" :message="form.errors.can_use_ad_hoc_timer" />
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <InputLabel for="look_away_event_threshold" value="Look-away events before violation" />
+                                <TextInput id="look_away_event_threshold" v-model="form.look_away_event_threshold" type="number" min="1" max="1000" class="mt-2 block w-full rounded-xl border-stone-300" />
+                                <InputError class="mt-2" :message="form.errors.look_away_event_threshold" />
                             </div>
 
                             <div class="md:col-span-2">

@@ -50,6 +50,11 @@ class LegacyRuleDefinitionSeeder extends Seeder
                 'description' => 'Legacy imported violation preset: early distraction warning.',
             ],
             [
+                'title' => 'Look away',
+                'default_penalty_units' => 0,
+                'description' => 'Automatic violation preset: repeated attention loss during the current task.',
+            ],
+            [
                 'title' => 'No Russian',
                 'default_penalty_units' => 50,
                 'description' => 'Legacy imported violation preset: speaking Russian when that was disallowed.',

@@ -11,6 +11,7 @@ use App\Models\Violation;
 use App\Models\ViolationResolution;
 use App\Services\SpeechAnnouncementService;
 use App\Services\StudentPushUpCounterService;
+use App\Services\TaskSessionUnfinishService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -159,6 +160,7 @@ class ViolationController extends Controller
         StoreViolationRequest $request,
         SpeechAnnouncementService $speechAnnouncementService,
         StudentPushUpCounterService $pushUpCounterService,
+        TaskSessionUnfinishService $taskSessionUnfinishService,
     ): RedirectResponse
     {
         $ruleDefinition = RuleDefinition::query()->findOrFail((int) $request->input('rule_definition_id'));
@@ -210,6 +212,8 @@ class ViolationController extends Controller
                 'reported_by_user_id' => $request->user()->id,
             ]);
         });
+
+        $taskSessionUnfinishService->interruptActiveTaskForStudent($student, $request->user()->id);
 
         $speechAnnouncementService->queueViolation($violation);
 

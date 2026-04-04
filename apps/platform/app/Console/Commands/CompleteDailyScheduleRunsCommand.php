@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\ScheduleRun;
 use App\Models\Student;
 use App\Models\TaskSession;
+use App\Services\AttentionTrackingViolationService;
 use App\Services\TaskSessionSleepService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,10 @@ class CompleteDailyScheduleRunsCommand extends Command
 
     protected $description = 'Automatically complete open schedules and their active timers at the end of the day.';
 
-    public function handle(TaskSessionSleepService $taskSessionSleepService): int
+    public function handle(
+        TaskSessionSleepService $taskSessionSleepService,
+        AttentionTrackingViolationService $attentionTrackingViolationService,
+    ): int
     {
         $completedRuns = 0;
         $completedTaskSessions = 0;
@@ -23,9 +27,9 @@ class CompleteDailyScheduleRunsCommand extends Command
         ScheduleRun::query()
             ->whereIn('status', ['active', 'paused'])
             ->orderBy('id')
-            ->chunkById(100, function ($runs) use ($taskSessionSleepService, &$completedRuns, &$completedTaskSessions) {
+            ->chunkById(100, function ($runs) use ($taskSessionSleepService, $attentionTrackingViolationService, &$completedRuns, &$completedTaskSessions) {
                 foreach ($runs as $run) {
-                    DB::transaction(function () use ($run, $taskSessionSleepService, &$completedRuns, &$completedTaskSessions) {
+                    DB::transaction(function () use ($run, $taskSessionSleepService, $attentionTrackingViolationService, &$completedRuns, &$completedTaskSessions) {
                         $lockedRun = ScheduleRun::query()
                             ->whereKey($run->id)
                             ->whereIn('status', ['active', 'paused'])
@@ -94,6 +98,7 @@ class CompleteDailyScheduleRunsCommand extends Command
                             ->first();
 
                         if ($student) {
+                            $attentionTrackingViolationService->resetLookAwayCountForStudent($student);
                             $taskSessionSleepService->ensureSleepingSession($student, null, $finishedAt);
                         }
 

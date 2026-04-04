@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\CompanionActivityController;
+use App\Http\Controllers\Api\CompanionAttentionCalibrationController;
+use App\Http\Controllers\Api\CompanionAttentionEventController;
 use App\Http\Controllers\Api\CompanionCaptureController;
 use App\Http\Controllers\Api\CompanionCommandController;
 use App\Http\Controllers\Api\CompanionEnrollmentController;
@@ -26,10 +28,15 @@ Route::prefix('companion')->name('api.companion.')->group(function () {
     Route::post('/enroll', [CompanionEnrollmentController::class, 'store'])->name('enroll');
     Route::post('/enroll/claim', [CompanionEnrollmentController::class, 'claim'])->name('enroll.claim');
     Route::post('/token/renew', [CompanionEnrollmentController::class, 'renew'])->name('token.renew');
+    Route::post('/browser-login', [CompanionEnrollmentController::class, 'browserLogin'])->name('browser-login');
     Route::post('/revoke', [CompanionEnrollmentController::class, 'revoke'])->name('revoke');
     Route::post('/heartbeat', [CompanionHeartbeatController::class, 'store'])->name('heartbeat');
     Route::get('/policy', [CompanionPolicyController::class, 'show'])->name('policy.show');
     Route::post('/activity', [CompanionActivityController::class, 'store'])->name('activity.store');
+    Route::get('/attention/status', [CompanionAttentionCalibrationController::class, 'status'])->name('attention.status');
+    Route::post('/attention/sessions', [CompanionAttentionCalibrationController::class, 'start'])->name('attention.sessions.start');
+    Route::post('/attention/sessions/{sessionUuid}/batches', [CompanionAttentionCalibrationController::class, 'storeBatch'])->name('attention.sessions.batches.store');
+    Route::post('/attention/events', [CompanionAttentionEventController::class, 'store'])->name('attention.events.store');
     Route::post('/captures/screen', [CompanionCaptureController::class, 'storeScreen'])->name('captures.screen');
     Route::post('/captures/camera', [CompanionCaptureController::class, 'storeCamera'])->name('captures.camera');
     Route::get('/commands/next', [CompanionCommandController::class, 'next'])->name('commands.next');

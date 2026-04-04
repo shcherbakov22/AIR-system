@@ -15,6 +15,7 @@ use App\Models\TaskSession;
 use App\Models\TaskTemplate;
 use App\Models\Violation;
 use App\Services\AutomaticObserveTheTimeViolationService;
+use App\Services\AttentionTrackingViolationService;
 use App\Services\ScheduleRunFinishWindowService;
 use App\Services\StudentCommunicationGateService;
 use App\Services\TaskSessionSleepService;
@@ -40,6 +41,7 @@ class ScheduleRunController extends Controller
         StartScheduleRunRequest $request,
         ScheduleTemplate $scheduleTemplate,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
+        AttentionTrackingViolationService $attentionTrackingViolationService,
         StudentCommunicationGateService $communicationGateService,
         TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
@@ -49,9 +51,10 @@ class ScheduleRunController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleTemplate, $automaticViolationService, $communicationGateService, $taskSessionSleepService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleTemplate, $automaticViolationService, $attentionTrackingViolationService, $communicationGateService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
             $automaticViolationService->evaluate($student);
+            $attentionTrackingViolationService->resetLookAwayCountForStudent($student);
 
             if ($blockingMessage = $this->blockingViolationMessage($student)) {
                 return [
@@ -152,6 +155,7 @@ class ScheduleRunController extends Controller
         PauseScheduleRunRequest $request,
         ScheduleRun $scheduleRun,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
+        AttentionTrackingViolationService $attentionTrackingViolationService,
         StudentCommunicationGateService $communicationGateService,
         TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
@@ -168,7 +172,7 @@ class ScheduleRunController extends Controller
                 ->with('error', 'Custom timers are disabled for this student.');
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $communicationGateService, $taskSessionSleepService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $attentionTrackingViolationService, $communicationGateService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             $activeTaskSession = TaskSession::query()
@@ -241,6 +245,7 @@ class ScheduleRunController extends Controller
                     'completion_notes' => 'Paused for a custom timer.',
                     'stopped_by_user_id' => $request->user()->id,
                 ]);
+                $attentionTrackingViolationService->resetLookAwayCountForStudent($student);
 
                 $scheduleRunBlock->update([
                     'status' => 'paused',
@@ -285,6 +290,7 @@ class ScheduleRunController extends Controller
         ResumeScheduleRunRequest $request,
         ScheduleRun $scheduleRun,
         AutomaticObserveTheTimeViolationService $automaticViolationService,
+        AttentionTrackingViolationService $attentionTrackingViolationService,
         StudentCommunicationGateService $communicationGateService,
         TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
@@ -294,7 +300,7 @@ class ScheduleRunController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $communicationGateService, $taskSessionSleepService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $attentionTrackingViolationService, $communicationGateService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             $activeTaskSession = TaskSession::query()
@@ -365,6 +371,7 @@ class ScheduleRunController extends Controller
                     'completion_notes' => 'Automatically finished when resuming the schedule.',
                     'stopped_by_user_id' => $request->user()->id,
                 ]);
+                $attentionTrackingViolationService->resetLookAwayCountForStudent($student);
 
                 $automaticViolationService->evaluateStoppedTaskSession(
                     $student,

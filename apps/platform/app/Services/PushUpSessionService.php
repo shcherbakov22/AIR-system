@@ -11,6 +11,7 @@ use InvalidArgumentException;
 
 class PushUpSessionService
 {
+    public const STATION_STALE_AFTER_SECONDS = 15;
     public const STATUS_PENDING = 'pending';
     public const STATUS_CLAIMED = 'claimed';
     public const STATUS_RUNNING = 'running';
@@ -83,6 +84,7 @@ class PushUpSessionService
             $latestConfiguration = $this->defaultConfiguration($latestRequiredPushUps);
 
             $existing = PushUpSession::query()
+                ->with('station')
                 ->where('violation_id', $lockedViolation->id)
                 ->whereIn('status', [
                     self::STATUS_PENDING,
@@ -93,7 +95,22 @@ class PushUpSessionService
                 ->first();
 
             if ($existing) {
-                if (in_array($existing->status, [self::STATUS_PENDING, self::STATUS_CLAIMED], true)) {
+                $staleStationSession = in_array($existing->status, [self::STATUS_CLAIMED, self::STATUS_RUNNING], true)
+                    && $this->stationSessionIsStale($existing);
+
+                if ($staleStationSession) {
+                    $existing->forceFill([
+                        'status' => self::STATUS_PENDING,
+                        'push_up_station_id' => null,
+                        'claimed_at' => null,
+                        'started_at' => null,
+                        'required_push_ups' => $latestRequiredPushUps,
+                        'configuration' => $latestConfiguration,
+                        'current_rep' => 0,
+                        'current_set' => 1,
+                        'requested_by_user_id' => $requestedBy?->id ?? $existing->requested_by_user_id,
+                    ])->save();
+                } elseif (in_array($existing->status, [self::STATUS_PENDING, self::STATUS_CLAIMED], true)) {
                     $existing->forceFill([
                         'requested_by_user_id' => $requestedBy?->id ?? $existing->requested_by_user_id,
                         'required_push_ups' => $latestRequiredPushUps,
@@ -117,6 +134,19 @@ class PushUpSessionService
                 'current_set' => 1,
             ]);
         });
+    }
+
+    protected function stationSessionIsStale(PushUpSession $session): bool
+    {
+        if (! $session->station) {
+            return true;
+        }
+
+        if (! $session->station->last_seen_at) {
+            return true;
+        }
+
+        return $session->station->last_seen_at->lt(now()->subSeconds(self::STATION_STALE_AFTER_SECONDS));
     }
 
     public function heartbeat(string $stationKey, ?string $stationName, ?User $connectedBy): PushUpStation

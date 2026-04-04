@@ -2,13 +2,127 @@
 
 namespace App\Services;
 
+use App\Models\Student;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
+use App\Models\StudentSetting;
 use App\Models\TaskSession;
 use Illuminate\Support\Facades\DB;
 
 class TaskSessionUnfinishService
 {
+    public function completeActiveTaskForStudent(Student $student, ?int $actorUserId = null): ?TaskSession
+    {
+        return DB::transaction(function () use ($student, $actorUserId) {
+            $activeTaskSession = TaskSession::query()
+                ->where('student_id', $student->id)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $activeTaskSession) {
+                return null;
+            }
+
+            return $this->completeTaskSession($activeTaskSession, $actorUserId);
+        });
+    }
+
+    public function interruptActiveTaskForStudent(Student $student, ?int $actorUserId = null): ?TaskSession
+    {
+        return DB::transaction(function () use ($student, $actorUserId) {
+            $activeTaskSession = TaskSession::query()
+                ->where('student_id', $student->id)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $activeTaskSession) {
+                return null;
+            }
+
+            $result = $this->markUnfinished($activeTaskSession, $actorUserId);
+
+            if (! ($result['success'] ?? false)) {
+                return null;
+            }
+
+            return $result['task_session'] ?? null;
+        });
+    }
+
+    public function completeTaskSession(TaskSession $taskSession, ?int $actorUserId = null): TaskSession
+    {
+        return DB::transaction(function () use ($taskSession, $actorUserId) {
+            $lockedTaskSession = TaskSession::query()
+                ->with(['taskAssignment', 'scheduleRun', 'scheduleRunBlock'])
+                ->whereKey($taskSession->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedTaskSession->status !== 'active') {
+                return $lockedTaskSession;
+            }
+
+            $endedAt = now();
+            $durationSeconds = max(
+                0,
+                (int) ($lockedTaskSession->duration_seconds ?? 0) + (int) ($lockedTaskSession->started_at?->diffInSeconds($endedAt) ?? 0),
+            );
+
+            $lockedTaskSession->update([
+                'status' => 'completed',
+                'ended_at' => $endedAt,
+                'duration_seconds' => $durationSeconds,
+                'completion_notes' => 'Automatically finished after overtime violation.',
+                'stopped_by_user_id' => $actorUserId,
+            ]);
+
+            if ($lockedTaskSession->taskAssignment && $lockedTaskSession->taskAssignment->status === 'assigned') {
+                $lockedTaskSession->taskAssignment->update([
+                    'status' => 'completed',
+                ]);
+            }
+
+            if ($lockedTaskSession->schedule_run_id && $lockedTaskSession->schedule_run_block_id) {
+                $lockedScheduleRun = ScheduleRun::query()
+                    ->whereKey($lockedTaskSession->schedule_run_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                $lockedScheduleRunBlock = ScheduleRunBlock::query()
+                    ->whereKey($lockedTaskSession->schedule_run_block_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($lockedScheduleRunBlock && $lockedScheduleRunBlock->status === 'in_progress') {
+                    $lockedScheduleRunBlock->update([
+                        'status' => 'completed',
+                        'completed_at' => $endedAt,
+                    ]);
+                }
+
+                if ($lockedScheduleRun && $lockedScheduleRun->status === 'active') {
+                    $hasPendingBlocks = $lockedScheduleRun->blocks()
+                        ->where('status', '!=', 'completed')
+                        ->exists();
+
+                    if (! $hasPendingBlocks) {
+                        $lockedScheduleRun->update([
+                            'status' => 'completed',
+                            'completed_at' => $endedAt,
+                            'completed_by_user_id' => $actorUserId,
+                        ]);
+                    }
+                }
+            }
+
+            $this->resetLookAwayCountForStudentId($lockedTaskSession->student_id);
+
+            return $lockedTaskSession->fresh(['taskAssignment', 'scheduleRun', 'scheduleRunBlock']);
+        });
+    }
+
     public function markUnfinished(TaskSession $taskSession, ?int $actorUserId = null): array
     {
         return DB::transaction(function () use ($taskSession, $actorUserId) {
@@ -110,11 +224,23 @@ class TaskSessionUnfinishService
                 ]);
             }
 
+            $this->resetLookAwayCountForStudentId($lockedTaskSession->student_id);
+
             return [
                 'success' => true,
                 'message' => "Task session {$lockedTaskSession->task_title_snapshot} marked unfinished.",
                 'task_session' => $lockedTaskSession->fresh(['taskAssignment', 'scheduleRun', 'scheduleRunBlock']),
             ];
         });
+    }
+
+    private function resetLookAwayCountForStudentId(int $studentId): void
+    {
+        StudentSetting::query()
+            ->where('student_id', $studentId)
+            ->update([
+                'look_away_event_count' => 0,
+                'look_away_task_session_id' => null,
+            ]);
     }
 }

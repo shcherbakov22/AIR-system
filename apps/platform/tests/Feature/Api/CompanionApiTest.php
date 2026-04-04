@@ -8,6 +8,7 @@ use App\Models\RuleDefinition;
 use App\Models\ScheduleRun;
 use App\Models\Student;
 use App\Models\StudentDevice;
+use App\Models\StudentSetting;
 use App\Models\TaskTemplate;
 use App\Models\TaskSession;
 use App\Models\User;
@@ -50,6 +51,8 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('student.id', $student->id)
             ->assertJsonPath('device.device_key', 'device-alpha');
 
+        $this->assertNotEmpty($response->json('web.browser_login_url'));
+
         $this->assertDatabaseHas('student_devices', [
             'student_id' => $student->id,
             'device_key' => 'device-alpha',
@@ -87,6 +90,8 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('student.id', $student->id)
             ->assertJsonPath('student.username', $studentUser->username)
             ->assertJsonPath('device.device_key', 'device-token-student');
+
+        $this->assertNotEmpty($response->json('web.browser_login_url'));
 
         $this->assertDatabaseHas('student_devices', [
             'student_id' => $student->id,
@@ -258,6 +263,302 @@ class CompanionApiTest extends TestCase
             'task_title_snapshot' => 'Coding',
             'app_name_snapshot' => 'Code.exe',
             'browser_domain_snapshot' => 'github.com',
+        ]);
+    }
+
+    public function test_device_can_create_attention_calibration_session_upload_batches_and_check_status(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('attention_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $startResponse = $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.attention.sessions.start'), [
+                'provider' => 'eyetheia',
+                'meta' => [
+                    'camera_label' => 'Integrated Webcam',
+                ],
+            ]);
+
+        $startResponse
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('session.provider', 'eyetheia')
+            ->assertJsonPath('session.status', 'collecting');
+
+        $sessionUuid = $startResponse->json('session.session_uuid');
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.attention.sessions.batches.store', $sessionUuid), [
+                'samples' => [
+                    [
+                        'timestamp_ms' => 1000,
+                        'pose' => ['yaw' => 0.1, 'pitch' => -0.2, 'roll' => 0.0],
+                        'eyes' => ['leftOpenRatio' => 0.2, 'rightOpenRatio' => 0.19],
+                        'screen_target' => ['x' => 0.5, 'y' => 0.5],
+                    ],
+                    [
+                        'timestamp_ms' => 1150,
+                        'pose' => ['yaw' => 0.0, 'pitch' => -0.1, 'roll' => 0.0],
+                        'eyes' => ['leftOpenRatio' => 0.21, 'rightOpenRatio' => 0.20],
+                        'screen_target' => ['x' => 0.5, 'y' => 0.5],
+                    ],
+                ],
+                'finalize' => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('session.status', 'queued')
+            ->assertJsonPath('session.sample_count', 2);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.attention.status'))
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('latest_session.session_uuid', $sessionUuid)
+            ->assertJsonPath('latest_session.status', 'queued')
+            ->assertJsonPath('latest_session.sample_count', 2)
+            ->assertJsonPath('model.status', 'queued');
+
+        $this->assertDatabaseHas('device_attention_calibration_sessions', [
+            'student_device_id' => $device->id,
+            'session_uuid' => $sessionUuid,
+            'provider' => 'eyetheia',
+            'status' => 'queued',
+            'sample_count' => 2,
+        ]);
+
+        $this->assertDatabaseHas('device_attention_calibration_batches', [
+            'sample_count' => 2,
+        ]);
+    }
+
+    public function test_device_attention_events_create_look_away_violation_at_student_threshold_and_reset_on_task_end(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('look_away_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $student->setting()->create([
+            'can_manage_own_schedule' => true,
+            'can_use_ad_hoc_timer' => true,
+            'look_away_event_threshold' => 2,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
+            'preferred_timezone' => 'UTC',
+        ]);
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Look away',
+            'description' => 'Automatic attention-loss violation.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Focus Work',
+            'summary' => null,
+            'instructions' => 'Stay on task.',
+            'default_duration_minutes' => 30,
+            'requires_internet' => false,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $activeTaskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Focus Work',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(2),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.attention.events.store'), [
+                'event_type' => 'look_away',
+                'payload' => [
+                    'reason' => 'look_away',
+                    'score' => 3.2,
+                    'away_seconds' => 2.4,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('triggered_violation', false)
+            ->assertJsonPath('count', 1)
+            ->assertJsonPath('threshold', 2);
+
+        $this->assertDatabaseHas('student_settings', [
+            'student_id' => $student->id,
+            'look_away_event_count' => 1,
+            'look_away_task_session_id' => $activeTaskSession->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.attention.events.store'), [
+                'event_type' => 'look_away',
+                'payload' => [
+                    'reason' => 'look_away',
+                    'score' => 3.4,
+                    'away_seconds' => 2.7,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('triggered_violation', true)
+            ->assertJsonPath('count', 0)
+            ->assertJsonPath('threshold', 2);
+
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Look away',
+            'auto_generated_key' => 'look-away:task-session:'.$activeTaskSession->id,
+        ]);
+
+        $activeTaskSession->refresh();
+        $this->assertSame('unfinished', $activeTaskSession->status);
+
+        $this->assertDatabaseHas('student_settings', [
+            'student_id' => $student->id,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
+        ]);
+
+        $manualTaskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Manual stop task',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinute(),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $student->setting()->update([
+            'look_away_event_count' => 1,
+            'look_away_task_session_id' => $manualTaskSession->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $manualTaskSession))
+            ->assertRedirect(route('student.home', absolute: false));
+
+        $this->assertDatabaseHas('student_settings', [
+            'student_id' => $student->id,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
+        ]);
+    }
+
+    public function test_look_away_events_increment_per_student_and_create_violation_at_threshold(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('lookaway_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        StudentSetting::create([
+            'student_id' => $student->id,
+            'can_manage_own_schedule' => true,
+            'can_use_ad_hoc_timer' => true,
+            'look_away_event_threshold' => 2,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
+            'preferred_timezone' => 'UTC',
+        ]);
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'lookaway_admin',
+        ]);
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Look away',
+            'description' => 'Repeated attention loss.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading',
+            'summary' => null,
+            'instructions' => 'Read carefully.',
+            'default_duration_minutes' => 30,
+            'requires_internet' => false,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(3),
+            'duration_seconds' => 180,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.attention.events.store'), [
+                'event_type' => 'look_away',
+                'payload' => [
+                    'reason' => 'look_away',
+                    'score' => 3.5,
+                    'away_seconds' => 2.8,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('triggered_violation', false)
+            ->assertJsonPath('count', 1)
+            ->assertJsonPath('threshold', 2);
+
+        $this->assertDatabaseHas('student_settings', [
+            'student_id' => $student->id,
+            'look_away_event_count' => 1,
+            'look_away_task_session_id' => $taskSession->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.attention.events.store'), [
+                'event_type' => 'look_away',
+                'payload' => [
+                    'reason' => 'look_away',
+                    'score' => 3.7,
+                    'away_seconds' => 3.1,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('triggered_violation', true)
+            ->assertJsonPath('count', 0);
+
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Look away',
+            'auto_generated_key' => 'look-away:task-session:'.$taskSession->id,
+        ]);
+
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $taskSession->id,
+            'status' => 'unfinished',
+        ]);
+
+        $this->assertDatabaseHas('student_settings', [
+            'student_id' => $student->id,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
         ]);
     }
 
@@ -549,6 +850,8 @@ class CompanionApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('accepted', true);
 
+        $this->assertNotEmpty($renewResponse->json('web.browser_login_url'));
+
         $newToken = $renewResponse->json('token');
 
         $this->withHeaders($this->authHeaders($newToken))
@@ -559,6 +862,107 @@ class CompanionApiTest extends TestCase
         $this->withHeaders($this->authHeaders($newToken))
             ->getJson(route('api.companion.policy.show'))
             ->assertForbidden();
+    }
+
+    public function test_device_can_request_and_consume_a_browser_login_url(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_login_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $response = $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser-login'));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $browserLoginUrl = $response->json('web.browser_login_url');
+        $this->assertNotEmpty($browserLoginUrl);
+
+        $this->get($browserLoginUrl)
+            ->assertRedirect(route('student.home', absolute: false));
+
+        $this->assertAuthenticatedAs($studentUser);
+        $this->assertNotNull($studentUser->fresh()->last_login_at);
+    }
+
+    public function test_authenticated_student_browser_session_can_post_attention_events(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_attention_student', 'secret-pass');
+
+        StudentSetting::create([
+            'student_id' => $student->id,
+            'push_up_counter' => 0,
+            'look_away_event_count' => 0,
+            'look_away_event_threshold' => 2,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Browser Attention Task',
+            'summary' => null,
+            'instructions' => 'Stay focused.',
+            'default_duration_minutes' => 30,
+            'requires_internet' => false,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Browser Attention Task',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(2),
+            'duration_seconds' => 120,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Look away',
+            'description' => 'Issued when the student repeatedly looks away during a task.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->postJson(route('student.attention.events.store'), [
+                'event_type' => 'look_away',
+                'payload' => [
+                    'reason' => 'no_face',
+                    'score' => 3.7,
+                    'away_seconds' => 2.4,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('triggered_violation', false)
+            ->assertJsonPath('count', 1);
+
+        $this->actingAs($studentUser)
+            ->postJson(route('student.attention.events.store'), [
+                'event_type' => 'look_away',
+                'payload' => [
+                    'reason' => 'look_away',
+                    'score' => 4.1,
+                    'away_seconds' => 2.7,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('triggered_violation', true)
+            ->assertJsonPath('count', 0);
+
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Look away',
+            'auto_generated_key' => 'look-away:task-session:'.$taskSession->id,
+        ]);
     }
 
     private function makeStudent(string $username, string $password): array

@@ -7,6 +7,7 @@ use App\Models\RuleDefinition;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\Student;
+use App\Models\StudentSetting;
 use App\Models\TaskAssignment;
 use App\Models\TaskSession;
 use App\Models\TaskTemplate;
@@ -402,6 +403,66 @@ class TaskSessionFlowTest extends TestCase
         ]);
 
         Carbon::setTestNow();
+    }
+
+    public function test_finishing_a_task_resets_the_students_look_away_counter(): void
+    {
+        Carbon::setTestNow('2026-03-07 10:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_lookaway_reset',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_lookaway_reset',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Lookaway Reset',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        StudentSetting::create([
+            'student_id' => $student->id,
+            'can_manage_own_schedule' => true,
+            'can_use_ad_hoc_timer' => true,
+            'look_away_event_threshold' => 3,
+            'look_away_event_count' => 2,
+            'look_away_task_session_id' => null,
+            'preferred_timezone' => 'UTC',
+        ]);
+
+        $taskAssignment = $this->createAssignedTask($admin, $student);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Math Review',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(10),
+            'duration_seconds' => 600,
+            'started_by_user_id' => $admin->id,
+        ]);
+
+        $student->setting()->update([
+            'look_away_task_session_id' => $taskSession->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $taskSession))
+            ->assertRedirect(route('student.home', absolute: false));
+
+        $this->assertDatabaseHas('student_settings', [
+            'student_id' => $student->id,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
+        ]);
     }
 
     public function test_student_home_exposes_unfinished_action_for_schedule_blocks_with_existing_task_sessions(): void
@@ -1042,6 +1103,119 @@ class TaskSessionFlowTest extends TestCase
         $this->assertDatabaseCount('violations', 0);
 
         Carbon::setTestNow();
+    }
+
+    public function test_manual_violation_marks_students_active_task_unfinished(): void
+    {
+        Carbon::setTestNow('2026-03-07 10:00:00');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_manual_violation_interrupt',
+        ]);
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_manual_violation_interrupt',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Manual Violation Interrupt',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskAssignment = $this->createAssignedTask($mentor, $student);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 09:45:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Talking',
+            'description' => 'No talking.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $mentor->id,
+        ]);
+
+        $this->actingAs($mentor)
+            ->post(route('admin.violations.store'), [
+                'student_id' => $student->id,
+                'rule_definition_id' => $ruleDefinition->id,
+                'occurred_at' => '2026-03-07 10:00:00',
+                'notes' => 'Interrupted by violation.',
+            ])
+            ->assertRedirect();
+
+        $taskSession->refresh();
+
+        $this->assertSame('unfinished', $taskSession->status);
+        $this->assertSame(900, $taskSession->duration_seconds);
+    }
+
+    public function test_automatic_observe_the_time_violation_marks_active_task_unfinished(): void
+    {
+        Carbon::setTestNow('2026-03-07 10:00:00');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_auto_violation_interrupt',
+        ]);
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_auto_violation_interrupt',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Auto Violation Interrupt',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskAssignment = $this->createAssignedTask($mentor, $student);
+        $this->createObserveTheTimeRule($mentor);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 09:24:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $taskSession->refresh();
+
+        $this->assertSame('completed', $taskSession->status);
+        $this->assertSame(2160, $taskSession->duration_seconds);
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Observe the time',
+            'status' => 'open',
+        ]);
     }
 
     public function test_home_page_does_not_duplicate_an_existing_overdue_observe_the_time_violation(): void

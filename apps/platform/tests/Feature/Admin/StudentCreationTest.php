@@ -41,6 +41,7 @@ class StudentCreationTest extends TestCase
             'password' => 'StudentPass123!',
             'can_manage_own_schedule' => true,
             'can_use_ad_hoc_timer' => false,
+            'look_away_event_threshold' => 4,
             'preferred_timezone' => 'Africa/Cairo',
             'default_push_up_count' => 12,
             'rest_duration_seconds' => 90,
@@ -71,6 +72,9 @@ class StudentCreationTest extends TestCase
             'student_id' => $student->id,
             'can_manage_own_schedule' => true,
             'can_use_ad_hoc_timer' => false,
+            'look_away_event_threshold' => 4,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
             'preferred_timezone' => 'Africa/Cairo',
         ]);
         $this->assertDatabaseHas('student_consequence_profiles', [

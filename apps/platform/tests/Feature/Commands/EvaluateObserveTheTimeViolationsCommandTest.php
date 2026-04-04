@@ -71,6 +71,58 @@ class EvaluateObserveTheTimeViolationsCommandTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_command_marks_overtime_active_task_completed_when_violation_is_created(): void
+    {
+        Carbon::setTestNow('2026-03-23 10:36:00');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        RuleDefinition::create([
+            'title' => 'Observe the time',
+            'description' => 'Imported legacy rule.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $mentor->id,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'observe_complete_student',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Observe Complete Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-23 10:00:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->artisan(EvaluateObserveTheTimeViolationsCommand::class)
+            ->expectsOutput('Evaluated Observe the time for 1 students.')
+            ->assertSuccessful();
+
+        $taskSession->refresh();
+
+        $this->assertSame('completed', $taskSession->status);
+        $this->assertNotNull($taskSession->ended_at);
+        $this->assertGreaterThanOrEqual(35 * 60, (int) $taskSession->duration_seconds);
+
+        Carbon::setTestNow();
+    }
+
     public function test_command_creates_idle_schedule_observe_the_time_violation_without_page_load(): void
     {
         Carbon::setTestNow('2026-03-23 10:16:00');

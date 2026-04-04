@@ -47,6 +47,7 @@ class StudentUpdateTest extends TestCase
                 ->where('student.user.username', 'editable_student')
                 ->where('student.user.last_login_at', null)
                 ->where('student.settings.can_manage_own_schedule', true)
+                ->where('student.settings.look_away_event_threshold', 3)
                 ->where('student.consequence_profile.default_push_up_count', 0)
                 ->where('student.consequence_profile.current_push_up_count', 10)
             );
@@ -82,6 +83,7 @@ class StudentUpdateTest extends TestCase
             'display_name' => 'Edited Student',
             'can_manage_own_schedule' => false,
             'can_use_ad_hoc_timer' => false,
+            'look_away_event_threshold' => 5,
             'preferred_timezone' => 'Africa/Cairo',
             'default_push_up_count' => 8,
             'rest_duration_seconds' => 120,
@@ -107,6 +109,7 @@ class StudentUpdateTest extends TestCase
             'student_id' => $student->id,
             'can_manage_own_schedule' => false,
             'can_use_ad_hoc_timer' => false,
+            'look_away_event_threshold' => 5,
             'preferred_timezone' => 'Africa/Cairo',
         ]);
         $this->assertDatabaseHas('student_consequence_profiles', [

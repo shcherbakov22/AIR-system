@@ -102,6 +102,16 @@ class StudentDevice extends Model
         return $this->hasMany(StudentDeviceInstalledApp::class);
     }
 
+    public function attentionCalibrationSessions(): HasMany
+    {
+        return $this->hasMany(DeviceAttentionCalibrationSession::class);
+    }
+
+    public function browserLoginTokens(): HasMany
+    {
+        return $this->hasMany(DeviceBrowserLoginToken::class);
+    }
+
     public function issueToken(): string
     {
         $plainTextToken = Str::random(64);

@@ -9,10 +9,16 @@ use App\Http\Requests\Api\CompanionEnrollmentTokenClaimRequest;
 use App\Models\DeviceEnrollmentToken;
 use App\Models\StudentDevice;
 use App\Models\User;
+use App\Services\CompanionBrowserLoginService;
 use Illuminate\Http\JsonResponse;
 
 class CompanionEnrollmentController extends Controller
 {
+    public function __construct(
+        private readonly CompanionBrowserLoginService $companionBrowserLoginService,
+    ) {
+    }
+
     public function claim(CompanionEnrollmentTokenClaimRequest $request): JsonResponse
     {
         $enrollmentToken = DeviceEnrollmentToken::query()
@@ -81,6 +87,7 @@ class CompanionEnrollmentController extends Controller
     {
         $device = $request->device();
         $token = $device->issueToken();
+        $browserLoginUrl = $this->companionBrowserLoginService->issueUrl($device);
 
         $device->forceFill([
             'last_seen_at' => now(),
@@ -94,6 +101,28 @@ class CompanionEnrollmentController extends Controller
                 'id' => $device->id,
                 'device_key' => $device->device_key,
                 'label' => $device->label,
+            ],
+            'web' => [
+                'base_url' => url('/'),
+                'browser_login_url' => $browserLoginUrl,
+            ],
+        ]);
+    }
+
+    public function browserLogin(CompanionDeviceRequest $request): JsonResponse
+    {
+        $device = $request->device();
+
+        $device->forceFill([
+            'last_seen_at' => now(),
+            'last_seen_ip' => $request->ip(),
+        ])->save();
+
+        return response()->json([
+            'accepted' => true,
+            'web' => [
+                'base_url' => url('/'),
+                'browser_login_url' => $this->companionBrowserLoginService->issueUrl($device),
             ],
         ]);
     }
@@ -116,6 +145,7 @@ class CompanionEnrollmentController extends Controller
     protected function enrollmentResponse(StudentDevice $device, string $username, string $displayName): JsonResponse
     {
         $token = $device->issueToken();
+        $browserLoginUrl = $this->companionBrowserLoginService->issueUrl($device);
 
         return response()->json([
             'accepted' => true,
@@ -131,6 +161,10 @@ class CompanionEnrollmentController extends Controller
                 'id' => $device->student_id,
                 'display_name' => $displayName,
                 'username' => $username,
+            ],
+            'web' => [
+                'base_url' => url('/'),
+                'browser_login_url' => $browserLoginUrl,
             ],
         ]);
     }

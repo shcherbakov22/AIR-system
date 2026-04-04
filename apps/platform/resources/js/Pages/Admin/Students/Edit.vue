@@ -16,6 +16,7 @@ const props = defineProps<{
         settings: {
             can_manage_own_schedule: boolean;
             can_use_ad_hoc_timer: boolean;
+            look_away_event_threshold: number;
             preferred_timezone?: string | null;
         };
         consequence_profile: {
@@ -41,6 +42,7 @@ const form = useForm({
     display_name: props.student.display_name,
     can_manage_own_schedule: props.student.settings.can_manage_own_schedule,
     can_use_ad_hoc_timer: props.student.settings.can_use_ad_hoc_timer,
+    look_away_event_threshold: String(props.student.settings.look_away_event_threshold),
     preferred_timezone: props.student.settings.preferred_timezone ?? '',
     default_push_up_count: String(props.student.consequence_profile.default_push_up_count),
     rest_duration_seconds: String(props.student.consequence_profile.rest_duration_seconds),
@@ -167,6 +169,12 @@ const deleteStudent = () => {
                                     </span>
                                 </label>
                                 <InputError class="mt-2" :message="form.errors.can_use_ad_hoc_timer" />
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <InputLabel for="look_away_event_threshold" value="Look-away events before violation" />
+                                <TextInput id="look_away_event_threshold" v-model="form.look_away_event_threshold" type="number" min="1" max="1000" class="mt-2 block w-full rounded-xl border-stone-300" />
+                                <InputError class="mt-2" :message="form.errors.look_away_event_threshold" />
                             </div>
 
                             <div class="md:col-span-2">
