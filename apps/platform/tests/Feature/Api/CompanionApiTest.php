@@ -23,11 +23,6 @@ class CompanionApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-    }
-
     public function test_student_can_enroll_device_and_receive_token(): void
     {
         [$student, $studentUser] = $this->makeStudent('companion_student', 'secret-pass');
