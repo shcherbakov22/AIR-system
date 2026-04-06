@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 type DashboardBlock = {
     id: number;
@@ -211,6 +211,8 @@ const browserSpeechWatermarkStorageKey = 'air-dashboard-browser-speech-watermark
 const browserSpeechEnabled = ref(localStorage.getItem(browserSpeechStorageKey) !== '0');
 const browserSpeechWatermark = ref(Number(localStorage.getItem(browserSpeechWatermarkStorageKey) ?? '0') || 0);
 const serverSpeechPendingCount = ref(props.serverSpeech.pending_count);
+const monitorGridRef = ref<HTMLElement | null>(null);
+let captureObserver: IntersectionObserver | null = null;
 const speechLogsOpen = ref(false);
 const speechLogsLoading = ref(false);
 const speechLogs = ref<Array<{
@@ -484,6 +486,12 @@ onMounted(() => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', reloadMonitorBoard);
     initializeSpeechWatermark().catch(() => {});
+
+    // Preload visible student captures on mount and scroll
+    nextTick(() => {
+        setupCaptureObserver();
+        preloadVisibleCaptures();
+    });
 });
 
 onBeforeUnmount(() => {
@@ -505,6 +513,7 @@ onBeforeUnmount(() => {
 
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('focus', reloadMonitorBoard);
+    captureObserver?.disconnect();
 });
 
 const monitorStudents = computed(() => {
@@ -629,6 +638,70 @@ const preloadCaptureHistory = (captures: Array<DashboardCapture & { studentName:
         }
     });
 };
+
+const setupCaptureObserver = () => {
+    if (!monitorGridRef.value) return;
+
+    captureObserver?.disconnect();
+
+    captureObserver = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                const studentCard = entry.target as HTMLElement;
+                const studentId = studentCard.dataset.studentId;
+                const student = monitorStudents.value.find((s) => s.id === Number(studentId));
+                if (!student) return;
+
+                if (entry.isIntersecting) {
+                    if (student.latest_screen_capture?.image_url) {
+                        void preloadCaptureImage(student.latest_screen_capture.image_url);
+                    }
+                    if (student.latest_camera_capture?.image_url) {
+                        void preloadCaptureImage(student.latest_camera_capture.image_url);
+                    }
+                }
+            });
+        },
+        {
+            root: monitorGridRef.value,
+            rootMargin: '200px 0px',
+            threshold: 0,
+        },
+    );
+
+    // Observe all existing student cards
+    observeStudentCards();
+};
+
+const observeStudentCards = () => {
+    if (!monitorGridRef.value || !captureObserver) return;
+    const cards = monitorGridRef.value.querySelectorAll('[data-student-id]');
+    cards.forEach((card) => captureObserver!.observe(card));
+};
+
+const preloadVisibleCaptures = () => {
+    if (!monitorGridRef.value) return;
+    const cards = monitorGridRef.value.querySelectorAll('[data-student-id]');
+    cards.forEach((card) => {
+        const studentId = (card as HTMLElement).dataset.studentId;
+        const student = monitorStudents.value.find((s) => s.id === Number(studentId));
+        if (!student) return;
+        if (student.latest_screen_capture?.image_url) {
+            void preloadCaptureImage(student.latest_screen_capture.image_url);
+        }
+        if (student.latest_camera_capture?.image_url) {
+            void preloadCaptureImage(student.latest_camera_capture.image_url);
+        }
+    });
+};
+
+// Re-observe when monitorStudents changes
+watch(
+    () => props.monitorStudents,
+    () => {
+        nextTick(() => observeStudentCards());
+    },
+);
 
 const deleteViolation = (violationId: number) => {
     if (!window.confirm('Delete this violation?')) {
@@ -1121,11 +1194,13 @@ const blockTooltip = (block: DashboardBlock): string => {
 
             <div
                 v-else
-                class="grid h-full auto-cols-[minmax(8.75rem,1fr)] grid-flow-col gap-1.5"
+                ref="monitorGridRef"
+                class="grid h-full auto-cols-[minmax(8.75rem,1fr)] grid-flow-col gap-1.5 overflow-x-auto"
             >
                 <article
                     v-for="student in monitorStudents"
                     :key="student.id"
+                    :data-student-id="student.id"
                     class="relative flex h-[calc(100vh-3.5rem)] max-h-[calc(100vh-3.5rem)] min-h-[22rem] w-full min-w-0 flex-col overflow-hidden rounded-[1rem] bg-white p-1.5 shadow-sm ring-1 ring-stone-200"
                 >
                     <div class="flex items-start justify-between gap-1.5">
