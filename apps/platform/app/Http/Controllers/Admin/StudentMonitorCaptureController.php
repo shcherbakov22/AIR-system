@@ -21,8 +21,16 @@ class StudentMonitorCaptureController extends Controller
         $captures = StudentMonitorCapture::query()
             ->where('student_id', $studentMonitorCapture->student_id)
             ->where('capture_kind', $studentMonitorCapture->capture_kind)
-            ->whereBetween('captured_at', [$dayStart, $dayEnd])
-            ->orderByDesc('captured_at')
+            ->where(function ($query) use ($dayStart, $dayEnd) {
+                $query
+                    ->whereBetween('captured_at', [$dayStart, $dayEnd])
+                    ->orWhere(function ($fallbackQuery) use ($dayStart, $dayEnd) {
+                        $fallbackQuery
+                            ->whereNull('captured_at')
+                            ->whereBetween('uploaded_at', [$dayStart, $dayEnd]);
+                    });
+            })
+            ->orderByRaw('coalesce(captured_at, uploaded_at) desc')
             ->orderByDesc('id')
             ->get()
             ->map(fn (StudentMonitorCapture $capture) => [

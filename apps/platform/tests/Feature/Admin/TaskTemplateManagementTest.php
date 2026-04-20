@@ -55,6 +55,7 @@ class TaskTemplateManagementTest extends TestCase
             'instructions' => 'Work through the worksheet without skipping problems.',
             'default_duration_minutes' => 25,
             'requires_internet' => true,
+            'browser_allowed_domains' => "khanacademy.org\nmath.khanacademy.org",
             'is_active' => true,
         ]);
 
@@ -69,6 +70,14 @@ class TaskTemplateManagementTest extends TestCase
             'default_duration_minutes' => 25,
             'requires_internet' => true,
             'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->assertDatabaseHas('browser_policy_rules', [
+            'student_id' => null,
+            'effect' => 'allow',
+            'match_type' => 'domain_tree',
+            'value' => 'khanacademy.org',
             'created_by_user_id' => $admin->id,
         ]);
     }

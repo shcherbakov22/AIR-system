@@ -1466,4 +1466,70 @@ class ScheduleRunFlowTest extends TestCase
 
         Carbon::setTestNow();
     }
+
+    public function test_overdue_schedule_task_does_not_chain_into_idle_observe_the_time_without_starting_a_new_task(): void
+    {
+        Carbon::setTestNow('2026-03-08 09:00:00');
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_run_student_no_chain',
+        ]);
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_observe_time_no_chain',
+        ]);
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+        $this->createObserveTheTimeRule($admin);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate));
+
+        $scheduleRun = ScheduleRun::query()
+            ->with('blocks')
+            ->where('student_id', $student->id)
+            ->sole();
+
+        $firstBlock = $scheduleRun->blocks->firstWhere('position', 1);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [
+                'scheduleRun' => $scheduleRun,
+                'scheduleRunBlock' => $firstBlock,
+            ]));
+
+        Carbon::setTestNow('2026-03-08 09:46:00');
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $firstViolation = Violation::query()
+            ->where('student_id', $student->id)
+            ->sole();
+
+        $this->assertSame(
+            'observe-time:overtime:session:'.TaskSession::query()
+                ->where('student_id', $student->id)
+                ->orderByDesc('id')
+                ->value('id').':threshold:2026-03-08T09:45:00+00:00',
+            $firstViolation->auto_generated_key,
+        );
+
+        Carbon::setTestNow('2026-03-08 09:55:00');
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $this->assertDatabaseCount('violations', 1);
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'auto_generated_key' => 'observe-time:idle:run:'.$scheduleRun->id.':anchor:2026-03-08T09:46:00+00:00',
+        ]);
+
+        Carbon::setTestNow();
+    }
 }

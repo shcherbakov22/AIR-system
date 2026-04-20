@@ -4,6 +4,7 @@ import { Head } from '@inertiajs/vue3';
 
 defineProps<{
     installer_download_url: string;
+    browser_extension_download_url: string;
     bootstrap_script_url: string;
     root_ca_url: string;
     base_url: string;
@@ -28,6 +29,13 @@ defineProps<{
                         class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                     >
                         Download installer bundle
+                    </a>
+                    <a
+                        :href="browser_extension_download_url"
+                        download="air-look-extension.zip"
+                        class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                    >
+                        Download blocklist browser extension
                     </a>
                     <a
                         :href="bootstrap_script_url"

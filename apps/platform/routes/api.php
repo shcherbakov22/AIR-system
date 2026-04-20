@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\CompanionActivityController;
 use App\Http\Controllers\Api\CompanionAttentionCalibrationController;
 use App\Http\Controllers\Api\CompanionAttentionEventController;
+use App\Http\Controllers\Api\CompanionBrowserPolicyController;
 use App\Http\Controllers\Api\CompanionCaptureController;
 use App\Http\Controllers\Api\CompanionCommandController;
 use App\Http\Controllers\Api\CompanionEnrollmentController;
@@ -33,6 +34,9 @@ Route::prefix('companion')->name('api.companion.')->group(function () {
     Route::post('/revoke', [CompanionEnrollmentController::class, 'revoke'])->name('revoke');
     Route::post('/heartbeat', [CompanionHeartbeatController::class, 'store'])->name('heartbeat');
     Route::get('/policy', [CompanionPolicyController::class, 'show'])->name('policy.show');
+    Route::get('/browser/policy', [CompanionBrowserPolicyController::class, 'show'])->name('browser.policy.show');
+    Route::post('/browser/visits', [CompanionBrowserPolicyController::class, 'visit'])->name('browser.visits.store');
+    Route::post('/browser/access-requests', [CompanionBrowserPolicyController::class, 'requestAccess'])->name('browser.access-requests.store');
     Route::post('/activity', [CompanionActivityController::class, 'store'])->name('activity.store');
     Route::get('/attention/status', [CompanionAttentionCalibrationController::class, 'status'])->name('attention.status');
     Route::post('/attention/sessions', [CompanionAttentionCalibrationController::class, 'start'])->name('attention.sessions.start');

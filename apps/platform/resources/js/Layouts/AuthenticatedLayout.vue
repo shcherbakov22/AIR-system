@@ -42,6 +42,12 @@ const navItems = computed(() => {
             active: route().current('admin.students.*'),
         });
         items.push({
+            label: 'Extension',
+            href: route('admin.extension.index'),
+            external: false,
+            active: route().current('admin.extension.*'),
+        });
+        items.push({
             label: 'Chats',
             href: route('admin.chats.index'),
             external: false,

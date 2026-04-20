@@ -21,8 +21,8 @@ return new class extends Migration
             $table->json('meta')->nullable();
             $table->timestamps();
 
-            $table->unique(['student_device_id', 'app_key']);
-            $table->index(['student_device_id', 'display_name']);
+            $table->unique(['student_device_id', 'app_key'], 'device_apps_device_key_unique');
+            $table->index(['student_device_id', 'display_name'], 'device_apps_name_idx');
         });
     }
 

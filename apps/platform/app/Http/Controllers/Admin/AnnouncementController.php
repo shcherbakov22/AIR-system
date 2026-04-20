@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreChatMessageRequest;
 use App\Models\ChatMessage;
+use App\Services\StudentDeviceMessageDisplayService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -19,12 +20,15 @@ class AnnouncementController extends Controller
         ]);
     }
 
-    public function store(StoreChatMessageRequest $request): RedirectResponse
+    public function store(
+        StoreChatMessageRequest $request,
+        StudentDeviceMessageDisplayService $studentDeviceMessageDisplayService,
+    ): RedirectResponse
     {
         $attachment = $request->file('attachment');
         $path = $attachment?->store('announcements/global', 'local');
 
-        ChatMessage::create([
+        $message = ChatMessage::create([
             'student_id' => null,
             'sender_user_id' => $request->user()->id,
             'channel' => 'announcement',
@@ -35,6 +39,8 @@ class AnnouncementController extends Controller
             'attachment_mime' => $attachment?->getClientMimeType(),
             'attachment_size' => $attachment?->getSize(),
         ]);
+
+        $studentDeviceMessageDisplayService->queueAnnouncement($message, $request->user());
 
         return redirect()
             ->route('admin.announcements.index')

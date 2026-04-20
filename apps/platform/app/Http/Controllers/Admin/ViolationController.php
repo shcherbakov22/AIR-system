@@ -166,42 +166,41 @@ class ViolationController extends Controller
         $ruleDefinition = RuleDefinition::query()->findOrFail((int) $request->input('rule_definition_id'));
         $studentId = (int) $request->input('student_id');
         $toggle = $request->boolean('toggle');
-        $student = Student::query()->findOrFail($studentId);
+        $result = DB::transaction(function () use ($request, $ruleDefinition, $studentId, $toggle, $pushUpCounterService) {
+            // Serialize manual violation actions per student to avoid duplicate
+            // open violations when requests arrive nearly at the same time.
+            $student = Student::query()
+                ->whereKey($studentId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $existingViolation = Violation::query()
-            ->where('student_id', $studentId)
-            ->where('rule_definition_id', $ruleDefinition->id)
-            ->where('status', 'open')
-            ->latest('occurred_at')
-            ->first();
+            $existingViolation = Violation::query()
+                ->where('student_id', $studentId)
+                ->where('rule_definition_id', $ruleDefinition->id)
+                ->where('status', 'open')
+                ->lockForUpdate()
+                ->latest('occurred_at')
+                ->first();
 
-        if ($existingViolation) {
-            if ($toggle) {
-                $existingViolationTitle = $existingViolation->rule_title_snapshot;
+            if ($existingViolation) {
+                if (! $toggle) {
+                    return [
+                        'type' => 'already_open',
+                    ];
+                }
 
-                DB::transaction(function () use ($existingViolation) {
-                    $lockedViolation = Violation::query()
-                        ->whereKey($existingViolation->id)
-                        ->lockForUpdate()
-                        ->firstOrFail();
+                $existingViolation->resolutions()->delete();
+                $existingViolation->delete();
 
-                    $lockedViolation->resolutions()->delete();
-                    $lockedViolation->delete();
-                });
-
-                return redirect(route('admin.violations.index'))
-                    ->with('success', "Violation {$existingViolationTitle} removed.");
+                return [
+                    'type' => 'removed',
+                    'rule_title' => $existingViolation->rule_title_snapshot,
+                ];
             }
 
-            return redirect()
-                ->back()
-                ->with('error', "Violation {$ruleDefinition->title} is already open for this student.");
-        }
-
-        $violation = DB::transaction(function () use ($request, $ruleDefinition, $student, $pushUpCounterService) {
             $pushUpCount = $pushUpCounterService->allocateForViolation($student);
 
-            return Violation::create([
+            $violation = Violation::create([
                 'student_id' => $student->id,
                 'rule_definition_id' => $ruleDefinition->id,
                 'status' => 'open',
@@ -211,10 +210,31 @@ class ViolationController extends Controller
                 'notes' => $request->input('notes'),
                 'reported_by_user_id' => $request->user()->id,
             ]);
+
+            return [
+                'type' => 'created',
+                'student' => $student,
+                'violation' => $violation,
+            ];
         });
 
-        $taskSessionUnfinishService->interruptActiveTaskForStudent($student, $request->user()->id);
+        if ($result['type'] === 'already_open') {
+            return redirect()
+                ->back()
+                ->with('error', "Violation {$ruleDefinition->title} is already open for this student.");
+        }
 
+        if ($result['type'] === 'removed') {
+            return redirect(route('admin.violations.index'))
+                ->with('success', "Violation {$result['rule_title']} removed.");
+        }
+
+        /** @var \App\Models\Student $student */
+        $student = $result['student'];
+        /** @var \App\Models\Violation $violation */
+        $violation = $result['violation'];
+
+        $taskSessionUnfinishService->interruptActiveTaskForStudent($student, $request->user()->id);
         $speechAnnouncementService->queueViolation($violation);
 
         $redirectRoute = $request->boolean('return_to_dashboard')

@@ -10,6 +10,35 @@ const props = defineProps<{
         display_name: string;
         username?: string | null;
     };
+    browser_accountability: {
+        mode: string;
+        default_unblock_scope: string;
+        rules: Array<{
+            id: number;
+            effect: string;
+            match_type: string;
+            value: string;
+            expires_at?: string | null;
+        }>;
+        pending_requests: Array<{
+            id: number;
+            requested_url: string;
+            host: string;
+            registrable_domain: string;
+            reason?: string | null;
+            created_at?: string | null;
+        }>;
+        recent_visits: Array<{
+            id: number;
+            mode: string;
+            decision: string;
+            host: string;
+            registrable_domain: string;
+            page_title?: string | null;
+            visited_at?: string | null;
+            matched_rule_id?: number | null;
+        }>;
+    };
     devices: Array<{
         id: number;
         device_key: string;
@@ -23,11 +52,6 @@ const props = defineProps<{
         last_mac_address?: string | null;
         last_gateway_ipv4?: string | null;
         network_adapter_name?: string | null;
-        remote_control_ready: boolean;
-        remote_control_active: boolean;
-        remote_control_port?: number | null;
-        remote_control_last_checked_at?: string | null;
-        remote_control_failure_reason?: string | null;
         revoked_at?: string | null;
         policy: {
             mode: string;
@@ -55,12 +79,6 @@ const props = defineProps<{
             requested_at?: string | null;
             completed_at?: string | null;
         }>;
-        latest_remote_session?: {
-            id: number;
-            status: string;
-            started_at?: string | null;
-            show_url: string;
-        } | null;
     }>;
 }>();
 
@@ -68,6 +86,12 @@ const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
 const errorMessage = computed(() => page.props.flash?.error ?? null);
 const labels = reactive(Object.fromEntries(props.devices.map((device) => [device.id, device.label])));
+const browserRuleForm = reactive({
+    effect: 'allow',
+    value: '',
+});
+
+const browserMode = computed(() => props.browser_accountability.mode === 'whitelist' ? 'whitelist' : 'blacklist');
 
 const saveLabel = (deviceId: number) => {
     router.patch(route('admin.students.devices.update', [props.student.id, deviceId]), {
@@ -95,16 +119,40 @@ const queueCommand = (deviceId: number, commandType: string) => {
     });
 };
 
-const verifyRemoteControl = (deviceId: number) => {
-    router.post(route('admin.students.devices.command', [props.student.id, deviceId]), {
-        command_type: 'verify_remote_control',
+const updateBrowserMode = (mode: 'whitelist' | 'blacklist') => {
+    router.patch(route('admin.students.browser-mode.update', props.student.id), {
+        mode,
     }, {
         preserveScroll: true,
     });
 };
 
-const startRemoteControl = (deviceId: number) => {
-    router.post(route('admin.students.devices.remote-control.store', [props.student.id, deviceId]), {}, {
+const saveBrowserRule = () => {
+    router.post(route('admin.students.browser-rules.store', props.student.id), {
+        effect: browserRuleForm.effect,
+        value: browserRuleForm.value,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            browserRuleForm.value = '';
+        },
+    });
+};
+
+const deleteBrowserRule = (ruleId: number) => {
+    router.delete(route('admin.students.browser-rules.destroy', [props.student.id, ruleId]), {
+        preserveScroll: true,
+    });
+};
+
+const approveBrowserRequest = (requestId: number) => {
+    router.patch(route('admin.students.browser-access-requests.approve', [props.student.id, requestId]), {}, {
+        preserveScroll: true,
+    });
+};
+
+const denyBrowserRequest = (requestId: number) => {
+    router.patch(route('admin.students.browser-access-requests.deny', [props.student.id, requestId]), {}, {
         preserveScroll: true,
     });
 };
@@ -144,6 +192,110 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                     Companion debug
                 </Link>
             </div>
+
+            <section class="mb-6 rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Browser accountability</p>
+                        <h2 class="mt-2 text-2xl font-semibold text-stone-950">
+                            {{ browserMode === 'whitelist' ? 'Whitelist mode' : 'Blacklist mode' }}
+                        </h2>
+                        <p class="mt-2 max-w-2xl text-sm text-stone-600">
+                            Approvals allow the requested domain and all subdomains by default.
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            class="inline-flex rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition"
+                            :class="browserMode === 'whitelist' ? 'border-emerald-700 bg-emerald-50 text-emerald-800' : 'border-stone-300 text-stone-700 hover:border-stone-950 hover:text-stone-950'"
+                            @click="updateBrowserMode('whitelist')"
+                        >
+                            Whitelist
+                        </button>
+                        <button
+                            type="button"
+                            class="inline-flex rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition"
+                            :class="browserMode === 'blacklist' ? 'border-emerald-700 bg-emerald-50 text-emerald-800' : 'border-stone-300 text-stone-700 hover:border-stone-950 hover:text-stone-950'"
+                            @click="updateBrowserMode('blacklist')"
+                        >
+                            Blacklist
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr]">
+                    <div class="rounded-[1.25rem] bg-stone-100 p-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Rules</p>
+                        <form class="mt-3 flex flex-wrap gap-3" @submit.prevent="saveBrowserRule">
+                            <select
+                                v-model="browserRuleForm.effect"
+                                class="rounded-xl border-stone-300 text-sm shadow-sm focus:border-amber-700 focus:ring-amber-700"
+                            >
+                                <option value="allow">Allow</option>
+                                <option value="block">Block</option>
+                            </select>
+                            <input
+                                v-model="browserRuleForm.value"
+                                type="text"
+                                placeholder="example.com"
+                                class="min-w-[14rem] flex-1 rounded-xl border-stone-300 text-sm shadow-sm focus:border-amber-700 focus:ring-amber-700"
+                            />
+                            <button
+                                type="submit"
+                                class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                            >
+                                Save rule
+                            </button>
+                        </form>
+                        <ul class="mt-4 space-y-2 text-sm text-stone-700">
+                            <li v-for="rule in props.browser_accountability.rules" :key="rule.id" class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 ring-1 ring-stone-200">
+                                <span>
+                                    <strong class="uppercase tracking-[0.14em] text-stone-500">{{ rule.effect }}</strong>
+                                    <span class="ml-2 font-semibold text-stone-950">{{ rule.value }}</span>
+                                    <span class="ml-1 text-stone-500">and subdomains</span>
+                                </span>
+                                <button type="button" class="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700" @click="deleteBrowserRule(rule.id)">Remove</button>
+                            </li>
+                            <li v-if="props.browser_accountability.rules.length === 0" class="text-sm text-stone-500">No browser rules yet.</li>
+                        </ul>
+                    </div>
+
+                    <div class="rounded-[1.25rem] bg-stone-100 p-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Pending requests</p>
+                        <ul class="mt-3 space-y-2 text-sm text-stone-700">
+                            <li v-for="request in props.browser_accountability.pending_requests" :key="request.id" class="rounded-xl bg-white px-3 py-2 ring-1 ring-stone-200">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p class="font-semibold text-stone-950">{{ request.registrable_domain }} and subdomains</p>
+                                        <p class="mt-1 break-all text-xs text-stone-500">{{ request.requested_url }}</p>
+                                        <p v-if="request.reason" class="mt-2 text-sm text-stone-700">{{ request.reason }}</p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700" @click="approveBrowserRequest(request.id)">Allow</button>
+                                        <button type="button" class="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700" @click="denyBrowserRequest(request.id)">Deny</button>
+                                    </div>
+                                </div>
+                            </li>
+                            <li v-if="props.browser_accountability.pending_requests.length === 0" class="text-sm text-stone-500">No pending requests.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded-[1.25rem] bg-stone-100 p-4">
+                    <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Recent websites</p>
+                    <ul class="mt-3 grid gap-2 text-sm text-stone-700 md:grid-cols-2">
+                        <li v-for="visit in props.browser_accountability.recent_visits.slice(0, 12)" :key="visit.id" class="rounded-xl bg-white px-3 py-2 ring-1 ring-stone-200">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <span class="font-semibold text-stone-950">{{ visit.host }}</span>
+                                <span class="text-xs uppercase tracking-[0.16em]" :class="visit.decision === 'blocked' ? 'text-rose-700' : 'text-emerald-700'">{{ visit.decision }}</span>
+                            </div>
+                            <p class="mt-1 text-xs text-stone-500">{{ visit.registrable_domain }} · {{ formatDateTime(visit.visited_at) }}</p>
+                        </li>
+                        <li v-if="props.browser_accountability.recent_visits.length === 0" class="text-sm text-stone-500">No browser visits logged yet.</li>
+                    </ul>
+                </div>
+            </section>
 
             <div class="grid gap-5">
                 <article
@@ -191,16 +343,6 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                                     <p class="mt-2 font-semibold text-stone-950">{{ device.last_gateway_ipv4 || 'Unknown gateway' }}</p>
                                     <p v-if="device.network_adapter_name" class="mt-1 text-xs text-stone-500">{{ device.network_adapter_name }}</p>
                                 </div>
-                                <div class="rounded-[1.25rem] bg-stone-100 p-4 text-sm text-stone-700 sm:col-span-2">
-                                    <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Remote control readiness</p>
-                                    <p class="mt-2 font-semibold text-stone-950">{{ device.remote_control_ready ? 'Ready' : 'Not ready' }}</p>
-                                    <p class="mt-1 text-xs text-stone-500">
-                                        {{ device.remote_control_failure_reason || formatDateTime(device.remote_control_last_checked_at) }}
-                                    </p>
-                                    <p class="mt-1 text-xs text-stone-500">
-                                        {{ device.remote_control_active ? `Helper active on port ${device.remote_control_port ?? 'unknown'}` : 'Helper inactive' }}
-                                    </p>
-                                </div>
                             </div>
 
                             <div class="rounded-[1.25rem] bg-stone-100 p-4">
@@ -232,17 +374,8 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
 
                         <div class="space-y-4">
                             <div class="rounded-[1.25rem] bg-stone-100 p-4">
-                                <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Remote actions</p>
+                                <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Actions</p>
                                 <div class="mt-3 flex flex-wrap gap-2">
-                                    <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="verifyRemoteControl(device.id)">Verify remote</button>
-                                    <button
-                                        type="button"
-                                        class="inline-flex rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition"
-                                        :class="device.remote_control_ready && device.remote_control_active ? 'border-sky-600 bg-sky-600 text-white' : 'border-stone-300 text-stone-700 hover:border-stone-950 hover:text-stone-950'"
-                                        @click="startRemoteControl(device.id)"
-                                    >
-                                        Remote control
-                                    </button>
                                     <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'refresh_policy')">Refresh policy</button>
                                     <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'request_screenshot')">Request screenshot</button>
                                     <button type="button" class="inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950" @click="queueCommand(device.id, 'request_camera_capture')">Request camera</button>
@@ -281,18 +414,6 @@ const prettyCommand = (value: string) => value.replaceAll('_', ' ');
                                     </li>
                                     <li v-if="device.commands.length === 0" class="text-sm text-stone-500">No commands queued yet.</li>
                                 </ul>
-                            </div>
-
-                            <div class="rounded-[1.25rem] bg-stone-100 p-4">
-                                <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Last remote session</p>
-                                <div v-if="device.latest_remote_session" class="mt-3 rounded-xl bg-white px-3 py-3 ring-1 ring-stone-200">
-                                    <p class="text-sm font-semibold text-stone-950">{{ device.latest_remote_session.status }}</p>
-                                    <p class="mt-1 text-xs text-stone-500">{{ formatDateTime(device.latest_remote_session.started_at) }}</p>
-                                    <Link :href="device.latest_remote_session.show_url" class="mt-3 inline-flex rounded-full border border-stone-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950">
-                                        Open session
-                                    </Link>
-                                </div>
-                                <p v-else class="mt-3 text-sm text-stone-500">No remote session yet.</p>
                             </div>
                         </div>
                     </div>

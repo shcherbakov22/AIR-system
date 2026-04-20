@@ -14,6 +14,7 @@ const props = defineProps<{
         instructions?: string | null;
         default_duration_minutes: number;
         requires_internet: boolean;
+        browser_allowed_domains: string[];
     };
 }>();
 
@@ -22,6 +23,7 @@ const form = useForm({
     instructions: props.taskTemplate.instructions ?? '',
     default_duration_minutes: String(props.taskTemplate.default_duration_minutes),
     requires_internet: props.taskTemplate.requires_internet,
+    browser_allowed_domains: props.taskTemplate.browser_allowed_domains.join('\n'),
 });
 
 const submit = () => {
@@ -105,6 +107,21 @@ const submit = () => {
                             </span>
                         </label>
                         <InputError class="mt-2" :message="form.errors.requires_internet" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <InputLabel for="browser_allowed_domains" value="Allowed websites for whitelist mode" />
+                        <textarea
+                            id="browser_allowed_domains"
+                            v-model="form.browser_allowed_domains"
+                            rows="5"
+                            placeholder="khanacademy.org&#10;docs.python.org"
+                            class="mt-2 block w-full rounded-[1.25rem] border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
+                        />
+                        <p class="mt-2 text-sm text-stone-500">
+                            One domain per line. Each entry allows that domain and all subdomains only while this task is active.
+                        </p>
+                        <InputError class="mt-2" :message="form.errors.browser_allowed_domains" />
                     </div>
 
                     <div class="md:col-span-2 flex flex-col gap-4 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">

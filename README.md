@@ -19,7 +19,7 @@ AIR System is the active Laravel/Inertia platform for the school workflow, monit
 - automatic `Observe the time` violations
 - mentor dashboard with live task/schedule visibility
 - chat, announcements, violations, assignments, and push-up station flow
-- Windows companion integration for screenshots, camera captures, apps, remote control, and updates
+- Windows companion integration for screenshots, camera captures, apps, and updates
 - Adminer-based database access from the sidebar `Database` link
 
 ## Live environment
@@ -74,6 +74,34 @@ Notes:
 - `php artisan test` is not installed/available on the live box
 - verify changed files landed in the real live root
 - after UI changes, do a real browser check against the live site
+
+## Portable SSH Migration Script
+
+For a clean Debian target, use:
+
+```bash
+./infra/install/deploy-platform-over-ssh.sh \
+  --host <target-ip-or-hostname> \
+  --env-file ./apps/platform/.env \
+  --server-name <target-ip-or-hostname>
+```
+
+What it does:
+
+- packages the local `apps/platform` tree
+- uploads it over SSH
+- installs the Debian packages needed for Laravel, PHP-FPM, Node, Composer, and Caddy
+- deploys the app to `/opt/school-platform` by default
+- installs the `school-platform-complete-schedules` timer
+- generates a simple Caddy config for HTTP and internal HTTPS
+- runs `composer install`, `npm ci`, `php artisan migrate --force`, `npm run build`, and `php artisan optimize:clear`
+
+Current assumptions:
+
+- the target machine is Debian and reachable over SSH
+- the uploaded `.env` already points at a reachable database
+- DB dumps and `storage/` migration are handled separately
+- the machine is dedicated enough that replacing `/etc/caddy/Caddyfile` is acceptable
 
 ## Documentation
 

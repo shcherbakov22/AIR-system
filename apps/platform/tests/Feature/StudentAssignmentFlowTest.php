@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
+use App\Models\DeviceCommand;
 use App\Models\Student;
+use App\Models\StudentDevice;
 use App\Models\StudentAssignment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,7 +36,6 @@ class StudentAssignmentFlowTest extends TestCase
         $this->actingAs($mentor)
             ->post(route('admin.assignments.store'), [
                 'student_id' => $student->id,
-                'title' => 'Read chapter 2',
                 'body' => 'Summarize the main ideas.',
             ])
             ->assertRedirect(route('admin.assignments.index', ['student_id' => $student->id], absolute: false))
@@ -42,9 +43,64 @@ class StudentAssignmentFlowTest extends TestCase
 
         $this->assertDatabaseHas('student_assignments', [
             'student_id' => $student->id,
-            'title' => 'Read chapter 2',
+            'title' => 'Assignment',
+            'body' => 'Summarize the main ideas.',
             'status' => 'unread',
         ]);
+    }
+
+    public function test_admin_assignment_queues_visible_device_message_for_active_devices(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $activeDevice = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'assignment-active-device',
+            'label' => 'Desk PC',
+            'platform' => 'windows',
+        ]);
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'assignment-revoked-device',
+            'label' => 'Old PC',
+            'platform' => 'windows',
+            'revoked_at' => now(),
+        ]);
+
+        $this->actingAs($mentor)
+            ->post(route('admin.assignments.store'), [
+                'student_id' => $student->id,
+                'body' => 'Summarize the main ideas.',
+            ])
+            ->assertRedirect(route('admin.assignments.index', ['student_id' => $student->id], absolute: false));
+
+        $assignment = StudentAssignment::query()->sole();
+        $command = DeviceCommand::query()->sole();
+
+        $this->assertSame($activeDevice->id, $command->student_device_id);
+        $this->assertSame('show_message', $command->command_type);
+        $this->assertSame('pending', $command->status);
+        $this->assertSame([
+            'title' => 'New assignment',
+            'body' => 'Summarize the main ideas.',
+            'display_seconds' => 20,
+            'student_assignment_id' => $assignment->id,
+        ], $command->payload);
     }
 
     public function test_student_opening_assignments_marks_unread_items_as_viewed(): void

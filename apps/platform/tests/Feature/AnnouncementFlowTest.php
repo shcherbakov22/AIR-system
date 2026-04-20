@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\UserRole;
 use App\Models\ChatMessage;
+use App\Models\DeviceCommand;
 use App\Models\Student;
+use App\Models\StudentDevice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -53,6 +55,78 @@ class AnnouncementFlowTest extends TestCase
         $this->assertNull($message->student_id);
         $this->assertSame('Read https://example.com/update', $message->body);
         Storage::disk('local')->assertExists($message->attachment_path);
+    }
+
+    public function test_mentor_announcement_queues_visible_device_message_for_active_student_devices(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $activeStudentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $activeStudent = Student::create([
+            'user_id' => $activeStudentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $inactiveStudentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'old',
+        ]);
+
+        $inactiveStudent = Student::create([
+            'user_id' => $inactiveStudentUser->id,
+            'display_name' => 'Old',
+            'status' => 'inactive',
+            'notes' => null,
+        ]);
+
+        $activeDevice = StudentDevice::create([
+            'student_id' => $activeStudent->id,
+            'device_key' => 'announcement-active-device',
+            'label' => 'Desk PC',
+            'platform' => 'windows',
+        ]);
+
+        StudentDevice::create([
+            'student_id' => $activeStudent->id,
+            'device_key' => 'announcement-revoked-device',
+            'label' => 'Old PC',
+            'platform' => 'windows',
+            'revoked_at' => now(),
+        ]);
+
+        StudentDevice::create([
+            'student_id' => $inactiveStudent->id,
+            'device_key' => 'announcement-inactive-device',
+            'label' => 'Inactive PC',
+            'platform' => 'windows',
+        ]);
+
+        $this->actingAs($mentor)
+            ->post(route('admin.announcements.store'), [
+                'body' => 'Class starts in five minutes.',
+            ])
+            ->assertRedirect(route('admin.announcements.index', absolute: false));
+
+        $message = ChatMessage::query()->sole();
+        $command = DeviceCommand::query()->sole();
+
+        $this->assertSame($activeDevice->id, $command->student_device_id);
+        $this->assertSame('show_message', $command->command_type);
+        $this->assertSame('pending', $command->status);
+        $this->assertSame([
+            'title' => 'Announcement',
+            'body' => 'Class starts in five minutes.',
+            'display_seconds' => 20,
+            'chat_message_id' => $message->id,
+        ], $command->payload);
     }
 
     public function test_student_can_view_read_only_announcements(): void

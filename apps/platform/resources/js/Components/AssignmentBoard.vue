@@ -56,21 +56,6 @@ const groupedAssignments = computed(() =>
     })),
 );
 
-const statusBadgeClasses = (status: AssignmentStatus): string => {
-    if (status === 'unread') return 'bg-sky-100 text-sky-900';
-    if (status === 'viewed') return 'bg-stone-200 text-stone-800';
-    if (status === 'in_progress') return 'bg-amber-100 text-amber-900';
-    if (status === 'handed_in') return 'bg-indigo-100 text-indigo-900';
-
-    return 'bg-emerald-100 text-emerald-900';
-};
-
-const statusLabel = (status: AssignmentStatus): string => {
-    if (status === 'in_progress') return 'In progress';
-    if (status === 'handed_in') return 'Handed in';
-
-    return status.charAt(0).toUpperCase() + status.slice(1);
-};
 </script>
 
 <template>
@@ -101,47 +86,23 @@ const statusLabel = (status: AssignmentStatus): string => {
                         :key="assignment.id"
                         class="rounded-[1rem] bg-white p-3 shadow-sm ring-1 ring-stone-200"
                     >
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <div
-                                    v-if="mode === 'admin' && assignment.student"
-                                    class="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] text-stone-500"
-                                >
-                                    <Link
-                                        v-if="assignment.student_view_url"
-                                        :href="assignment.student_view_url"
-                                        class="font-semibold text-stone-700 underline underline-offset-2"
-                                    >
-                                        {{ assignment.student.display_name }}
-                                    </Link>
-                                    <span>{{ assignment.student.username }}</span>
-                                </div>
-
-                                <h4 class="text-sm font-semibold leading-5 text-stone-950">
-                                    {{ assignment.title }}
-                                </h4>
-                                <p class="mt-1 text-[11px] text-stone-500">
-                                    Created by {{ assignment.creator_name }}<span v-if="assignment.created_at_label">, {{ assignment.created_at_label }}</span>
-                                </p>
-                            </div>
-
-                            <span
-                                class="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                                :class="statusBadgeClasses(assignment.status)"
-                            >
-                                {{ statusLabel(assignment.status) }}
-                            </span>
-                        </div>
-
-                        <p v-if="assignment.body" class="mt-2.5 whitespace-pre-wrap text-xs leading-5 text-stone-800">
-                            {{ assignment.body }}
+                        <Link
+                            v-if="mode === 'admin' && assignment.student && assignment.student_view_url"
+                            :href="assignment.student_view_url"
+                            class="block truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-600 underline underline-offset-2"
+                        >
+                            {{ assignment.student.display_name }}
+                        </Link>
+                        <p
+                            v-else-if="mode === 'admin' && assignment.student"
+                            class="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-600"
+                        >
+                            {{ assignment.student.display_name }}
                         </p>
 
-                        <div class="mt-2.5 flex flex-wrap gap-2 text-[11px] text-stone-500">
-                            <span v-if="assignment.viewed_at_label">Viewed {{ assignment.viewed_at_label }}</span>
-                            <span v-if="assignment.started_at_label">Started {{ assignment.started_at_label }}</span>
-                            <span v-if="assignment.completed_at_label">Completed {{ assignment.completed_at_label }}</span>
-                        </div>
+                        <p class="mt-2 whitespace-pre-wrap text-xs leading-5 text-stone-900">
+                            {{ assignment.body || 'Assignment' }}
+                        </p>
 
                         <div class="mt-3 flex flex-wrap gap-2">
                             <button

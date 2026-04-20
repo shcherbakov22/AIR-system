@@ -25,6 +25,7 @@ class CompanionUpdateController extends Controller
             'download_url' => route('api.companion.update.download'),
             'sha256' => hash_file('sha256', $realPath),
             'size_bytes' => filesize($realPath) ?: 0,
+            'filename' => 'air-companion-windows.zip',
             'published_at' => date(DATE_ATOM, filemtime($realPath) ?: time()),
         ]);
     }
@@ -38,11 +39,7 @@ class CompanionUpdateController extends Controller
 
         abort_unless($realPath !== false && is_file($realPath) && is_readable($realPath), 404);
 
-        return response()->download($realPath, 'air-companion-windows.zip', [
-            'Content-Type' => 'application/zip',
-            'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-        ]);
+        return $this->downloadResponse($realPath, 'air-companion-windows.zip');
     }
 
     public function installerBundle(): BinaryFileResponse
@@ -54,11 +51,19 @@ class CompanionUpdateController extends Controller
 
         abort_unless($realPath !== false && is_file($realPath) && is_readable($realPath), 404);
 
-        return response()->download($realPath, 'air-companion-windows-installer.zip', [
-            'Content-Type' => 'application/zip',
-            'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-        ]);
+        return $this->downloadResponse($realPath, 'air-companion-windows-installer.zip');
+    }
+
+    public function browserExtensionBundle(): BinaryFileResponse
+    {
+        abort_unless((bool) config('services.companion_updates.enabled', true), 404);
+
+        $packagePath = $this->browserExtensionBundlePath();
+        $realPath = realpath($packagePath);
+
+        abort_unless($realPath !== false && is_file($realPath) && is_readable($realPath), 404);
+
+        return $this->downloadResponse($realPath, 'air-look-extension.zip');
     }
 
     private function packagePath(): string
@@ -79,8 +84,31 @@ class CompanionUpdateController extends Controller
             : base_path($configuredPath);
     }
 
+    private function browserExtensionBundlePath(): string
+    {
+        $configuredPath = (string) config('services.companion_updates.browser_extension_bundle_path', '');
+
+        return $this->isAbsolutePath($configuredPath)
+            ? $configuredPath
+            : base_path($configuredPath);
+    }
+
     private function isAbsolutePath(string $path): bool
     {
         return preg_match('/^(?:[A-Za-z]:[\\\\\/]|[\\\\\/]{2}|\/)/', $path) === 1;
+    }
+
+    private function downloadResponse(string $realPath, string $filename): BinaryFileResponse
+    {
+        $sha256 = hash_file('sha256', $realPath);
+
+        return response()->download($realPath, $filename, [
+            'Content-Type' => 'application/zip',
+            'X-Content-Type-Options' => 'nosniff',
+            'X-AIR-Companion-SHA256' => $sha256,
+            'X-AIR-Companion-Version' => (string) config('services.companion_updates.version', '0.1.0'),
+            'ETag' => '"'.$sha256.'"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ])->setLastModified(new \DateTimeImmutable('@'.(filemtime($realPath) ?: time())));
     }
 }

@@ -18,8 +18,9 @@ class CompanionEnrollmentController extends Controller
 
         return Inertia::render('Student/Companion/Enroll', [
             'installer_download_url' => route('companion.installer.download'),
+            'browser_extension_download_url' => route('companion.browser-extension.download'),
             'bootstrap_script_url' => route('student.companion.enroll.bootstrap'),
-            'root_ca_url' => route('companion.root-ca'),
+            'root_ca_url' => $this->rootCertificateUrl(),
             'base_url' => url('/'),
         ]);
     }
@@ -37,7 +38,7 @@ class CompanionEnrollmentController extends Controller
         );
 
         $baseUrl = url('/');
-        $rootCaUrl = route('companion.root-ca');
+        $rootCaUrl = $this->rootCertificateUrl();
         $script = <<<'POWERSHELL'
 param(
     [switch]$Elevated
@@ -196,5 +197,23 @@ POWERSHELL;
             'Content-Disposition' => 'attachment; filename="air-companion-enroll.ps1"',
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
         ]);
+    }
+
+    private function rootCertificateUrl(): string
+    {
+        $configuredPath = config('services.local_tls.root_ca_path');
+
+        if (! is_string($configuredPath) || $configuredPath === '') {
+            return '';
+        }
+
+        $path = preg_match('/^(?:[A-Za-z]:[\\\\\/]|[\\\\\/]{2}|\/)/', $configuredPath) === 1
+            ? $configuredPath
+            : base_path($configuredPath);
+        $realPath = realpath($path);
+
+        return $realPath !== false && is_file($realPath) && is_readable($realPath)
+            ? route('companion.root-ca')
+            : '';
     }
 }

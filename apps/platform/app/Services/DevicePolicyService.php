@@ -6,6 +6,7 @@ use App\Models\DeviceActivityEvent;
 use App\Models\Student;
 use App\Models\StudentDevice;
 use App\Models\TaskSession;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Arr;
 
 class DevicePolicyService
@@ -33,6 +34,7 @@ class DevicePolicyService
             ?? $student->scheduleRuns->firstWhere('status', 'paused');
         $communicationGate = $this->communicationGateService->payload($student);
         $openViolations = $student->violations->where('status', 'open')->values();
+        $staleViolationDeadline = now()->subMinutes(10);
 
         $internetPolicy = $this->internetPolicy($device);
 
@@ -69,6 +71,13 @@ class DevicePolicyService
                     'occurred_at' => $violation->occurred_at?->toAtomString(),
                 ])->all(),
             ],
+            'violation_app_enforcement' => [
+                'kill_gui_apps' => $openViolations->contains(
+                    fn ($violation) => $violation->occurred_at instanceof Carbon
+                        && $violation->occurred_at->lessThanOrEqualTo($staleViolationDeadline)
+                ),
+                'browser_reopen_grace_seconds' => 60,
+            ],
             'communication_gate' => $communicationGate,
             'internet_policy' => $internetPolicy,
             'app_control' => [
@@ -87,13 +96,6 @@ class DevicePolicyService
             ],
             'commands' => [
                 'pending_count' => $device->commands()->where('status', 'pending')->count(),
-            ],
-            'remote_control' => [
-                'ready' => (bool) $device->remote_control_ready,
-                'active' => (bool) $device->remote_control_active,
-                'port' => $device->remote_control_port,
-                'last_checked_at' => $device->remote_control_last_checked_at?->toAtomString(),
-                'failure_reason' => $device->remote_control_failure_reason,
             ],
             'server_now' => now()->toAtomString(),
         ];

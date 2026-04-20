@@ -43,7 +43,6 @@ const props = defineProps<{
         unread_count: number;
         latest_unread_assignment: {
             id: number;
-            title: string;
             created_at_label?: string | null;
             creator_name?: string | null;
         } | null;
@@ -487,7 +486,7 @@ const showBlockingAssignmentDialog = () => {
 
     if (latest) {
         lines.push(
-            `- ${latest.title}${latest.created_at_label ? ` (${latest.created_at_label})` : ''}`,
+            latest.created_at_label ? `- ${latest.created_at_label}` : '- Assignment',
         );
     }
 
@@ -944,7 +943,9 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                         </p>
                         <div class="min-w-0 space-y-1 text-sm">
                             <p v-if="assignmentGate.latest_unread_assignment" class="truncate">
-                                {{ assignmentGate.latest_unread_assignment.title }}<span v-if="assignmentGate.latest_unread_assignment.created_at_label">, {{ assignmentGate.latest_unread_assignment.created_at_label }}</span>
+                                <span v-if="assignmentGate.latest_unread_assignment.created_at_label">
+                                    {{ assignmentGate.latest_unread_assignment.created_at_label }}
+                                </span>
                             </p>
                         </div>
                     </div>

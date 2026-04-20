@@ -10,8 +10,10 @@ return new class extends Migration
     {
         Schema::create('device_attention_calibration_batches', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('device_attention_calibration_session_id', 'session_id')
-                ->constrained('device_attention_calibration_sessions')
+            $table->foreignId('device_attention_calibration_session_id');
+            $table->foreign('device_attention_calibration_session_id', 'attention_batches_session_fk')
+                ->references('id')
+                ->on('device_attention_calibration_sessions')
                 ->cascadeOnDelete();
             $table->unsignedInteger('sequence_number')->default(1);
             $table->unsignedInteger('sample_count')->default(0);

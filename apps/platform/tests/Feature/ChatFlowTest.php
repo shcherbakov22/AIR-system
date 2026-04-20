@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\UserRole;
 use App\Models\ChatMessage;
+use App\Models\DeviceCommand;
 use App\Models\Student;
+use App\Models\StudentDevice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -83,6 +85,61 @@ class ChatFlowTest extends TestCase
         $this->assertSame('See https://example.com', $message->body);
         $this->assertTrue($message->isImage());
         Storage::disk('local')->assertExists($message->attachment_path);
+    }
+
+    public function test_mentor_chat_message_queues_visible_device_message_for_active_devices(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'name' => 'Mentor One',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $activeDevice = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'device-visible-message',
+            'label' => 'Desk PC',
+            'platform' => 'windows',
+        ]);
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'device-revoked-message',
+            'label' => 'Old PC',
+            'platform' => 'windows',
+            'revoked_at' => now(),
+        ]);
+
+        $this->actingAs($mentor)
+            ->post(route('admin.chats.store', $student), [
+                'body' => 'Look at the board right now.',
+            ])
+            ->assertRedirect(route('admin.chats.show', $student, absolute: false))
+            ->assertSessionHas('success', 'Message sent.');
+
+        $message = ChatMessage::query()->sole();
+        $command = DeviceCommand::query()->sole();
+
+        $this->assertSame($activeDevice->id, $command->student_device_id);
+        $this->assertSame('show_message', $command->command_type);
+        $this->assertSame('pending', $command->status);
+        $this->assertSame([
+            'title' => 'Message from Mentor One',
+            'body' => 'Look at the board right now.',
+            'display_seconds' => 20,
+            'chat_message_id' => $message->id,
+        ], $command->payload);
     }
 
     public function test_student_can_only_view_their_own_chat_thread(): void

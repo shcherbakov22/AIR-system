@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Site blocked</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="page">
+      <section class="panel">
+        <p class="eyebrow">AIR Browser Accountability</p>
+        <h1>This site is not available right now.</h1>
+        <dl>
+          <div>
+            <dt>Site</dt>
+            <dd id="host"></dd>
+          </div>
+          <div>
+            <dt>Request scope</dt>
+            <dd id="scope"></dd>
+          </div>
+        </dl>
+        <label for="reason">Reason</label>
+        <textarea id="reason" rows="4" placeholder="Why do you need access?"></textarea>
+        <div class="actions">
+          <button id="requestButton" type="button">Request access</button>
+          <button id="retryButton" type="button" class="secondary">Try again</button>
+        </div>
+        <p id="status" role="status"></p>
+      </section>
+    </main>
+    <script src="blocked.js"></script>
+  </body>
+</html>

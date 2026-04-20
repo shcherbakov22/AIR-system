@@ -27,7 +27,6 @@ const props = defineProps<{
 
 const form = useForm({
     student_id: String(props.student.id),
-    title: '',
     body: '',
     return_to_student: true,
 });
@@ -35,7 +34,7 @@ const form = useForm({
 const submit = () => {
     form.post(route('admin.assignments.store'), {
         preserveScroll: true,
-        onSuccess: () => form.reset('title', 'body'),
+        onSuccess: () => form.reset('body'),
     });
 };
 
@@ -83,17 +82,11 @@ const markIncomplete = (url?: string | null) => {
                     </p>
 
                     <form class="mt-4 space-y-3" @submit.prevent="submit">
-                        <input
-                            v-model="form.title"
-                            type="text"
-                            class="w-full rounded-[1rem] border-stone-300 px-4 py-3 text-sm shadow-sm focus:border-stone-950 focus:ring-stone-950"
-                            placeholder="Assignment title"
-                        >
                         <textarea
                             v-model="form.body"
                             rows="5"
                             class="w-full rounded-[1rem] border-stone-300 px-4 py-3 text-sm shadow-sm focus:border-stone-950 focus:ring-stone-950"
-                            placeholder="Details"
+                            placeholder="Assignment"
                         />
                         <button
                             type="submit"

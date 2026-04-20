@@ -27,11 +27,6 @@ class StudentDevice extends Model
         'last_gateway_ipv4',
         'network_adapter_name',
         'internet_access_mode',
-        'remote_control_ready',
-        'remote_control_active',
-        'remote_control_port',
-        'remote_control_last_checked_at',
-        'remote_control_failure_reason',
         'last_policy_hash',
         'last_network_state',
         'revoked_at',
@@ -47,10 +42,6 @@ class StudentDevice extends Model
     {
         return [
             'last_seen_at' => 'datetime',
-            'remote_control_ready' => 'boolean',
-            'remote_control_active' => 'boolean',
-            'remote_control_port' => 'integer',
-            'remote_control_last_checked_at' => 'datetime',
             'last_network_state' => 'array',
             'revoked_at' => 'datetime',
             'meta' => 'array',
@@ -92,11 +83,6 @@ class StudentDevice extends Model
         return $this->hasMany(StudentMonitorCapture::class);
     }
 
-    public function remoteControlSessions(): HasMany
-    {
-        return $this->hasMany(RemoteControlSession::class);
-    }
-
     public function installedApps(): HasMany
     {
         return $this->hasMany(StudentDeviceInstalledApp::class);
@@ -110,6 +96,16 @@ class StudentDevice extends Model
     public function browserLoginTokens(): HasMany
     {
         return $this->hasMany(DeviceBrowserLoginToken::class);
+    }
+
+    public function browserVisitLogs(): HasMany
+    {
+        return $this->hasMany(BrowserVisitLog::class);
+    }
+
+    public function browserAccessRequests(): HasMany
+    {
+        return $this->hasMany(BrowserAccessRequest::class);
     }
 
     public function issueToken(): string

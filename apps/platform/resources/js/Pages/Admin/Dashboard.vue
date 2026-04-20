@@ -26,6 +26,7 @@ type DashboardStudent = {
     id: number;
     display_name: string;
     status: string;
+    extension_url: string;
     current_push_up_count: number;
     user: {
         id: number;
@@ -91,11 +92,6 @@ type DashboardStudent = {
         task_title?: string | null;
         source_label?: string | null;
         image_url: string;
-    } | null;
-    remote_control?: {
-        device_id: number;
-        device_label: string;
-        start_url: string;
     } | null;
     latest_device_activity?: {
         device_label: string;
@@ -203,9 +199,17 @@ const selectedCaptureHistory = ref<Array<DashboardCapture & { studentName: strin
 const selectedCaptureHistoryIndex = ref(0);
 const captureHistoryLoading = ref(false);
 const capturePreloadCache = new Map<string, Promise<void>>();
+const captureReadyUrls = ref<Record<string, true>>({});
+const captureHistoryCache = new Map<number, DashboardCapture[]>();
+const captureHistoryRequestCache = new Map<number, Promise<DashboardCapture[]>>();
 const selectedAppsStudent = ref<DashboardStudent | null>(null);
 const selectedViolationRuleIds = ref<Record<number, string>>({});
+const violationApplyPendingByStudentId = ref<Record<number, boolean>>({});
+const assignmentComposerOpenByStudentId = ref<Record<number, boolean>>({});
+const assignmentBodyByStudentId = ref<Record<number, string>>({});
+const assignmentCreatePendingByStudentId = ref<Record<number, boolean>>({});
 const pushUpStationMenuOpen = ref(false);
+const violationSelectByStudentId = new Map<number, HTMLSelectElement>();
 const browserSpeechStorageKey = 'air-dashboard-browser-speech-enabled';
 const browserSpeechWatermarkStorageKey = 'air-dashboard-browser-speech-watermark';
 const browserSpeechEnabled = ref(localStorage.getItem(browserSpeechStorageKey) !== '0');
@@ -600,6 +604,10 @@ const preloadCaptureImage = (imageUrl?: string | null): Promise<void> => {
         return Promise.resolve();
     }
 
+    if (captureReadyUrls.value[imageUrl]) {
+        return Promise.resolve();
+    }
+
     const existing = capturePreloadCache.get(imageUrl);
     if (existing) {
         return existing;
@@ -607,10 +615,42 @@ const preloadCaptureImage = (imageUrl?: string | null): Promise<void> => {
 
     const preloadPromise = new Promise<void>((resolve) => {
         const image = new Image();
-        image.decoding = 'async';
-        image.onload = () => resolve();
-        image.onerror = () => resolve();
+        let settled = false;
+        const markReady = () => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            captureReadyUrls.value = {
+                ...captureReadyUrls.value,
+                [imageUrl]: true,
+            };
+            resolve();
+        };
+
+        image.decoding = 'sync';
+        image.loading = 'eager';
+        image.onload = () => {
+            void image.decode()
+                .catch(() => undefined)
+                .finally(markReady);
+        };
+        image.onerror = () => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            resolve();
+        };
         image.src = imageUrl;
+
+        if (image.complete) {
+            void image.decode()
+                .catch(() => undefined)
+                .finally(markReady);
+        }
     });
 
     capturePreloadCache.set(imageUrl, preloadPromise);
@@ -639,6 +679,59 @@ const preloadCaptureHistory = (captures: Array<DashboardCapture & { studentName:
     });
 };
 
+const fetchCaptureHistory = async (captureId: number): Promise<DashboardCapture[]> => {
+    if (!captureId) {
+        return [];
+    }
+
+    const cached = captureHistoryCache.get(captureId);
+    if (cached) {
+        return cached;
+    }
+
+    const existingRequest = captureHistoryRequestCache.get(captureId);
+    if (existingRequest) {
+        return existingRequest;
+    }
+
+    const request = window.fetch(route('admin.student-monitor-captures.day-history', captureId), {
+        headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+    })
+        .then(async (response) => {
+            if (!response.ok) {
+                return [];
+            }
+
+            const payload = await response.json() as {
+                captures: DashboardCapture[];
+            };
+
+            const captures = payload.captures ?? [];
+            captureHistoryCache.set(captureId, captures);
+
+            return captures;
+        })
+        .finally(() => {
+            captureHistoryRequestCache.delete(captureId);
+        });
+
+    captureHistoryRequestCache.set(captureId, request);
+
+    return request;
+};
+
+const warmCaptureHistory = (captureId?: number | null) => {
+    if (!captureId || captureHistoryCache.has(captureId) || captureHistoryRequestCache.has(captureId)) {
+        return;
+    }
+
+    void fetchCaptureHistory(captureId);
+};
+
 const setupCaptureObserver = () => {
     if (!monitorGridRef.value) return;
 
@@ -656,9 +749,11 @@ const setupCaptureObserver = () => {
                     if (student.latest_screen_capture?.image_url) {
                         void preloadCaptureImage(student.latest_screen_capture.image_url);
                     }
+                    warmCaptureHistory(student.latest_screen_capture?.id);
                     if (student.latest_camera_capture?.image_url) {
                         void preloadCaptureImage(student.latest_camera_capture.image_url);
                     }
+                    warmCaptureHistory(student.latest_camera_capture?.id);
                 }
             });
         },
@@ -689,9 +784,11 @@ const preloadVisibleCaptures = () => {
         if (student.latest_screen_capture?.image_url) {
             void preloadCaptureImage(student.latest_screen_capture.image_url);
         }
+        warmCaptureHistory(student.latest_screen_capture?.id);
         if (student.latest_camera_capture?.image_url) {
             void preloadCaptureImage(student.latest_camera_capture.image_url);
         }
+        warmCaptureHistory(student.latest_camera_capture?.id);
     });
 };
 
@@ -704,10 +801,6 @@ watch(
 );
 
 const deleteViolation = (violationId: number) => {
-    if (!window.confirm('Delete this violation?')) {
-        return;
-    }
-
     router.delete(route('admin.violations.destroy', violationId), {
         data: {
             return_to_dashboard: true,
@@ -718,10 +811,16 @@ const deleteViolation = (violationId: number) => {
 };
 
 const applyViolation = (studentId: number) => {
+    if (violationApplyPendingByStudentId.value[studentId]) {
+        return;
+    }
+
     const selectedRuleDefinitionId = selectedViolationRuleIds.value[studentId];
     if (!selectedRuleDefinitionId) {
         return;
     }
+
+    violationApplyPendingByStudentId.value[studentId] = true;
 
     router.post(route('admin.violations.store'), {
         student_id: studentId,
@@ -733,6 +832,70 @@ const applyViolation = (studentId: number) => {
         preserveState: true,
         onSuccess: () => {
             selectedViolationRuleIds.value[studentId] = '';
+        },
+        onFinish: () => {
+            violationApplyPendingByStudentId.value[studentId] = false;
+        },
+    });
+};
+
+const setViolationSelectRef = (studentId: number, element: unknown) => {
+    if (element instanceof HTMLSelectElement) {
+        violationSelectByStudentId.set(studentId, element);
+        return;
+    }
+
+    violationSelectByStudentId.delete(studentId);
+};
+
+const openViolationDropdown = (studentId: number) => {
+    const select = violationSelectByStudentId.get(studentId);
+    if (!select) {
+        return;
+    }
+
+    const pickerCapableSelect = select as HTMLSelectElement & { showPicker?: () => void };
+    if (typeof pickerCapableSelect.showPicker === 'function') {
+        pickerCapableSelect.showPicker();
+        return;
+    }
+
+    select.focus();
+    select.click();
+};
+
+const toggleAssignmentComposer = (studentId: number) => {
+    assignmentComposerOpenByStudentId.value = {
+        ...assignmentComposerOpenByStudentId.value,
+        [studentId]: !assignmentComposerOpenByStudentId.value[studentId],
+    };
+};
+
+const createAssignment = (studentId: number) => {
+    if (assignmentCreatePendingByStudentId.value[studentId]) {
+        return;
+    }
+
+    const body = (assignmentBodyByStudentId.value[studentId] ?? '').trim();
+    if (!body) {
+        return;
+    }
+
+    assignmentCreatePendingByStudentId.value[studentId] = true;
+
+    router.post(route('admin.assignments.store'), {
+        student_id: studentId,
+        body,
+        return_to_dashboard: true,
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => {
+            assignmentBodyByStudentId.value[studentId] = '';
+            assignmentComposerOpenByStudentId.value[studentId] = false;
+        },
+        onFinish: () => {
+            assignmentCreatePendingByStudentId.value[studentId] = false;
         },
     });
 };
@@ -753,12 +916,24 @@ const openCapture = (studentName: string, capture: DashboardCapture) => {
         ...capture,
         studentName,
     };
-    selectedCaptureHistory.value = [{
-        ...capture,
-        studentName,
-    }];
-    selectedCaptureHistoryIndex.value = 0;
     void preloadCaptureImage(capture.image_url);
+
+    const cachedHistory = captureHistoryCache.get(capture.id);
+
+    if (cachedHistory && cachedHistory.length > 0) {
+        selectedCaptureHistory.value = cachedHistory.map((historyCapture) => ({
+            ...historyCapture,
+            studentName,
+        }));
+        const currentIndex = selectedCaptureHistory.value.findIndex((historyCapture) => historyCapture.id === capture.id);
+        selectedCaptureHistoryIndex.value = currentIndex >= 0 ? currentIndex : 0;
+        preloadCaptureHistory(selectedCaptureHistory.value);
+        preloadCaptureNeighbors(selectedCaptureHistoryIndex.value);
+    } else {
+        selectedCaptureHistory.value = [];
+        selectedCaptureHistoryIndex.value = 0;
+    }
+
     loadCaptureHistory(studentName, capture.id);
 };
 
@@ -789,17 +964,6 @@ const markStudentChatNotificationRead = (student: DashboardStudent, readUrl?: st
     router.patch(readUrl, {}, {
         preserveScroll: true,
         preserveState: true,
-    });
-};
-
-const openRemoteSession = (student: DashboardStudent) => {
-    const remoteControl = student.remote_control;
-    if (!remoteControl) {
-        return;
-    }
-
-    router.post(remoteControl.start_url, {}, {
-        preserveScroll: true,
     });
 };
 
@@ -926,23 +1090,13 @@ const loadCaptureHistory = async (studentName: string, captureId: number) => {
     captureHistoryLoading.value = true;
 
     try {
-        const response = await window.fetch(route('admin.student-monitor-captures.day-history', captureId), {
-            headers: {
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-        });
+        const captures = await fetchCaptureHistory(captureId);
 
-        if (!response.ok) {
+        if (selectedCapture.value?.id !== captureId) {
             return;
         }
 
-        const payload = await response.json() as {
-            captures: DashboardCapture[];
-        };
-
-        selectedCaptureHistory.value = payload.captures.map((historyCapture) => ({
+        selectedCaptureHistory.value = captures.map((historyCapture) => ({
             ...historyCapture,
             studentName,
         }));
@@ -970,6 +1124,7 @@ const showCaptureHistoryItem = (index: number) => {
     selectedCaptureHistoryIndex.value = index;
     selectedCapture.value = nextCapture;
     preloadCaptureNeighbors(index);
+    void preloadCaptureImage(nextCapture.image_url);
 };
 
 const jumpToCaptureHistory = (event: Event) => {
@@ -1203,73 +1358,130 @@ const blockTooltip = (block: DashboardBlock): string => {
                     :data-student-id="student.id"
                     class="relative flex h-[calc(100vh-3.5rem)] max-h-[calc(100vh-3.5rem)] min-h-[22rem] w-full min-w-0 flex-col overflow-hidden rounded-[1rem] bg-white p-1.5 shadow-sm ring-1 ring-stone-200"
                 >
-                    <div class="flex items-start justify-between gap-1.5">
-                        <div class="min-w-0">
-                            <p class="truncate text-sm font-semibold text-stone-950">
-                                {{ student.display_name }}
-                            </p>
-                        </div>
+                    <div>
+                        <p class="truncate text-sm font-semibold text-stone-950">
+                            {{ student.display_name }}
+                        </p>
 
-                        <div class="flex shrink-0 items-center gap-1">
+                        <div class="mt-1 flex min-w-0 flex-wrap items-center gap-0.5">
                             <span
                                 v-if="hasAnyAdminChatGate"
-                                class="inline-flex rounded-full border border-stone-200 bg-stone-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400 opacity-50"
+                                class="inline-flex rounded-full border border-stone-200 bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-400 opacity-50"
                                 aria-disabled="true"
                             >
-                                Prog
+                                Pr
                             </span>
                             <Link
                                 v-else
                                 :href="route('admin.students.progress', student.id)"
-                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                class="rounded-full border border-stone-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
                             >
-                                Prog
+                                Pr
+                            </Link>
+                            <Link
+                                :href="student.extension_url"
+                                class="rounded-full border border-stone-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                            >
+                                EX
                             </Link>
                             <Link
                                 v-if="student.communication_gate?.has_unread_student_chat"
                                 :href="student.communication_gate?.chat_url ?? route('admin.chats.show', student.id)"
-                                class="rounded-full border border-rose-300 bg-rose-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700 transition hover:border-rose-500 hover:bg-rose-100 hover:text-rose-800"
+                                class="rounded-full border border-rose-300 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-700 transition hover:border-rose-500 hover:bg-rose-100 hover:text-rose-800"
                             >
-                                Chat
+                                Ch
                             </Link>
                             <span
                                 v-else-if="hasAnyAdminChatGate"
-                                class="inline-flex rounded-full border border-stone-200 bg-stone-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400 opacity-50"
+                                class="inline-flex rounded-full border border-stone-200 bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-400 opacity-50"
                                 aria-disabled="true"
                             >
-                                Chat
+                                Ch
                             </span>
                             <Link
                                 v-else
                                 :href="student.communication_gate?.chat_url ?? route('admin.chats.show', student.id)"
-                                class="rounded-full border border-stone-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                                class="rounded-full border border-stone-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
                             >
-                                Chat
+                                Ch
                             </Link>
                             <button
                                 type="button"
-                                class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition disabled:cursor-not-allowed disabled:opacity-50"
+                                class="rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition disabled:cursor-not-allowed disabled:opacity-50"
                                 :class="hasAnyAdminChatGate
                                     ? 'border-stone-200 bg-stone-100 text-stone-400'
                                     : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
                                 :disabled="hasAnyAdminChatGate"
                                 @click="openAppsPanel(student)"
                             >
-                                Apps
+                                Ap
                             </button>
                             <button
                                 type="button"
-                                class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition disabled:cursor-not-allowed disabled:opacity-50"
-                                :class="student.remote_control && !hasAnyAdminChatGate
-                                    ? 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'
-                                    : 'border-stone-200 bg-stone-100 text-stone-400'"
-                                :disabled="!student.remote_control || hasAnyAdminChatGate"
-                                @click="openRemoteSession(student)"
+                                class="rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition disabled:cursor-not-allowed disabled:opacity-50"
+                                :class="hasAnyAdminChatGate
+                                    ? 'border-sky-100 bg-sky-50 text-sky-300'
+                                    : assignmentComposerOpenByStudentId[student.id]
+                                        ? 'border-sky-500 bg-sky-100 text-sky-900'
+                                        : 'border-sky-300 bg-sky-50 text-sky-800 hover:border-sky-500 hover:bg-sky-100'"
+                                :disabled="hasAnyAdminChatGate"
+                                @click="toggleAssignmentComposer(student.id)"
                             >
-                                Remote
+                                AS
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition disabled:cursor-not-allowed disabled:opacity-50"
+                                :class="hasAnyAdminChatGate
+                                    ? 'border-orange-100 bg-orange-50 text-orange-300'
+                                    : 'border-orange-300 bg-orange-50 text-orange-800 hover:border-orange-500 hover:bg-orange-100'"
+                                :disabled="hasAnyAdminChatGate || !!violationApplyPendingByStudentId[student.id]"
+                                @click="openViolationDropdown(student.id)"
+                            >
+                                VL
                             </button>
                         </div>
                     </div>
+
+                    <form
+                        v-if="assignmentComposerOpenByStudentId[student.id]"
+                        class="mt-1 rounded-[0.75rem] border border-sky-200 bg-sky-50 px-1.5 py-1.5"
+                        @submit.prevent="createAssignment(student.id)"
+                    >
+                        <textarea
+                            v-model="assignmentBodyByStudentId[student.id]"
+                            rows="2"
+                            class="w-full resize-none rounded-[0.55rem] border-sky-200 bg-white px-2 py-1 text-[11px] leading-4 text-stone-900 shadow-sm focus:border-sky-500 focus:ring-sky-500"
+                            placeholder="Assignment"
+                            :disabled="!!assignmentCreatePendingByStudentId[student.id]"
+                        />
+                        <div class="mt-1 flex justify-end">
+                            <button
+                                type="submit"
+                                class="rounded-full bg-sky-700 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="!!assignmentCreatePendingByStudentId[student.id] || !(assignmentBodyByStudentId[student.id] ?? '').trim()"
+                            >
+                                Add
+                            </button>
+                        </div>
+                    </form>
+
+                    <select
+                        :ref="(el) => setViolationSelectRef(student.id, el)"
+                        v-model="selectedViolationRuleIds[student.id]"
+                        class="absolute left-0 top-0 h-0 w-0 opacity-0 pointer-events-none"
+                        :disabled="hasAnyAdminChatGate || !!violationApplyPendingByStudentId[student.id]"
+                        @change="applyViolation(student.id)"
+                    >
+                        <option value="">Add violation</option>
+                        <option
+                            v-for="ruleDefinition in student.violation_rule_options"
+                            :key="ruleDefinition.id"
+                            :value="String(ruleDefinition.id)"
+                        >
+                            {{ ruleDefinition.title }}
+                        </option>
+                    </select>
 
                     <div
                         v-if="student.communication_gate?.has_unread_student_chat"
@@ -1393,26 +1605,6 @@ const blockTooltip = (block: DashboardBlock): string => {
                                     Remove
                                 </button>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-1 rounded-[0.75rem] bg-stone-50 px-1.5 py-1">
-                        <div class="flex items-center gap-1">
-                            <select
-                                v-model="selectedViolationRuleIds[student.id]"
-                                class="min-w-0 flex-1 rounded-[0.55rem] border border-stone-300 bg-white px-2 py-1 text-[11px] font-medium text-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                :disabled="hasAnyAdminChatGate"
-                                @change="applyViolation(student.id)"
-                            >
-                                <option value="">Add violation</option>
-                                <option
-                                    v-for="ruleDefinition in student.violation_rule_options"
-                                    :key="ruleDefinition.id"
-                                    :value="String(ruleDefinition.id)"
-                                >
-                                    {{ ruleDefinition.title }}
-                                </option>
-                            </select>
                         </div>
                     </div>
 
@@ -1690,6 +1882,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                 v-if="selectedCapture"
                 class="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/85 p-4"
                 @click.self="closeCapture"
+                @wheel.prevent="handleCaptureWheel"
             >
                 <div class="w-full max-w-6xl overflow-hidden rounded-[1.25rem] bg-white shadow-2xl">
                     <div class="flex items-start justify-between gap-4 border-b border-stone-200 px-4 py-3">
@@ -1764,12 +1957,25 @@ const blockTooltip = (block: DashboardBlock): string => {
                     <div class="grid gap-0 lg:grid-cols-[minmax(0,1fr)_18rem]">
                         <div
                             class="flex min-h-[24rem] items-center justify-center bg-stone-950"
-                            @wheel="handleCaptureWheel"
                         >
+                            <div class="hidden" aria-hidden="true">
+                                <img
+                                    v-for="capture in selectedCaptureHistory"
+                                    :key="`preload-${capture.id}`"
+                                    :src="capture.image_url"
+                                    alt=""
+                                    loading="eager"
+                                    decoding="sync"
+                                >
+                            </div>
                             <img
                                 v-if="selectedCapture.image_url"
+                                :key="selectedCapture.id"
                                 :src="selectedCapture.image_url"
                                 :alt="selectedCapture.capture_kind === 'camera' ? 'Camera capture' : 'Screen capture'"
+                                loading="eager"
+                                decoding="sync"
+                                fetchpriority="high"
                                 class="max-h-[80vh] w-full object-contain"
                             >
                             <div

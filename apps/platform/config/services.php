@@ -47,17 +47,10 @@ return [
         'root_ca_route' => env('LOCAL_TLS_ROOT_CA_ROUTE', '/companion/root-ca.crt'),
     ],
 
-    'remote_control' => [
-        'enabled' => env('REMOTE_CONTROL_ENABLED', true),
-        'gateway_url' => env('REMOTE_CONTROL_GATEWAY_URL', 'http://127.0.0.1:9821'),
-        'ready_heartbeat_max_age_seconds' => (int) env('REMOTE_CONTROL_READY_HEARTBEAT_MAX_AGE_SECONDS', 120),
-        'start_command_wait_seconds' => (int) env('REMOTE_CONTROL_START_COMMAND_WAIT_SECONDS', 12),
-    ],
-
     'companion_updates' => [
         'enabled' => env('COMPANION_UPDATES_ENABLED', true),
         'channel' => env('COMPANION_UPDATES_CHANNEL', 'stable'),
-        'version' => env('COMPANION_UPDATES_VERSION', '0.1.10'),
+        'version' => env('COMPANION_UPDATES_VERSION', '0.1.17'),
         'windows_package_path' => env(
             'COMPANION_WINDOWS_UPDATE_PACKAGE_PATH',
             storage_path('app/companion-updates/air-companion-windows.zip')
@@ -65,6 +58,10 @@ return [
         'windows_installer_bundle_path' => env(
             'COMPANION_WINDOWS_INSTALLER_BUNDLE_PATH',
             storage_path('app/companion-updates/air-companion-windows-installer.zip')
+        ),
+        'browser_extension_bundle_path' => env(
+            'COMPANION_BROWSER_EXTENSION_BUNDLE_PATH',
+            storage_path('app/companion-updates/air-look-extension.zip')
         ),
     ],
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Enums\UserRole;
+use App\Models\BrowserPolicyRule;
 use App\Models\DeviceEnrollmentToken;
 use App\Models\RuleDefinition;
 use App\Models\ScheduleRun;
@@ -168,6 +169,327 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.internet_policy.reason', 'internet_control_removed');
     }
 
+    public function test_browser_policy_defaults_to_blacklist_and_logs_domain_tree_block(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_blacklist_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        BrowserPolicyRule::create([
+            'student_id' => $student->id,
+            'effect' => 'block',
+            'match_type' => 'domain_tree',
+            'value' => 'youtube.com',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.browser.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.mode', 'blacklist')
+            ->assertJsonPath('policy.default_unblock_scope', 'domain_tree')
+            ->assertJsonPath('policy.rules.0.value', 'youtube.com');
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => 'https://music.youtube.com/watch?v=123',
+                'page_title' => 'Music',
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'blocked')
+            ->assertJsonPath('visit.host', 'music.youtube.com')
+            ->assertJsonPath('visit.registrable_domain', 'youtube.com');
+
+        $this->assertDatabaseHas('browser_visit_logs', [
+            'student_id' => $student->id,
+            'student_device_id' => $device->id,
+            'mode' => 'blacklist',
+            'decision' => 'blocked',
+            'host' => 'music.youtube.com',
+            'registrable_domain' => 'youtube.com',
+        ]);
+    }
+
+    public function test_browser_whitelist_blocks_unknown_domains_and_creates_access_request(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_whitelist_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $device->update(['internet_access_mode' => 'whitelist']);
+        $token = $device->issueToken();
+
+        BrowserPolicyRule::create([
+            'student_id' => $student->id,
+            'effect' => 'allow',
+            'match_type' => 'domain_tree',
+            'value' => 'khanacademy.org',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => 'https://math.khanacademy.org/lesson',
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'allowed')
+            ->assertJsonPath('visit.registrable_domain', 'khanacademy.org');
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => 'https://docs.google.com/document/d/abc',
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'blocked')
+            ->assertJsonPath('visit.registrable_domain', 'google.com');
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.access-requests.store'), [
+                'url' => 'https://docs.google.com/document/d/abc',
+                'reason' => 'Need this document for math.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('request.status', 'pending')
+            ->assertJsonPath('request.registrable_domain', 'google.com');
+
+        $this->assertDatabaseHas('browser_access_requests', [
+            'student_id' => $student->id,
+            'student_device_id' => $device->id,
+            'host' => 'docs.google.com',
+            'registrable_domain' => 'google.com',
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_browser_whitelist_uses_active_task_template_domains(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_task_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $device->update(['internet_access_mode' => 'whitelist']);
+        $token = $device->issueToken();
+
+        $tennisTemplate = TaskTemplate::create([
+            'title' => 'Tennis',
+            'summary' => null,
+            'instructions' => 'Practice serves.',
+            'default_duration_minutes' => 30,
+            'requires_internet' => false,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $codingTemplate = TaskTemplate::create([
+            'title' => 'Coding',
+            'summary' => null,
+            'instructions' => 'Build the project.',
+            'default_duration_minutes' => 45,
+            'requires_internet' => true,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        BrowserPolicyRule::create([
+            'student_id' => null,
+            'task_template_id' => $codingTemplate->id,
+            'effect' => 'allow',
+            'match_type' => 'domain_tree',
+            'value' => 'github.com',
+        ]);
+
+        $tennisSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $tennisTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Tennis',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(5),
+            'duration_seconds' => 300,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.browser.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.active_task.title', 'Tennis')
+            ->assertJsonCount(0, 'policy.rules');
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => 'https://github.com/laravel/framework',
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'blocked');
+
+        $tennisSession->update([
+            'status' => 'completed',
+            'ended_at' => now(),
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $codingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 45,
+            'started_at' => now(),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.browser.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.active_task.title', 'Coding')
+            ->assertJsonPath('policy.rules.0.value', 'github.com')
+            ->assertJsonPath('policy.rules.0.scope', 'task_template');
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => 'https://docs.github.com/actions',
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'allowed');
+    }
+
+    public function test_browser_access_approval_adds_domain_to_active_task_template(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_task_request_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'browser_task_request_admin',
+        ]);
+
+        $codingTemplate = TaskTemplate::create([
+            'title' => 'Coding',
+            'summary' => null,
+            'instructions' => 'Build the project.',
+            'default_duration_minutes' => 45,
+            'requires_internet' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $codingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 45,
+            'started_at' => now(),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $requestResponse = $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.access-requests.store'), [
+                'url' => 'https://docs.github.com/actions',
+                'reason' => 'Need docs for coding.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('request.task_template_id', $codingTemplate->id);
+
+        $accessRequestId = $requestResponse->json('request.id');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.browser-access-requests.approve', [$student, $accessRequestId]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('browser_policy_rules', [
+            'student_id' => null,
+            'task_template_id' => $codingTemplate->id,
+            'effect' => 'allow',
+            'match_type' => 'domain_tree',
+            'value' => 'github.com',
+        ]);
+    }
+
+    public function test_mentor_can_switch_browser_mode_for_student_devices(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_mode_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'browser_mode_admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.browser-mode.update', $student), [
+                'mode' => 'whitelist',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('student_devices', [
+            'id' => $device->id,
+            'internet_access_mode' => 'whitelist',
+        ]);
+    }
+
+    public function test_mentor_approval_allows_requested_domain_and_all_subdomains(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_approval_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'browser_approval_admin',
+        ]);
+
+        $requestResponse = $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.access-requests.store'), [
+                'url' => 'https://math.khanacademy.org/lesson/123',
+            ]);
+
+        $accessRequestId = $requestResponse->json('request.id');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.browser-access-requests.approve', [$student, $accessRequestId]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('browser_policy_rules', [
+            'student_id' => $student->id,
+            'effect' => 'allow',
+            'match_type' => 'domain_tree',
+            'value' => 'khanacademy.org',
+        ]);
+
+        $this->assertDatabaseHas('browser_access_requests', [
+            'id' => $accessRequestId,
+            'status' => 'approved',
+            'registrable_domain' => 'khanacademy.org',
+        ]);
+    }
+
+    public function test_policy_enables_gui_kill_only_for_violations_older_than_ten_minutes(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('stale_violation_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+
+        Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'rule_title_snapshot' => 'Recent violation',
+            'status' => 'open',
+            'penalty_units' => 5,
+            'push_up_count' => 5,
+            'occurred_at' => now()->subMinutes(9),
+        ]);
+
+        $recentResponse = $this->withHeaders($this->authHeaders($device->issueToken()))
+            ->getJson(route('api.companion.policy.show'));
+
+        $recentResponse
+            ->assertOk()
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false)
+            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
+
+        Violation::query()->update([
+            'occurred_at' => now()->subMinutes(10),
+        ]);
+
+        $staleResponse = $this->withHeaders($this->authHeaders($device->issueToken()))
+            ->getJson(route('api.companion.policy.show'));
+
+        $staleResponse
+            ->assertOk()
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true)
+            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
+    }
+
     public function test_device_can_post_heartbeat_activity_and_capture(): void
     {
         Storage::fake('local');
@@ -205,8 +527,6 @@ class CompanionApiTest extends TestCase
                 'mac_address' => 'aa:bb:cc:dd:ee:ff',
                 'gateway_ipv4' => '192.168.11.228',
                 'network_adapter_name' => 'Ethernet 1',
-                'remote_control_ready' => true,
-                'remote_control_failure_reason' => '',
                 'meta' => ['health' => 'ok'],
             ])
             ->assertOk()
@@ -243,7 +563,6 @@ class CompanionApiTest extends TestCase
             'last_mac_address' => 'aa:bb:cc:dd:ee:ff',
             'last_gateway_ipv4' => '192.168.11.228',
             'network_adapter_name' => 'Ethernet 1',
-            'remote_control_ready' => true,
         ]);
         $this->assertDatabaseHas('device_activity_events', [
             'student_device_id' => $device->id,
@@ -747,33 +1066,6 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.app_control.blocked_processes', ['Game.exe', 'taskmgr.exe']);
     }
 
-    public function test_ready_heartbeat_clears_stale_remote_control_failure_reason(): void
-    {
-        [$student, $studentUser] = $this->makeStudent('remote_ready_student', 'secret-pass');
-        $device = $this->enrollDevice($studentUser, 'secret-pass');
-        $token = $device->issueToken();
-
-        $device->update([
-            'remote_control_ready' => false,
-            'remote_control_failure_reason' => 'old failure',
-        ]);
-
-        $this->withHeaders($this->authHeaders($token))
-            ->postJson(route('api.companion.heartbeat'), [
-                'label' => 'Desk PC',
-                'remote_control_ready' => true,
-                'meta' => [],
-            ])
-            ->assertOk()
-            ->assertJsonPath('accepted', true);
-
-        $device->refresh();
-
-        $this->assertTrue($device->remote_control_ready);
-        $this->assertNull($device->remote_control_failure_reason);
-        $this->assertNotNull($device->remote_control_last_checked_at);
-    }
-
     public function test_device_command_flow_is_scoped_and_result_submission_is_idempotent(): void
     {
         [$student, $studentUser] = $this->makeStudent('command_student', 'secret-pass');
@@ -930,6 +1222,7 @@ class CompanionApiTest extends TestCase
                     'reason' => 'no_face',
                     'score' => 3.7,
                     'away_seconds' => 2.4,
+                    'client_event_id' => 'browser-attention-event-1',
                 ],
             ])
             ->assertOk()
@@ -941,9 +1234,26 @@ class CompanionApiTest extends TestCase
             ->postJson(route('student.attention.events.store'), [
                 'event_type' => 'look_away',
                 'payload' => [
+                    'reason' => 'no_face',
+                    'score' => 3.7,
+                    'away_seconds' => 2.4,
+                    'client_event_id' => 'browser-attention-event-1',
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('reason', 'duplicate_client_event');
+
+        $this->assertSame(1, $student->setting()->first()->look_away_event_count);
+
+        $this->actingAs($studentUser)
+            ->postJson(route('student.attention.events.store'), [
+                'event_type' => 'look_away',
+                'payload' => [
                     'reason' => 'look_away',
                     'score' => 4.1,
                     'away_seconds' => 2.7,
+                    'client_event_id' => 'browser-attention-event-2',
                 ],
             ])
             ->assertOk()

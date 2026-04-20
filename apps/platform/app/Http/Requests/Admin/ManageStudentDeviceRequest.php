@@ -29,9 +29,6 @@ class ManageStudentDeviceRequest extends FormRequest
                 'refresh_policy',
                 'request_screenshot',
                 'request_camera_capture',
-                'verify_remote_control',
-                'start_remote_control',
-                'stop_remote_control',
             ])],
             'payload' => ['nullable', 'array'],
         ];

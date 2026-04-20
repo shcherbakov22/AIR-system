@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Services\AttentionTrackingViolationService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,7 +24,19 @@ class AttentionEventController extends Controller
             'payload.reason' => ['nullable', 'string', 'max:120'],
             'payload.score' => ['nullable', 'numeric'],
             'payload.away_seconds' => ['nullable', 'numeric', 'min:0'],
+            'payload.client_event_id' => ['nullable', 'string', 'max:120'],
         ]);
+
+        $clientEventId = $payload['payload']['client_event_id'] ?? null;
+        if (is_string($clientEventId) && $clientEventId !== '') {
+            $cacheKey = sprintf('attention-event:%d:%s', $student->getKey(), $clientEventId);
+            if (! Cache::add($cacheKey, true, now()->addDay())) {
+                return response()->json([
+                    'accepted' => true,
+                    'reason' => 'duplicate_client_event',
+                ]);
+            }
+        }
 
         $result = $attentionTrackingViolationService->recordLookAwayEventForStudent(
             $student,

@@ -7,6 +7,9 @@ use App\Http\Requests\Admin\ManageStudentDeviceRequest;
 use App\Models\DeviceCommand;
 use App\Models\DeviceHeartbeat;
 use App\Models\DeviceActivityEvent;
+use App\Models\BrowserAccessRequest;
+use App\Models\BrowserPolicyRule;
+use App\Models\BrowserVisitLog;
 use App\Models\Student;
 use App\Models\StudentMonitorCapture;
 use App\Models\StudentDevice;
@@ -22,8 +25,10 @@ class StudentDeviceController extends Controller
     {
         $student->load([
             'user',
+            'browserPolicyRules',
+            'browserAccessRequests' => fn ($query) => $query->latest('created_at')->limit(20),
+            'browserVisitLogs' => fn ($query) => $query->latest('visited_at')->latest('id')->limit(40),
             'devices.commands.results',
-            'devices.remoteControlSessions' => fn ($query) => $query->latest('started_at')->latest('id')->limit(1),
             'devices.monitorCaptures' => fn ($query) => $query->latest('captured_at')->limit(2),
         ]);
 
@@ -33,6 +38,7 @@ class StudentDeviceController extends Controller
                 'display_name' => $student->display_name,
                 'username' => $student->user?->username,
             ],
+            'browser_accountability' => $this->browserAccountabilityPayload($student),
             'devices' => $student->devices
                 ->whereNull('revoked_at')
                 ->sortBy('label')
@@ -46,10 +52,12 @@ class StudentDeviceController extends Controller
     {
         $student->load([
             'user',
+            'browserPolicyRules',
+            'browserAccessRequests' => fn ($query) => $query->latest('created_at')->limit(50),
+            'browserVisitLogs' => fn ($query) => $query->latest('visited_at')->latest('id')->limit(100),
             'devices.heartbeats' => fn ($query) => $query->latest('received_at')->latest('id')->limit(20),
             'devices.activityEvents' => fn ($query) => $query->latest('observed_at')->latest('id')->limit(40),
             'devices.commands.results',
-            'devices.remoteControlSessions' => fn ($query) => $query->latest('started_at')->latest('id')->limit(5),
             'devices.monitorCaptures' => fn ($query) => $query->latest('captured_at')->latest('id')->limit(20),
         ]);
 
@@ -59,6 +67,7 @@ class StudentDeviceController extends Controller
                 'display_name' => $student->display_name,
                 'username' => $student->user?->username,
             ],
+            'browser_accountability' => $this->browserAccountabilityPayload($student),
             'devices' => $student->devices
                 ->whereNull('revoked_at')
                 ->sortBy('label')
@@ -142,21 +151,6 @@ class StudentDeviceController extends Controller
                                     'payload' => $result->payload ?? [],
                                 ])->all(),
                                 ])->all(),
-                    'remote_control_sessions' => $device->remoteControlSessions
-                        ->sortByDesc(fn ($session) => [
-                            optional($session->started_at)?->timestamp ?? 0,
-                            $session->id,
-                        ])
-                        ->values()
-                        ->map(fn ($session) => [
-                            'id' => $session->id,
-                            'status' => $session->status,
-                            'started_at' => $session->started_at?->toAtomString(),
-                            'ended_at' => $session->ended_at?->toAtomString(),
-                            'failure_reason' => $session->failure_reason,
-                            'viewer_url' => $session->viewer_path,
-                            'show_url' => route('admin.remote-control-sessions.show', $session),
-                        ])->all(),
                 ])->all(),
         ]);
     }
@@ -227,11 +221,6 @@ class StudentDeviceController extends Controller
             'last_mac_address' => $device->last_mac_address,
             'last_gateway_ipv4' => $device->last_gateway_ipv4,
             'network_adapter_name' => $device->network_adapter_name,
-            'remote_control_ready' => $device->remote_control_ready,
-            'remote_control_active' => $device->remote_control_active,
-            'remote_control_port' => $device->remote_control_port,
-            'remote_control_last_checked_at' => $device->remote_control_last_checked_at?->toAtomString(),
-            'remote_control_failure_reason' => $device->remote_control_failure_reason,
             'revoked_at' => $device->revoked_at?->toAtomString(),
             'last_network_state' => $device->last_network_state ?? [],
             'meta' => $device->meta ?? [],
@@ -258,14 +247,50 @@ class StudentDeviceController extends Controller
                     'requested_at' => $command->requested_at?->toAtomString(),
                     'completed_at' => $command->completed_at?->toAtomString(),
                 ])->all(),
-            'latest_remote_session' => optional($device->remoteControlSessions->sortByDesc('started_at')->first(), function ($session) {
-                return [
-                    'id' => $session->id,
-                    'status' => $session->status,
-                    'started_at' => $session->started_at?->toAtomString(),
-                    'show_url' => route('admin.remote-control-sessions.show', $session),
-                ];
-            }),
+        ];
+    }
+
+    protected function browserAccountabilityPayload(Student $student): array
+    {
+        return [
+            'mode' => $student->devices
+                ->first(fn (StudentDevice $device) => in_array($device->internet_access_mode, ['whitelist', 'blacklist'], true))
+                ?->internet_access_mode ?? 'blacklist',
+            'default_unblock_scope' => 'domain_tree',
+            'rules' => $student->browserPolicyRules
+                ->sortBy('value')
+                ->values()
+                ->map(fn (BrowserPolicyRule $rule) => [
+                    'id' => $rule->id,
+                    'effect' => $rule->effect,
+                    'match_type' => $rule->match_type,
+                    'value' => $rule->value,
+                    'expires_at' => $rule->expires_at?->toAtomString(),
+                ])->all(),
+            'pending_requests' => $student->browserAccessRequests
+                ->where('status', 'pending')
+                ->values()
+                ->map(fn (BrowserAccessRequest $request) => [
+                    'id' => $request->id,
+                    'requested_url' => $request->requested_url,
+                    'host' => $request->host,
+                    'registrable_domain' => $request->registrable_domain,
+                    'task_template_id' => $request->task_template_id,
+                    'reason' => $request->reason,
+                    'created_at' => $request->created_at?->toAtomString(),
+                ])->all(),
+            'recent_visits' => $student->browserVisitLogs
+                ->values()
+                ->map(fn (BrowserVisitLog $visit) => [
+                    'id' => $visit->id,
+                    'mode' => $visit->mode,
+                    'decision' => $visit->decision,
+                    'host' => $visit->host,
+                    'registrable_domain' => $visit->registrable_domain,
+                    'page_title' => $visit->page_title,
+                    'visited_at' => $visit->visited_at?->toAtomString(),
+                    'matched_rule_id' => $visit->matched_rule_id,
+                ])->all(),
         ];
     }
 }

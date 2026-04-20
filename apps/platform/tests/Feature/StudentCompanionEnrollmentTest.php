@@ -32,6 +32,7 @@ class StudentCompanionEnrollmentTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Student/Companion/Enroll')
                 ->where('installer_download_url', route('companion.installer.download'))
+                ->where('browser_extension_download_url', route('companion.browser-extension.download'))
                 ->where('bootstrap_script_url', route('student.companion.enroll.bootstrap'))
             );
     }

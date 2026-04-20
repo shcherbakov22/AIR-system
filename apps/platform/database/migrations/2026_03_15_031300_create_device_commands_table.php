@@ -20,7 +20,7 @@ return new class extends Migration
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
 
-            $table->index(['student_device_id', 'status', 'requested_at']);
+            $table->index(['student_device_id', 'status', 'requested_at'], 'device_commands_poll_idx');
         });
     }
 

@@ -49,4 +49,9 @@ class TaskTemplate extends Model
     {
         return $this->hasMany(TaskSession::class);
     }
+
+    public function browserPolicyRules(): HasMany
+    {
+        return $this->hasMany(BrowserPolicyRule::class);
+    }
 }

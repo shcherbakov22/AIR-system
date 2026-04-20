@@ -1,9 +1,0 @@
-[Unit]
-Description=Sync AIR companion gateway rules
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-WorkingDirectory=/var/www/school-system-redo/platform
-ExecStart=/usr/bin/php artisan gateway:sync-device-policies

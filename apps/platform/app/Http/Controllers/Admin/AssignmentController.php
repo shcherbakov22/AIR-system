@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\StudentAssignment;
+use App\Services\StudentDeviceMessageDisplayService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -59,25 +60,33 @@ class AssignmentController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, StudentDeviceMessageDisplayService $studentDeviceMessageDisplayService): RedirectResponse
     {
         $data = $request->validate([
             'student_id' => ['required', 'integer', 'exists:students,id'],
-            'title' => ['required', 'string', 'max:255'],
-            'body' => ['nullable', 'string'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'body' => ['required', 'string'],
         ]);
 
         $assignment = StudentAssignment::create([
             'student_id' => $data['student_id'],
             'created_by_user_id' => $request->user()->id,
-            'title' => $data['title'],
-            'body' => trim((string) ($data['body'] ?? '')) ?: null,
+            'title' => 'Assignment',
+            'body' => trim((string) $data['body']),
             'status' => 'unread',
         ]);
+
+        $studentDeviceMessageDisplayService->queueAssignment($assignment, $request->user());
 
         if ($request->boolean('return_to_student')) {
             return redirect()
                 ->route('admin.students.assignments.show', $assignment->student_id)
+                ->with('success', 'Assignment created.');
+        }
+
+        if ($request->boolean('return_to_dashboard')) {
+            return redirect()
+                ->route('admin.dashboard')
                 ->with('success', 'Assignment created.');
         }
 

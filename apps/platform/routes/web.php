@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\BrowserAccountabilityController as AdminBrowserAccountabilityController;
+use App\Http\Controllers\Admin\ExtensionController as AdminExtensionController;
 use App\Http\Controllers\Admin\AnnouncementController as AdminAnnouncementController;
 use App\Http\Controllers\Admin\AssignmentController as AdminAssignmentController;
 use App\Http\Controllers\Admin\AdminerController as AdminAdminerController;
@@ -8,10 +10,10 @@ use App\Http\Controllers\Admin\ChatController as AdminChatController;
 use App\Http\Controllers\Admin\PushUpSessionController as AdminPushUpSessionController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
-use App\Http\Controllers\Admin\RemoteControlSessionController as AdminRemoteControlSessionController;
 use App\Http\Controllers\Admin\SpeechAnnouncementController as AdminSpeechAnnouncementController;
 use App\Http\Controllers\Admin\StudentMonitorCaptureController as AdminStudentMonitorCaptureController;
 use App\Http\Controllers\Admin\StudentProgressController as AdminStudentProgressController;
+use App\Http\Controllers\Admin\HiddenScheduleBlockTimeController as AdminHiddenScheduleBlockTimeController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\StudentDeviceController as AdminStudentDeviceController;
 use App\Http\Controllers\Admin\StudentAppPolicyController as AdminStudentAppPolicyController;
@@ -65,6 +67,8 @@ Route::get($companionRootCertificateRoute, CompanionRootCertificateController::c
     ->name('companion.root-ca');
 Route::get('/companion/downloads/windows/installer', [CompanionUpdateController::class, 'installerBundle'])
     ->name('companion.installer.download');
+Route::get('/companion/downloads/chrome/extension', [CompanionUpdateController::class, 'browserExtensionBundle'])
+    ->name('companion.browser-extension.download');
 Route::get('/companion/browser-login/{token}', CompanionBrowserLoginController::class)
     ->name('companion.browser-login.consume');
 
@@ -98,6 +102,8 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+        Route::get('/extension', [AdminExtensionController::class, 'index'])->name('extension.index');
+        Route::get('/students/{student}/extension', [AdminExtensionController::class, 'show'])->name('extension.show');
         Route::get('/announcements', [AdminAnnouncementController::class, 'index'])->name('announcements.index');
         Route::post('/announcements', [AdminAnnouncementController::class, 'store'])->name('announcements.store');
         Route::delete('/announcements/{chatMessage}', [AdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
@@ -146,12 +152,14 @@ Route::middleware('auth')->group(function () {
         Route::patch('/students/{student}/chat/messages/{chatMessage}/read', [AdminChatController::class, 'markMessageRead'])->name('students.chat.messages.read');
         Route::patch('/students/{student}/devices/{studentDevice}', [AdminStudentDeviceController::class, 'update'])->name('students.devices.update');
         Route::post('/students/{student}/devices/{studentDevice}/commands', [AdminStudentDeviceController::class, 'command'])->name('students.devices.command');
-        Route::post('/students/{student}/devices/{studentDevice}/remote-control', [AdminRemoteControlSessionController::class, 'store'])->name('students.devices.remote-control.store');
         Route::patch('/students/{student}/devices/{studentDevice}/revoke', [AdminStudentDeviceController::class, 'revoke'])->name('students.devices.revoke');
+        Route::patch('/students/{student}/browser-mode', [AdminBrowserAccountabilityController::class, 'updateMode'])->name('students.browser-mode.update');
+        Route::post('/students/{student}/browser-rules', [AdminBrowserAccountabilityController::class, 'storeRule'])->name('students.browser-rules.store');
+        Route::delete('/students/{student}/browser-rules/{browserPolicyRule}', [AdminBrowserAccountabilityController::class, 'destroyRule'])->name('students.browser-rules.destroy');
+        Route::patch('/students/{student}/browser-access-requests/{browserAccessRequest}/approve', [AdminBrowserAccountabilityController::class, 'approveRequest'])->name('students.browser-access-requests.approve');
+        Route::patch('/students/{student}/browser-access-requests/{browserAccessRequest}/deny', [AdminBrowserAccountabilityController::class, 'denyRequest'])->name('students.browser-access-requests.deny');
         Route::patch('/students/{student}/app-policies/{studentAppPolicy}/permit', [AdminStudentAppPolicyController::class, 'permit'])->name('students.app-policies.permit');
         Route::patch('/students/{student}/app-policies/{studentAppPolicy}/block', [AdminStudentAppPolicyController::class, 'block'])->name('students.app-policies.block');
-        Route::get('/remote-control-sessions/{remoteControlSession}', [AdminRemoteControlSessionController::class, 'show'])->name('remote-control-sessions.show');
-        Route::delete('/remote-control-sessions/{remoteControlSession}', [AdminRemoteControlSessionController::class, 'destroy'])->name('remote-control-sessions.destroy');
         Route::get('/students/{student}/edit', [AdminStudentController::class, 'edit'])->name('students.edit');
         Route::put('/students/{student}', [AdminStudentController::class, 'update'])->name('students.update');
         Route::delete('/students/{student}', [AdminStudentController::class, 'destroy'])->name('students.destroy');
@@ -166,6 +174,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/speech-announcements/latest-pending', [AdminSpeechAnnouncementController::class, 'latestPending'])->name('speech-announcements.latest-pending');
         Route::patch('/speech-announcements/{speechAnnouncement}/spoken', [AdminSpeechAnnouncementController::class, 'markSpoken'])->name('speech-announcements.mark-spoken');
         Route::patch('/speech-announcements/state', [AdminSpeechAnnouncementController::class, 'updateState'])->name('speech-announcements.state.update');
+        Route::get('/_hidden/schedule-block-time', [AdminHiddenScheduleBlockTimeController::class, 'show'])->name('hidden.schedule-block-time.show');
+        Route::post('/_hidden/schedule-block-time', [AdminHiddenScheduleBlockTimeController::class, 'update'])->name('hidden.schedule-block-time.update');
     });
 
     Route::prefix('student')->name('student.')->middleware('student')->group(function () {

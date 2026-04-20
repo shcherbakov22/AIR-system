@@ -95,4 +95,73 @@ class StudentMonitorCaptureHistoryTest extends TestCase
 
         Carbon::setTestNow();
     }
+
+    public function test_admin_capture_history_includes_same_day_rows_that_only_have_uploaded_at(): void
+    {
+        Carbon::setTestNow('2026-03-14 12:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $uploadedOnlyOlder = StudentMonitorCapture::create([
+            'student_id' => $student->id,
+            'capture_kind' => 'screen',
+            'disk' => 'local',
+            'path' => 'captures/uploaded-only-older.jpg',
+            'mime_type' => 'image/jpeg',
+            'size_bytes' => 100,
+            'captured_at' => null,
+            'uploaded_at' => Carbon::parse('2026-03-14 08:00:00'),
+            'task_title_snapshot' => 'Uploaded Older',
+            'source_label' => 'Legacy uploader',
+        ]);
+
+        $uploadedOnlyNewer = StudentMonitorCapture::create([
+            'student_id' => $student->id,
+            'capture_kind' => 'screen',
+            'disk' => 'local',
+            'path' => 'captures/uploaded-only-newer.jpg',
+            'mime_type' => 'image/jpeg',
+            'size_bytes' => 100,
+            'captured_at' => null,
+            'uploaded_at' => Carbon::parse('2026-03-14 10:00:00'),
+            'task_title_snapshot' => 'Uploaded Newer',
+            'source_label' => 'Legacy uploader',
+        ]);
+
+        StudentMonitorCapture::create([
+            'student_id' => $student->id,
+            'capture_kind' => 'screen',
+            'disk' => 'local',
+            'path' => 'captures/old-day-uploaded-only.jpg',
+            'mime_type' => 'image/jpeg',
+            'size_bytes' => 100,
+            'captured_at' => null,
+            'uploaded_at' => Carbon::parse('2026-03-13 20:00:00'),
+            'task_title_snapshot' => 'Old Day',
+            'source_label' => 'Legacy uploader',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.student-monitor-captures.day-history', $uploadedOnlyOlder))
+            ->assertOk()
+            ->assertJsonCount(2, 'captures')
+            ->assertJsonPath('captures.0.id', $uploadedOnlyNewer->id)
+            ->assertJsonPath('captures.1.id', $uploadedOnlyOlder->id);
+
+        Carbon::setTestNow();
+    }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreChatMessageRequest;
 use App\Models\ChatMessage;
 use App\Models\Student;
+use App\Services\StudentDeviceMessageDisplayService;
 use App\Services\StudentCommunicationGateService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
@@ -63,13 +64,17 @@ class ChatController extends Controller
         return back();
     }
 
-    public function store(StoreChatMessageRequest $request, Student $student): RedirectResponse
+    public function store(
+        StoreChatMessageRequest $request,
+        Student $student,
+        StudentDeviceMessageDisplayService $studentDeviceMessageDisplayService,
+    ): RedirectResponse
     {
         $attachment = $request->file('attachment');
 
         $path = $attachment?->store("chat/{$student->id}", 'local');
 
-        ChatMessage::create([
+        $message = ChatMessage::create([
             'student_id' => $student->id,
             'sender_user_id' => $request->user()->id,
             'channel' => 'chat',
@@ -80,6 +85,8 @@ class ChatController extends Controller
             'attachment_mime' => $attachment?->getClientMimeType(),
             'attachment_size' => $attachment?->getSize(),
         ]);
+
+        $studentDeviceMessageDisplayService->queueChatMessage($message, $student, $request->user());
 
         return redirect()
             ->route('admin.chats.show', $student)

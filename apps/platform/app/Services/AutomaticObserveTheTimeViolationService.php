@@ -188,7 +188,7 @@ class AutomaticObserveTheTimeViolationService
                     ->orWhere('ended_at', '>=', $scheduleRun->started_at);
             })
             ->latest('ended_at')
-            ->first(['ended_at']);
+            ->first(['id', 'ended_at']);
 
         $anchorAt = $anchor?->ended_at instanceof CarbonInterface
             ? $anchor->ended_at
@@ -201,6 +201,10 @@ class AutomaticObserveTheTimeViolationService
         $violationAt = $anchorAt->copy()->addMinutes(self::GRACE_MINUTES);
 
         if (now()->lt($violationAt)) {
+            return;
+        }
+
+        if ($anchor?->id && $this->hasOvertimeObserveViolationRecordForTaskSession((int) $anchor->id)) {
             return;
         }
 
@@ -222,7 +226,7 @@ class AutomaticObserveTheTimeViolationService
             ->whereIn('status', ['completed', 'paused', 'unfinished'])
             ->whereNotNull('ended_at')
             ->latest('ended_at')
-            ->first(['ended_at']);
+            ->first(['id', 'ended_at']);
 
         $anchorAt = $anchorTaskSession?->ended_at instanceof CarbonInterface
             ? $anchorTaskSession->ended_at
@@ -235,6 +239,10 @@ class AutomaticObserveTheTimeViolationService
         $violationAt = $anchorAt->copy()->addMinutes(self::GRACE_MINUTES);
 
         if (now()->lt($violationAt)) {
+            return;
+        }
+
+        if ($anchorTaskSession?->id && $this->hasOvertimeObserveViolationRecordForTaskSession((int) $anchorTaskSession->id)) {
             return;
         }
 
@@ -295,5 +303,17 @@ class AutomaticObserveTheTimeViolationService
             }
             $this->speechAnnouncementService->queueViolation($violation);
         }
+    }
+
+    private function hasOvertimeObserveViolationRecordForTaskSession(int $taskSessionId): bool
+    {
+        $pattern = 'observe-time:overtime:session:'.$taskSessionId.':threshold:%';
+
+        return Violation::query()
+            ->where('auto_generated_key', 'like', $pattern)
+            ->exists()
+            || DB::table('dismissed_automatic_violations')
+                ->where('auto_generated_key', 'like', $pattern)
+                ->exists();
     }
 }

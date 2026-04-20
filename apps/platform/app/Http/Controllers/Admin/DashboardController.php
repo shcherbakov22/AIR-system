@@ -370,6 +370,7 @@ class DashboardController extends Controller
             'id' => $student->id,
             'display_name' => $student->display_name,
             'status' => $student->status,
+            'extension_url' => route('admin.extension.show', $student),
             'current_push_up_count' => $student->consequenceProfile?->current_push_up_count ?? \App\Services\StudentPushUpCounterService::DEFAULT_COUNT,
             'user' => [
                 'id' => $student->user->id,
@@ -382,11 +383,6 @@ class DashboardController extends Controller
             'idle_for' => $idleFor,
             'latest_screen_capture' => $this->capturePayload($student->latestScreenCapture),
             'latest_camera_capture' => $this->capturePayload($student->latestCameraCapture),
-            'remote_control' => $latestDevice ? [
-                'device_id' => $latestDevice->id,
-                'device_label' => $latestDevice->label,
-                'start_url' => route('admin.students.devices.remote-control.store', [$student, $latestDevice]),
-            ] : null,
             'latest_device_activity' => $latestDevice ? [
                 'device_label' => $latestDevice->label,
                 'focused_app' => $latestDeviceActivity['focused_app'],
@@ -478,10 +474,6 @@ class DashboardController extends Controller
                 'devices' => fn ($query) => $query
                     ->whereNull('revoked_at')
                     ->with([
-                        'remoteControlSessions' => fn ($sessionQuery) => $sessionQuery
-                            ->latest('started_at')
-                            ->latest('id')
-                            ->limit(5),
                         'activityEvents' => fn ($activityQuery) => $activityQuery
                             ->latest('observed_at')
                             ->latest('id')

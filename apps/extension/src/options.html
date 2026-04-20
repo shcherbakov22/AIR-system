@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AIR Browser Accountability Options</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="page">
+      <section class="panel">
+        <p class="eyebrow">AIR Browser Accountability</p>
+        <h1>Extension settings</h1>
+        <label for="platformUrl">Platform URL</label>
+        <input id="platformUrl" type="url" placeholder="https://192.168.11.228">
+        <label for="deviceToken">Device token</label>
+        <input id="deviceToken" type="password" autocomplete="off">
+        <div class="actions">
+          <button id="saveButton" type="button">Save</button>
+          <button id="syncButton" type="button" class="secondary">Sync policy</button>
+        </div>
+        <p id="status" role="status"></p>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -28,7 +28,6 @@ class StudentAssignmentGateService
             'unread_count' => $unreadAssignments->count(),
             'latest_unread_assignment' => $latestUnread ? [
                 'id' => $latestUnread->id,
-                'title' => $latestUnread->title,
                 'created_at_label' => $latestUnread->created_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
                 'creator_name' => $latestUnread->creator?->name ?: 'Mentor',
             ] : null,

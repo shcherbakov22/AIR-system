@@ -34,7 +34,6 @@ const props = defineProps<{
 
 const form = useForm({
     student_id: props.selectedStudentId ? String(props.selectedStudentId) : '',
-    title: '',
     body: '',
     return_to_student: false,
 });
@@ -42,7 +41,7 @@ const form = useForm({
 const submit = () => {
     form.post(route('admin.assignments.store'), {
         preserveScroll: true,
-        onSuccess: () => form.reset('title', 'body'),
+        onSuccess: () => form.reset('body'),
     });
 };
 
@@ -92,17 +91,11 @@ const markIncomplete = (url?: string | null) => {
                                 {{ student.display_name }} ({{ student.username }})
                             </option>
                         </select>
-                        <input
-                            v-model="form.title"
-                            type="text"
-                            class="w-full rounded-[1rem] border-stone-300 px-4 py-3 text-sm shadow-sm focus:border-stone-950 focus:ring-stone-950"
-                            placeholder="Assignment title"
-                        >
                         <textarea
                             v-model="form.body"
                             rows="5"
                             class="w-full rounded-[1rem] border-stone-300 px-4 py-3 text-sm shadow-sm focus:border-stone-950 focus:ring-stone-950"
-                            placeholder="Details"
+                            placeholder="Assignment"
                         />
                         <button
                             type="submit"

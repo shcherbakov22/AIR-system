@@ -10,7 +10,11 @@ return new class extends Migration
     {
         Schema::create('device_attention_calibration_sessions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('student_device_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('student_device_id');
+            $table->foreign('student_device_id', 'attention_sessions_device_fk')
+                ->references('id')
+                ->on('student_devices')
+                ->cascadeOnDelete();
             $table->uuid('session_uuid')->unique();
             $table->string('provider', 32)->default('eyetheia');
             $table->string('status', 32)->default('collecting');

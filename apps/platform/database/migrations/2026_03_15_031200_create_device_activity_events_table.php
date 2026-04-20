@@ -19,7 +19,7 @@ return new class extends Migration
             $table->timestamp('observed_at');
             $table->timestamps();
 
-            $table->index(['student_device_id', 'event_type', 'observed_at']);
+            $table->index(['student_device_id', 'event_type', 'observed_at'], 'device_activity_lookup_idx');
         });
     }
 

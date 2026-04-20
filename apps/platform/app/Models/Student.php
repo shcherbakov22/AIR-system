@@ -117,6 +117,21 @@ class Student extends Model
         return $this->hasMany(StudentAppPolicy::class);
     }
 
+    public function browserPolicyRules(): HasMany
+    {
+        return $this->hasMany(BrowserPolicyRule::class);
+    }
+
+    public function browserVisitLogs(): HasMany
+    {
+        return $this->hasMany(BrowserVisitLog::class);
+    }
+
+    public function browserAccessRequests(): HasMany
+    {
+        return $this->hasMany(BrowserAccessRequest::class);
+    }
+
     public function latestScreenCapture(): HasOne
     {
         return $this->hasOne(StudentMonitorCapture::class)

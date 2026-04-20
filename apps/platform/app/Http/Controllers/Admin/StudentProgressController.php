@@ -14,6 +14,8 @@ use Inertia\Response;
 
 class StudentProgressController extends Controller
 {
+    private const MIN_IDLE_GAP_SECONDS = 300;
+
     protected function actualDurationSeconds(TaskSession $taskSession): int
     {
         $baseDuration = (int) ($taskSession->duration_seconds ?? 0);
@@ -172,7 +174,10 @@ class StudentProgressController extends Controller
                 $previousEndedAt = now()->parse($previousTask['ended_at']);
                 $currentStartedAt = now()->parse($task['started_at']);
 
-                if ($currentStartedAt->greaterThan($previousEndedAt)) {
+                if (
+                    $currentStartedAt->greaterThan($previousEndedAt)
+                    && $previousEndedAt->diffInSeconds($currentStartedAt) > self::MIN_IDLE_GAP_SECONDS
+                ) {
                     $withGaps->push($this->idleGapPayload($previousTask, $task));
                 }
             }
@@ -187,6 +192,39 @@ class StudentProgressController extends Controller
         return $withGaps->values();
     }
 
+    protected function taskSessionsForRun(ScheduleRun $scheduleRun): Collection
+    {
+        $runStartedAt = $scheduleRun->started_at;
+
+        if (! $runStartedAt) {
+            return $scheduleRun->taskSessions;
+        }
+
+        $runEndedAt = $scheduleRun->completed_at ?? now();
+
+        $externalTaskSessions = TaskSession::query()
+            ->with('scheduleRunBlock')
+            ->where('student_id', $scheduleRun->student_id)
+            ->whereNull('schedule_run_id')
+            ->whereNotNull('started_at')
+            ->where('started_at', '<=', $runEndedAt)
+            ->where(function ($query) use ($runStartedAt): void {
+                $query
+                    ->whereNull('ended_at')
+                    ->orWhere('ended_at', '>=', $runStartedAt);
+            })
+            ->get();
+
+        return $scheduleRun->taskSessions
+            ->concat($externalTaskSessions)
+            ->unique('id')
+            ->sortBy([
+                ['started_at', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->values();
+    }
+
     protected function runPayload(ScheduleRun $scheduleRun): array
     {
         $blocks = $scheduleRun->blocks
@@ -194,12 +232,7 @@ class StudentProgressController extends Controller
             ->values()
             ->map(fn (ScheduleRunBlock $block) => $this->blockPayload($block));
 
-        $taskSequence = $this->withIdleGaps($scheduleRun->taskSessions
-            ->sortBy([
-                ['started_at', 'asc'],
-                ['id', 'asc'],
-            ])
-            ->values()
+        $taskSequence = $this->withIdleGaps($this->taskSessionsForRun($scheduleRun)
             ->map(fn (TaskSession $taskSession) => $this->taskSequencePayload($taskSession)));
 
         $totalActualDurationSeconds = $blocks->sum('actual_duration_seconds');
