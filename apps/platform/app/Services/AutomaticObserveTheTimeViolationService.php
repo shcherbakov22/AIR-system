@@ -15,6 +15,7 @@ class AutomaticObserveTheTimeViolationService
 {
     private const RULE_TITLE = 'Observe the time';
     private const GRACE_MINUTES = 5;
+    private const MAX_CREATION_DELAY_MINUTES = 2;
     private const AUTO_KEY_PREFIX = 'observe-time:';
 
     public function __construct(
@@ -204,6 +205,10 @@ class AutomaticObserveTheTimeViolationService
             return;
         }
 
+        if ($this->isStaleViolationThreshold($violationAt)) {
+            return;
+        }
+
         if ($anchor?->id && $this->hasOvertimeObserveViolationRecordForTaskSession((int) $anchor->id)) {
             return;
         }
@@ -239,6 +244,10 @@ class AutomaticObserveTheTimeViolationService
         $violationAt = $anchorAt->copy()->addMinutes(self::GRACE_MINUTES);
 
         if (now()->lt($violationAt)) {
+            return;
+        }
+
+        if ($this->isStaleViolationThreshold($violationAt)) {
             return;
         }
 
@@ -315,5 +324,10 @@ class AutomaticObserveTheTimeViolationService
             || DB::table('dismissed_automatic_violations')
                 ->where('auto_generated_key', 'like', $pattern)
                 ->exists();
+    }
+
+    private function isStaleViolationThreshold(CarbonInterface $violationAt): bool
+    {
+        return now()->gt($violationAt->copy()->addMinutes(self::MAX_CREATION_DELAY_MINUTES));
     }
 }
