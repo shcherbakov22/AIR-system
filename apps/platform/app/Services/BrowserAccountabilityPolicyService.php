@@ -179,6 +179,19 @@ class BrowserAccountabilityPolicyService
     ): BrowserPolicyRule {
         $host = $this->hostFromUrl($value);
         $domain = $this->registrableDomain($host);
+        $activeTaskSession = $effect === 'allow' && $this->modeForStudent($student) === 'whitelist'
+            ? $this->activeTaskSession($student)
+            : null;
+
+        if ($activeTaskSession?->taskTemplate) {
+            return $this->upsertTaskRule(
+                $activeTaskSession->taskTemplate,
+                $effect,
+                $domain,
+                $mentor,
+                $expiresAt,
+            );
+        }
 
         return BrowserPolicyRule::updateOrCreate(
             [

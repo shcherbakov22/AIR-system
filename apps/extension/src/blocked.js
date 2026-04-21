@@ -7,10 +7,10 @@ const domain = params.get('domain') || registrableDomainForHost(host);
 document.getElementById('host').textContent = host;
 document.getElementById('scope').textContent = `${domain} and subdomains`;
 
-document.getElementById('retryButton').addEventListener('click', () => {
-  if (requestedUrl) {
-    location.href = requestedUrl;
-  }
+refreshPolicyAndRedirectIfAllowed(false);
+
+document.getElementById('retryButton').addEventListener('click', async () => {
+  await refreshPolicyAndRedirectIfAllowed(true);
 });
 
 document.getElementById('requestButton').addEventListener('click', async () => {
@@ -39,6 +39,33 @@ function parseUrl(value) {
     return new URL(value);
   } catch (_error) {
     return null;
+  }
+}
+
+async function refreshPolicyAndRedirectIfAllowed(showStatus) {
+  if (!requestedUrl) {
+    return;
+  }
+
+  const status = document.getElementById('status');
+  if (showStatus) {
+    status.textContent = 'Checking policy...';
+  }
+
+  const response = await chrome.runtime.sendMessage({
+    type: 'evaluate_url_after_sync',
+    url: requestedUrl,
+  });
+
+  if (response?.ok && response.evaluation?.allowed) {
+    location.href = requestedUrl;
+    return;
+  }
+
+  if (showStatus) {
+    status.textContent = response?.ok
+      ? 'Still blocked by the current policy.'
+      : response?.error || 'Policy refresh failed.';
   }
 }
 

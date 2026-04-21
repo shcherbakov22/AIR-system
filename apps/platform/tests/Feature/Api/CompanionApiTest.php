@@ -419,6 +419,59 @@ class CompanionApiTest extends TestCase
         ]);
     }
 
+    public function test_manual_whitelist_rule_defaults_to_active_task_template_scope(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_manual_task_rule_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $device->update(['internet_access_mode' => 'whitelist']);
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'browser_manual_task_rule_admin',
+        ]);
+
+        $codingTemplate = TaskTemplate::create([
+            'title' => 'Coding',
+            'summary' => null,
+            'instructions' => 'Build the project.',
+            'default_duration_minutes' => 45,
+            'requires_internet' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $codingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 45,
+            'started_at' => now(),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.students.browser-rules.store', $student), [
+                'effect' => 'allow',
+                'value' => 'https://docs.github.com/actions',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('browser_policy_rules', [
+            'student_id' => null,
+            'task_template_id' => $codingTemplate->id,
+            'effect' => 'allow',
+            'match_type' => 'domain_tree',
+            'value' => 'github.com',
+        ]);
+
+        $this->assertDatabaseMissing('browser_policy_rules', [
+            'student_id' => $student->id,
+            'task_template_id' => null,
+            'effect' => 'allow',
+            'value' => 'github.com',
+        ]);
+    }
+
     public function test_mentor_approval_allows_requested_domain_and_all_subdomains(): void
     {
         [$student, $studentUser] = $this->makeStudent('browser_approval_student', 'secret-pass');
@@ -1064,6 +1117,42 @@ class CompanionApiTest extends TestCase
             ->getJson(route('api.companion.policy.show'))
             ->assertOk()
             ->assertJsonPath('policy.app_control.blocked_processes', ['Game.exe', 'taskmgr.exe']);
+    }
+
+    public function test_stale_installed_browser_extension_triggers_violation_style_app_enforcement(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('missing_extension_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+            'label' => 'Chrome browser extension',
+            'hostname' => null,
+            'platform' => 'chrome_extension',
+            'app_version' => '0.1.0',
+            'last_seen_at' => null,
+            'last_seen_ip' => '192.168.11.50',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.violations.open_count', 0)
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false);
+
+        StudentDevice::query()
+            ->where('device_key', 'browser-extension:student:'.$student->id)
+            ->update(['last_seen_at' => now()->subMinutes(11)]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.violations.open_count', 1)
+            ->assertJsonPath('policy.violations.items.0.rule_title', 'Browser extension removed')
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true)
+            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
     }
 
     public function test_device_command_flow_is_scoped_and_result_submission_is_idempotent(): void

@@ -237,7 +237,6 @@ POWERSHELL;
                 'hostname' => null,
                 'platform' => 'chrome_extension',
                 'app_version' => '0.1.0',
-                'last_seen_at' => now(),
                 'last_seen_ip' => $ipAddress,
             ],
         );

@@ -6,6 +6,9 @@ const DEFAULT_POLICY = {
   updated_at: null,
 };
 
+const POLICY_REFRESH_MINUTES = 5;
+const POLICY_REFRESH_MAX_AGE_MS = POLICY_REFRESH_MINUTES * 60 * 1000;
+
 const MULTI_LABEL_PUBLIC_SUFFIXES = new Set([
   'ac.uk',
   'co.jp',
@@ -27,11 +30,19 @@ const recentVisits = new Map();
 let networkRuleUpdate = Promise.resolve();
 
 chrome.runtime.onInstalled.addListener(() => {
+  schedulePolicyRefreshAlarm();
   syncPolicy();
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  schedulePolicyRefreshAlarm();
   syncPolicy();
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'policy_refresh') {
+    syncPolicy().catch(() => {});
+  }
 });
 
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
@@ -67,8 +78,29 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'evaluate_url_after_sync') {
+    syncPolicy()
+      .then((policy) => sendResponse({
+        ok: true,
+        policy,
+        evaluation: evaluateUrl(policy, String(message.url || '')),
+      }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+
+    return true;
+  }
+
   return false;
 });
+
+schedulePolicyRefreshAlarm();
+
+function schedulePolicyRefreshAlarm() {
+  chrome.alarms.create('policy_refresh', {
+    delayInMinutes: POLICY_REFRESH_MINUTES,
+    periodInMinutes: POLICY_REFRESH_MINUTES,
+  });
+}
 
 async function handleNavigation(tabId, url) {
   if (!isHttpUrl(url) || isBlockedPage(url)) {
@@ -222,7 +254,7 @@ async function getPolicy() {
   const stored = await chrome.storage.local.get(['policy', 'lastPolicySyncAt']);
   const lastSync = stored.lastPolicySyncAt ? Date.parse(stored.lastPolicySyncAt) : 0;
 
-  if (!stored.policy || Date.now() - lastSync > 60_000) {
+  if (!stored.policy || Date.now() - lastSync > POLICY_REFRESH_MAX_AGE_MS) {
     try {
       return await syncPolicy();
     } catch (_error) {

@@ -11,6 +11,8 @@ use Illuminate\Support\Arr;
 
 class DevicePolicyService
 {
+    private const BROWSER_EXTENSION_STALE_AFTER_MINUTES = 10;
+
     public function __construct(
         private readonly StudentCommunicationGateService $communicationGateService,
         private readonly StudentAppPolicyService $studentAppPolicyService,
@@ -35,8 +37,22 @@ class DevicePolicyService
         $communicationGate = $this->communicationGateService->payload($student);
         $openViolations = $student->violations->where('status', 'open')->values();
         $staleViolationDeadline = now()->subMinutes(10);
+        $browserExtensionMissing = $this->browserExtensionMissingForStudent($student);
 
         $internetPolicy = $this->internetPolicy($device);
+        $violationItems = $openViolations->map(fn ($violation) => [
+            'id' => $violation->id,
+            'rule_title' => $violation->rule_title_snapshot,
+            'occurred_at' => $violation->occurred_at?->toAtomString(),
+        ])->values();
+
+        if ($browserExtensionMissing) {
+            $violationItems->push([
+                'id' => null,
+                'rule_title' => 'Browser extension removed',
+                'occurred_at' => now()->toAtomString(),
+            ]);
+        }
 
         return [
             'device' => [
@@ -64,15 +80,11 @@ class DevicePolicyService
                 'requires_internet' => $activeTaskSession?->taskTemplate?->requires_internet ?? false,
             ],
             'violations' => [
-                'open_count' => $openViolations->count(),
-                'items' => $openViolations->map(fn ($violation) => [
-                    'id' => $violation->id,
-                    'rule_title' => $violation->rule_title_snapshot,
-                    'occurred_at' => $violation->occurred_at?->toAtomString(),
-                ])->all(),
+                'open_count' => $openViolations->count() + ($browserExtensionMissing ? 1 : 0),
+                'items' => $violationItems->all(),
             ],
             'violation_app_enforcement' => [
-                'kill_gui_apps' => $openViolations->contains(
+                'kill_gui_apps' => $browserExtensionMissing || $openViolations->contains(
                     fn ($violation) => $violation->occurred_at instanceof Carbon
                         && $violation->occurred_at->lessThanOrEqualTo($staleViolationDeadline)
                 ),
@@ -125,6 +137,17 @@ class DevicePolicyService
             'reason' => 'internet_control_removed',
             'allowed_domains' => [],
         ];
+    }
+
+    protected function browserExtensionMissingForStudent(Student $student): bool
+    {
+        return StudentDevice::query()
+            ->where('student_id', $student->id)
+            ->where('platform', 'chrome_extension')
+            ->whereNull('revoked_at')
+            ->whereNotNull('last_seen_at')
+            ->where('last_seen_at', '<=', now()->subMinutes(self::BROWSER_EXTENSION_STALE_AFTER_MINUTES))
+            ->exists();
     }
 
     public function latestActivitySummary(StudentDevice $device): array
