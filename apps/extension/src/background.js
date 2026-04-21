@@ -302,7 +302,7 @@ async function requestAccess(url, reason) {
 
 async function getSettings() {
   const stored = await chrome.storage.local.get(['platformUrl', 'deviceToken']);
-  const platformUrl = String(stored.platformUrl || '').replace(/\/+$/, '');
+  const platformUrl = String(stored.platformUrl || 'https://192.168.11.228').replace(/\/+$/, '');
 
   return {
     platformUrl,

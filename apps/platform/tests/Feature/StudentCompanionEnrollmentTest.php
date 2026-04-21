@@ -19,7 +19,7 @@ class StudentCompanionEnrollmentTest extends TestCase
             'username' => 'ego',
         ]);
 
-        Student::create([
+        $student = Student::create([
             'user_id' => $studentUser->id,
             'display_name' => 'Ego',
             'status' => 'active',
@@ -34,7 +34,15 @@ class StudentCompanionEnrollmentTest extends TestCase
                 ->where('installer_download_url', route('companion.installer.download'))
                 ->where('browser_extension_download_url', route('companion.browser-extension.download'))
                 ->where('bootstrap_script_url', route('student.companion.enroll.bootstrap'))
+                ->where('browser_extension_setup.platform_url', url('/'))
+                ->whereType('browser_extension_setup.device_token', 'string')
             );
+
+        $this->assertDatabaseHas('student_devices', [
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+            'platform' => 'chrome_extension',
+        ]);
     }
 
     public function test_student_can_download_companion_enrollment_script(): void

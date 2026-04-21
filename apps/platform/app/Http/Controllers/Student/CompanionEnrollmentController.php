@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\DeviceEnrollmentToken;
+use App\Models\Student;
+use App\Models\StudentDevice;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,12 +18,15 @@ class CompanionEnrollmentController extends Controller
         $student = $request->user()?->student;
         abort_unless($student !== null, 404);
 
+        $browserExtensionSetup = $this->browserExtensionSetupPayload($student, $request->ip());
+
         return Inertia::render('Student/Companion/Enroll', [
             'installer_download_url' => route('companion.installer.download'),
             'browser_extension_download_url' => route('companion.browser-extension.download'),
             'bootstrap_script_url' => route('student.companion.enroll.bootstrap'),
             'root_ca_url' => $this->rootCertificateUrl(),
             'base_url' => url('/'),
+            'browser_extension_setup' => $browserExtensionSetup,
         ]);
     }
 
@@ -215,5 +220,31 @@ POWERSHELL;
         return $realPath !== false && is_file($realPath) && is_readable($realPath)
             ? route('companion.root-ca')
             : '';
+    }
+
+    /**
+     * @return array{platform_url: string, device_token: string}
+     */
+    private function browserExtensionSetupPayload(Student $student, ?string $ipAddress): array
+    {
+        $device = StudentDevice::query()->updateOrCreate(
+            [
+                'device_key' => 'browser-extension:student:'.$student->id,
+            ],
+            [
+                'student_id' => $student->id,
+                'label' => 'Chrome browser extension',
+                'hostname' => null,
+                'platform' => 'chrome_extension',
+                'app_version' => '0.1.0',
+                'last_seen_at' => now(),
+                'last_seen_ip' => $ipAddress,
+            ],
+        );
+
+        return [
+            'platform_url' => url('/'),
+            'device_token' => $device->issueToken(),
+        ];
     }
 }
