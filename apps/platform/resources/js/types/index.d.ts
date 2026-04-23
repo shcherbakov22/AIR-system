@@ -32,4 +32,14 @@ export type PageProps<
         success?: string | null;
         error?: string | null;
     };
+    student_notifications?: {
+        chat_url: string;
+        unread_mentor_chat: {
+            id: number;
+            body?: string | null;
+            created_at_label?: string | null;
+            sender_name?: string | null;
+            has_attachment: boolean;
+        } | null;
+    } | null;
 };

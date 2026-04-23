@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\UserRole;
+use App\Services\StudentCommunicationGateService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -30,6 +32,16 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user()?->loadMissing('student.setting');
+        $studentNotifications = null;
+
+        if ($user?->role === UserRole::Student && $user->student) {
+            $communicationGate = app(StudentCommunicationGateService::class)->payload($user->student);
+
+            $studentNotifications = [
+                'chat_url' => route('student.chat.show'),
+                'unread_mentor_chat' => $communicationGate['unread_mentor_chat'],
+            ];
+        }
 
         return [
             ...parent::share($request),
@@ -60,6 +72,7 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
+            'student_notifications' => $studentNotifications,
         ];
     }
 }

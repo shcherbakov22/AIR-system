@@ -287,6 +287,43 @@ class ChatFlowTest extends TestCase
         $this->assertNotNull($student->last_seen_mentor_chat_at);
     }
 
+    public function test_student_pages_share_unread_mentor_chat_for_browser_notifications(): void
+    {
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'name' => 'Mentor One',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $message = ChatMessage::create([
+            'student_id' => $student->id,
+            'sender_user_id' => $mentor->id,
+            'channel' => 'chat',
+            'body' => 'Check your browser.',
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('profile.edit'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('student_notifications.chat_url', route('student.chat.show'))
+                ->where('student_notifications.unread_mentor_chat.id', $message->id)
+                ->where('student_notifications.unread_mentor_chat.body', 'Check your browser.')
+                ->where('student_notifications.unread_mentor_chat.sender_name', 'Mentor One')
+            );
+    }
+
     public function test_opening_admin_chat_marks_student_messages_as_seen(): void
     {
         $mentor = User::factory()->create([

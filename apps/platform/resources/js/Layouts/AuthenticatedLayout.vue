@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PageProps } from '@/types';
-import { Link, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const props = withDefaults(defineProps<{
     hideSidebar?: boolean;
@@ -19,7 +19,96 @@ const page = usePage<PageProps>();
 
 const user = computed(() => page.props.auth.user!);
 const studentSettings = computed(() => user.value.student?.settings ?? null);
+const studentNotifications = computed(() => page.props.student_notifications ?? null);
+const unreadMentorChat = computed(() => studentNotifications.value?.unread_mentor_chat ?? null);
 const mobileNavOpen = ref(false);
+let studentNotificationPollInterval: number | null = null;
+
+const notificationStorageKey = computed(() => {
+    const studentId = user.value.student?.id;
+
+    return studentId ? `air:last-notified-mentor-chat:${studentId}` : null;
+});
+
+const persistNotifiedMentorChatId = (messageId: number) => {
+    if (!notificationStorageKey.value) {
+        return;
+    }
+
+    window.localStorage.setItem(notificationStorageKey.value, String(messageId));
+};
+
+const readNotifiedMentorChatId = (): number | null => {
+    if (!notificationStorageKey.value) {
+        return null;
+    }
+
+    const raw = window.localStorage.getItem(notificationStorageKey.value);
+    if (!raw) {
+        return null;
+    }
+
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const requestBrowserNotificationPermission = async () => {
+    if (!('Notification' in window) || Notification.permission !== 'default') {
+        return;
+    }
+
+    try {
+        await Notification.requestPermission();
+    } catch (_error) {
+    }
+};
+
+const shouldSuppressMentorChatBrowserNotification = (): boolean =>
+    route().current('student.chat.*') && document.visibilityState === 'visible';
+
+const showMentorChatBrowserNotification = (message: NonNullable<PageProps['student_notifications']>['unread_mentor_chat']) => {
+    if (!message || !('Notification' in window) || Notification.permission !== 'granted') {
+        return;
+    }
+
+    if (shouldSuppressMentorChatBrowserNotification()) {
+        return;
+    }
+
+    const bodyParts = [];
+
+    if (message.body) {
+        bodyParts.push(message.body.trim());
+    }
+
+    if (message.has_attachment) {
+        bodyParts.push('Attachment included.');
+    }
+
+    const notification = new Notification(message.sender_name || 'Mentor', {
+        body: bodyParts.filter(Boolean).join('\n\n') || 'New mentor message',
+        tag: `mentor-chat-${message.id}`,
+    });
+
+    notification.onclick = () => {
+        window.focus();
+        notification.close();
+
+        if (studentNotifications.value?.chat_url) {
+            window.location.assign(studentNotifications.value.chat_url);
+        }
+    };
+};
+
+const syncStudentNotifications = () => {
+    if (user.value.role !== 'student') {
+        return;
+    }
+
+    router.reload({
+        only: ['student_notifications'],
+    });
+};
 
 const navItems = computed(() => {
     const items = [
@@ -161,6 +250,54 @@ const navItemClasses = (active: boolean): string =>
 const closeMobileNav = () => {
     mobileNavOpen.value = false;
 };
+
+onMounted(() => {
+    if (user.value.role !== 'student') {
+        return;
+    }
+
+    void requestBrowserNotificationPermission();
+
+    if (unreadMentorChat.value?.id) {
+        if (readNotifiedMentorChatId() === null) {
+            persistNotifiedMentorChatId(unreadMentorChat.value.id);
+        }
+    }
+
+    studentNotificationPollInterval = window.setInterval(syncStudentNotifications, 5000);
+});
+
+onBeforeUnmount(() => {
+    if (studentNotificationPollInterval !== null) {
+        window.clearInterval(studentNotificationPollInterval);
+    }
+});
+
+watch(
+    unreadMentorChat,
+    async (message) => {
+        if (user.value.role !== 'student' || !message?.id) {
+            return;
+        }
+
+        const lastNotifiedId = readNotifiedMentorChatId();
+        if (lastNotifiedId === null) {
+            persistNotifiedMentorChatId(message.id);
+            return;
+        }
+
+        if (message.id <= lastNotifiedId) {
+            return;
+        }
+
+        if ('Notification' in window && Notification.permission === 'default') {
+            await requestBrowserNotificationPermission();
+        }
+
+        showMentorChatBrowserNotification(message);
+        persistNotifiedMentorChatId(message.id);
+    },
+);
 </script>
 
 <template>
