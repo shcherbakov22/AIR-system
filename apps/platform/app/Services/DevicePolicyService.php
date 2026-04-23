@@ -86,8 +86,8 @@ class DevicePolicyService
             ],
             'violation_app_enforcement' => [
                 'kill_gui_apps' => $browserExtensionMissing || $openViolations->contains(
-                    fn ($violation) => $violation->occurred_at instanceof Carbon
-                        && $violation->occurred_at->lessThanOrEqualTo($staleViolationDeadline)
+                    fn ($violation) => $violation->created_at instanceof Carbon
+                        && $violation->created_at->lessThanOrEqualTo($staleViolationDeadline)
                 ),
                 'browser_reopen_grace_seconds' => 60,
             ],

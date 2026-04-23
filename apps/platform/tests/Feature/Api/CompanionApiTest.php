@@ -512,14 +512,14 @@ class CompanionApiTest extends TestCase
         [$student, $studentUser] = $this->makeStudent('stale_violation_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
 
-        Violation::create([
+        $violation = Violation::create([
             'student_id' => $student->id,
             'rule_definition_id' => null,
             'rule_title_snapshot' => 'Recent violation',
             'status' => 'open',
             'penalty_units' => 5,
             'push_up_count' => 5,
-            'occurred_at' => now()->subMinutes(9),
+            'occurred_at' => now()->subMinutes(20),
         ]);
 
         $recentResponse = $this->withHeaders($this->authHeaders($device->issueToken()))
@@ -530,8 +530,8 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false)
             ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
 
-        Violation::query()->update([
-            'occurred_at' => now()->subMinutes(10),
+        Violation::query()->whereKey($violation->id)->update([
+            'created_at' => now()->subMinutes(10),
         ]);
 
         $staleResponse = $this->withHeaders($this->authHeaders($device->issueToken()))
