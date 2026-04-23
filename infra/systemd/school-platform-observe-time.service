@@ -1,0 +1,8 @@
+[Unit]
+Description=Evaluate Observe the time violations
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/school-system-redo/platform
+ExecStart=/usr/bin/php artisan violations:evaluate-observe-the-time

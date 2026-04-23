@@ -7,6 +7,8 @@ APP_SOURCE="$REPO_ROOT/apps/platform"
 REMOTE_BOOTSTRAP_SCRIPT="$SCRIPT_DIR/remote-bootstrap-platform.sh"
 SERVICE_FILE="$REPO_ROOT/infra/systemd/school-platform-complete-schedules.service"
 TIMER_FILE="$REPO_ROOT/infra/systemd/school-platform-complete-schedules.timer"
+OBSERVE_SERVICE_FILE="$REPO_ROOT/infra/systemd/school-platform-observe-time.service"
+OBSERVE_TIMER_FILE="$REPO_ROOT/infra/systemd/school-platform-observe-time.timer"
 
 SSH_PORT="22"
 SSH_USER="root"
@@ -157,6 +159,8 @@ scp "${ssh_opts[@]}" "$release_archive" "$ssh_target:$remote_tmp/platform-releas
 scp "${ssh_opts[@]}" "$ENV_FILE" "$ssh_target:$remote_tmp/platform.env"
 scp "${ssh_opts[@]}" "$SERVICE_FILE" "$ssh_target:$remote_tmp/complete-schedules.service"
 scp "${ssh_opts[@]}" "$TIMER_FILE" "$ssh_target:$remote_tmp/complete-schedules.timer"
+scp "${ssh_opts[@]}" "$OBSERVE_SERVICE_FILE" "$ssh_target:$remote_tmp/observe-time.service"
+scp "${ssh_opts[@]}" "$OBSERVE_TIMER_FILE" "$ssh_target:$remote_tmp/observe-time.timer"
 scp "${ssh_opts[@]}" "$REMOTE_BOOTSTRAP_SCRIPT" "$ssh_target:$remote_tmp/remote-bootstrap-platform.sh"
 
 ssh "${ssh_opts[@]}" "$ssh_target" \
@@ -166,6 +170,8 @@ ssh "${ssh_opts[@]}" "$ssh_target" \
         --env-file '$remote_tmp/platform.env' \
         --service-file '$remote_tmp/complete-schedules.service' \
         --timer-file '$remote_tmp/complete-schedules.timer' \
+        --observe-service-file '$remote_tmp/observe-time.service' \
+        --observe-timer-file '$remote_tmp/observe-time.timer' \
         --app-root '$APP_ROOT' \
         --server-name '$SERVER_NAME' \
         --web-user '$WEB_USER'"

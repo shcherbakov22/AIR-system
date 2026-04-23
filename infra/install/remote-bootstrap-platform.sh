@@ -6,18 +6,24 @@ RELEASE_ARCHIVE=""
 ENV_FILE=""
 SERVICE_FILE=""
 TIMER_FILE=""
+OBSERVE_SERVICE_FILE=""
+OBSERVE_TIMER_FILE=""
 SERVER_NAME=""
 WEB_USER="www-data"
 
 usage() {
     cat <<'EOF'
-Usage: remote-bootstrap-platform.sh --release <tar.gz> --env-file <.env> --service-file <service> --timer-file <timer> [options]
+Usage: remote-bootstrap-platform.sh --release <tar.gz> --env-file <.env> --service-file <service> --timer-file <timer> --observe-service-file <service> --observe-timer-file <timer> [options]
 
 Required:
   --release <path>       Uploaded platform release tarball
   --env-file <path>      Uploaded Laravel .env file
   --service-file <path>  Uploaded school-platform-complete-schedules.service
   --timer-file <path>    Uploaded school-platform-complete-schedules.timer
+  --observe-service-file <path>
+                         Uploaded school-platform-observe-time.service
+  --observe-timer-file <path>
+                         Uploaded school-platform-observe-time.timer
 
 Options:
   --app-root <path>      Install root on the target machine (default: /opt/school-platform)
@@ -44,6 +50,14 @@ while [[ $# -gt 0 ]]; do
             TIMER_FILE="$2"
             shift 2
             ;;
+        --observe-service-file)
+            OBSERVE_SERVICE_FILE="$2"
+            shift 2
+            ;;
+        --observe-timer-file)
+            OBSERVE_TIMER_FILE="$2"
+            shift 2
+            ;;
         --app-root)
             APP_ROOT="$2"
             shift 2
@@ -68,7 +82,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-for required_file in "$RELEASE_ARCHIVE" "$ENV_FILE" "$SERVICE_FILE" "$TIMER_FILE"; do
+for required_file in "$RELEASE_ARCHIVE" "$ENV_FILE" "$SERVICE_FILE" "$TIMER_FILE" "$OBSERVE_SERVICE_FILE" "$OBSERVE_TIMER_FILE"; do
     if [[ -z "$required_file" || ! -f "$required_file" ]]; then
         echo "Missing required file argument or file not found: $required_file" >&2
         exit 1
@@ -154,6 +168,8 @@ fi
 
 sed "s#/var/www/school-system-redo/platform#${APP_ROOT//\\/\\\\}#g" "$SERVICE_FILE" > /etc/systemd/system/school-platform-complete-schedules.service
 install -m 644 "$TIMER_FILE" /etc/systemd/system/school-platform-complete-schedules.timer
+sed "s#/var/www/school-system-redo/platform#${APP_ROOT//\\/\\\\}#g" "$OBSERVE_SERVICE_FILE" > /etc/systemd/system/school-platform-observe-time.service
+install -m 644 "$OBSERVE_TIMER_FILE" /etc/systemd/system/school-platform-observe-time.timer
 
 cat > /etc/caddy/Caddyfile <<EOF
 {
@@ -174,6 +190,7 @@ systemctl daemon-reload
 systemctl enable --now caddy
 systemctl enable --now "$php_fpm_service"
 systemctl enable --now school-platform-complete-schedules.timer
+systemctl enable --now school-platform-observe-time.timer
 systemctl restart "$php_fpm_service"
 systemctl restart caddy
 
