@@ -1155,6 +1155,41 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
     }
 
+    public function test_recent_browser_extension_heartbeat_prevents_false_missing_extension_enforcement(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('active_extension_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id.':old',
+            'label' => 'Old Chrome browser extension',
+            'hostname' => null,
+            'platform' => 'chrome_extension',
+            'app_version' => '0.1.0',
+            'last_seen_at' => now()->subMinutes(45),
+            'last_seen_ip' => '192.168.11.51',
+        ]);
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+            'label' => 'Chrome browser extension',
+            'hostname' => null,
+            'platform' => 'chrome_extension',
+            'app_version' => '0.1.0',
+            'last_seen_at' => now()->subMinutes(2),
+            'last_seen_ip' => '192.168.11.52',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.violations.open_count', 0)
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false);
+    }
+
     public function test_device_command_flow_is_scoped_and_result_submission_is_idempotent(): void
     {
         [$student, $studentUser] = $this->makeStudent('command_student', 'secret-pass');

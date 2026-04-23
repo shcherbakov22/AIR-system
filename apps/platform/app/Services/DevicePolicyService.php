@@ -141,13 +141,29 @@ class DevicePolicyService
 
     protected function browserExtensionMissingForStudent(Student $student): bool
     {
-        return StudentDevice::query()
+        $extensionDevices = StudentDevice::query()
             ->where('student_id', $student->id)
             ->where('platform', 'chrome_extension')
             ->whereNull('revoked_at')
-            ->whereNotNull('last_seen_at')
-            ->where('last_seen_at', '<=', now()->subMinutes(self::BROWSER_EXTENSION_STALE_AFTER_MINUTES))
-            ->exists();
+            ->get(['last_seen_at']);
+
+        if ($extensionDevices->isEmpty()) {
+            return false;
+        }
+
+        $staleDeadline = now()->subMinutes(self::BROWSER_EXTENSION_STALE_AFTER_MINUTES);
+        $seenDevices = $extensionDevices->filter(
+            fn (StudentDevice $device) => $device->last_seen_at instanceof Carbon
+        );
+
+        if ($seenDevices->isEmpty()) {
+            return false;
+        }
+
+        return ! $seenDevices->contains(
+            fn (StudentDevice $device) => $device->last_seen_at instanceof Carbon
+                && $device->last_seen_at->greaterThan($staleDeadline)
+        );
     }
 
     public function latestActivitySummary(StudentDevice $device): array
