@@ -12,6 +12,7 @@ use Illuminate\Support\Arr;
 class DevicePolicyService
 {
     private const BROWSER_EXTENSION_STALE_AFTER_MINUTES = 10;
+    private const BROWSER_ACTIVITY_FRESH_AFTER_MINUTES = 2;
 
     public function __construct(
         private readonly StudentCommunicationGateService $communicationGateService,
@@ -160,10 +161,49 @@ class DevicePolicyService
             return false;
         }
 
-        return ! $seenDevices->contains(
+        $hasFreshExtension = $seenDevices->contains(
             fn (StudentDevice $device) => $device->last_seen_at instanceof Carbon
                 && $device->last_seen_at->greaterThan($staleDeadline)
         );
+
+        return ! $hasFreshExtension && $this->hasRecentlyObservedBrowser($student);
+    }
+
+    protected function hasRecentlyObservedBrowser(Student $student): bool
+    {
+        $latestOpenApps = DeviceActivityEvent::query()
+            ->where('event_type', 'open_apps')
+            ->where('observed_at', '>=', now()->subMinutes(self::BROWSER_ACTIVITY_FRESH_AFTER_MINUTES))
+            ->whereHas('studentDevice', fn ($query) => $query
+                ->where('student_id', $student->id)
+                ->where('platform', '!=', 'chrome_extension')
+                ->whereNull('revoked_at')
+            )
+            ->latest('observed_at')
+            ->latest('id')
+            ->first();
+
+        if (! $latestOpenApps) {
+            return false;
+        }
+
+        return collect($this->normalizeOpenApps($latestOpenApps->payload['apps'] ?? []))
+            ->contains(fn (array $app) => $this->isBrowserAppName((string) ($app['app_name'] ?? '')));
+    }
+
+    protected function isBrowserAppName(string $appName): bool
+    {
+        $normalized = strtolower(trim($appName));
+
+        return in_array($normalized, [
+            'chrome.exe',
+            'msedge.exe',
+            'firefox.exe',
+            'brave.exe',
+            'bravebrowser.exe',
+            'opera.exe',
+            'vivaldi.exe',
+        ], true);
     }
 
     public function latestActivitySummary(StudentDevice $device): array

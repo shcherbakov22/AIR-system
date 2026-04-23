@@ -1146,6 +1146,16 @@ class CompanionApiTest extends TestCase
             ->where('device_key', 'browser-extension:student:'.$student->id)
             ->update(['last_seen_at' => now()->subMinutes(11)]);
 
+        $device->activityEvents()->create([
+            'event_type' => 'open_apps',
+            'payload' => [
+                'apps' => [
+                    ['app_name' => 'chrome.exe', 'window_title' => 'IXL'],
+                ],
+            ],
+            'observed_at' => now(),
+        ]);
+
         $this->withHeaders($this->authHeaders($token))
             ->getJson(route('api.companion.policy.show'))
             ->assertOk()
@@ -1153,6 +1163,40 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.violations.items.0.rule_title', 'Browser extension removed')
             ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true)
             ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
+    }
+
+    public function test_stale_browser_extension_does_not_keep_browser_in_a_dead_restart_loop(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('closed_browser_extension_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+            'label' => 'Chrome browser extension',
+            'hostname' => null,
+            'platform' => 'chrome_extension',
+            'app_version' => '0.1.0',
+            'last_seen_at' => now()->subMinutes(30),
+            'last_seen_ip' => '192.168.11.50',
+        ]);
+
+        $device->activityEvents()->create([
+            'event_type' => 'open_apps',
+            'payload' => [
+                'apps' => [
+                    ['app_name' => 'chrome.exe', 'window_title' => 'Old browser window'],
+                ],
+            ],
+            'observed_at' => now()->subMinutes(5),
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.violations.open_count', 0)
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false);
     }
 
     public function test_recent_browser_extension_heartbeat_prevents_false_missing_extension_enforcement(): void
