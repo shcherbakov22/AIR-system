@@ -186,6 +186,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('/assignments/{studentAssignment}/start', [StudentAssignmentController::class, 'start'])->name('assignments.start');
         Route::patch('/assignments/{studentAssignment}/hand-in', [StudentAssignmentController::class, 'handIn'])->name('assignments.hand-in');
         Route::get('/companion/enroll', [StudentCompanionEnrollmentController::class, 'show'])->name('companion.enroll');
+        Route::post('/companion/enroll/browser-extension-token', [StudentCompanionEnrollmentController::class, 'browserExtensionToken'])->name('companion.enroll.browser-extension-token');
         Route::get('/companion/enroll/bootstrap.ps1', [StudentCompanionEnrollmentController::class, 'bootstrapScript'])->name('companion.enroll.bootstrap');
         Route::post('/attention/events', [StudentAttentionEventController::class, 'store'])
             ->withoutMiddleware([VerifyCsrfToken::class])

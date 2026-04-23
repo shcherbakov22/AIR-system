@@ -9,6 +9,7 @@ const props = defineProps<{
     bootstrap_script_url: string;
     root_ca_url: string;
     base_url: string;
+    browser_extension_configure_url: string;
     browser_extension_setup: {
         platform_url: string;
         device_token: string;
@@ -35,13 +36,43 @@ onBeforeUnmount(() => {
     window.removeEventListener('message', handleExtensionSetupResult);
 });
 
-const configureBrowserExtension = () => {
+const csrfToken = (): string =>
+    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '';
+
+const configureBrowserExtension = async () => {
     extensionSetupOk.value = false;
+    extensionSetupStatus.value = 'Preparing browser extension setup...';
+
+    let setup = props.browser_extension_setup;
+
+    try {
+        const response = await fetch(props.browser_extension_configure_url, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: '{}',
+        });
+
+        if (!response.ok) {
+            throw new Error(`Setup token request failed with ${response.status}`);
+        }
+
+        setup = await response.json();
+    } catch (error) {
+        extensionSetupStatus.value = error instanceof Error
+            ? error.message
+            : 'Failed to prepare browser extension setup.';
+        return;
+    }
+
     extensionSetupStatus.value = 'Sending setup to the browser extension...';
     window.postMessage({
         type: 'air_browser_extension_configure',
-        platformUrl: props.browser_extension_setup.platform_url,
-        deviceToken: props.browser_extension_setup.device_token,
+        platformUrl: setup.platform_url,
+        deviceToken: setup.device_token,
     }, window.location.origin);
 
     window.setTimeout(() => {

@@ -7,6 +7,8 @@ use App\Models\DeviceEnrollmentToken;
 use App\Models\Student;
 use App\Models\StudentDevice;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -27,6 +29,18 @@ class CompanionEnrollmentController extends Controller
             'root_ca_url' => $this->rootCertificateUrl(),
             'base_url' => url('/'),
             'browser_extension_setup' => $browserExtensionSetup,
+            'browser_extension_configure_url' => route('student.companion.enroll.browser-extension-token'),
+        ]);
+    }
+
+    public function browserExtensionToken(Request $request): JsonResponse
+    {
+        $student = $request->user()?->student;
+        abort_unless($student !== null, 404);
+
+        return response()->json([
+            'platform_url' => url('/'),
+            'device_token' => $this->rotateBrowserExtensionSetupToken($student, $request->ip()),
         ]);
     }
 
@@ -243,7 +257,42 @@ POWERSHELL;
 
         return [
             'platform_url' => url('/'),
-            'device_token' => $device->issueToken(),
+            'device_token' => is_array($device->meta) && is_string($device->meta['setup_token'] ?? null)
+                ? $device->meta['setup_token']
+                : '',
         ];
+    }
+
+    private function rotateBrowserExtensionSetupToken(Student $student, ?string $ipAddress): string
+    {
+        $device = StudentDevice::query()->updateOrCreate(
+            [
+                'device_key' => 'browser-extension:student:'.$student->id,
+            ],
+            [
+                'student_id' => $student->id,
+                'label' => 'Chrome browser extension',
+                'hostname' => null,
+                'platform' => 'chrome_extension',
+                'app_version' => '0.1.0',
+                'last_seen_ip' => $ipAddress,
+            ],
+        );
+
+        return $this->issueBrowserExtensionSetupToken($device);
+    }
+
+    private function issueBrowserExtensionSetupToken(StudentDevice $device): string
+    {
+        $meta = is_array($device->meta) ? $device->meta : [];
+        $token = Str::random(64);
+        $meta['setup_token'] = $token;
+
+        $device->forceFill([
+            'token_hash' => hash('sha256', $token),
+            'meta' => $meta,
+        ])->save();
+
+        return $token;
     }
 }
