@@ -1144,7 +1144,7 @@ class CompanionApiTest extends TestCase
 
         StudentDevice::query()
             ->where('device_key', 'browser-extension:student:'.$student->id)
-            ->update(['last_seen_at' => now()->subMinutes(11)]);
+            ->update(['last_seen_at' => now()->subMinutes(21)]);
 
         $device->activityEvents()->create([
             'event_type' => 'open_apps',
@@ -1225,6 +1225,40 @@ class CompanionApiTest extends TestCase
             'app_version' => '0.1.0',
             'last_seen_at' => now()->subMinutes(2),
             'last_seen_ip' => '192.168.11.52',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.violations.open_count', 0)
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false);
+    }
+
+    public function test_short_browser_extension_outage_does_not_trigger_removal_enforcement(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('short_extension_outage_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+            'label' => 'Chrome browser extension',
+            'hostname' => null,
+            'platform' => 'chrome_extension',
+            'app_version' => '0.1.0',
+            'last_seen_at' => now()->subMinutes(12),
+            'last_seen_ip' => '192.168.11.52',
+        ]);
+
+        $device->activityEvents()->create([
+            'event_type' => 'open_apps',
+            'payload' => [
+                'apps' => [
+                    ['app_name' => 'chrome.exe', 'window_title' => 'IXL'],
+                ],
+            ],
+            'observed_at' => now(),
         ]);
 
         $this->withHeaders($this->authHeaders($token))

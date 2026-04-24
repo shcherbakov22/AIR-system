@@ -6,8 +6,13 @@ const DEFAULT_POLICY = {
   updated_at: null,
 };
 
+const POLICY_REFRESH_ALARM = 'policy_refresh';
+const EXTENSION_HEARTBEAT_ALARM = 'extension_heartbeat';
+const EXTENSION_HEARTBEAT_IMMEDIATE_ALARM = 'extension_heartbeat_immediate';
 const POLICY_REFRESH_MINUTES = 5;
+const EXTENSION_HEARTBEAT_MINUTES = 1;
 const POLICY_REFRESH_MAX_AGE_MS = POLICY_REFRESH_MINUTES * 60 * 1000;
+const IMMEDIATE_HEARTBEAT_DELAY_MS = 15_000;
 
 const MULTI_LABEL_PUBLIC_SUFFIXES = new Set([
   'ac.uk',
@@ -30,18 +35,21 @@ const recentVisits = new Map();
 let networkRuleUpdate = Promise.resolve();
 
 chrome.runtime.onInstalled.addListener(() => {
-  schedulePolicyRefreshAlarm();
-  syncPolicy();
+  initializeBackground();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  schedulePolicyRefreshAlarm();
-  syncPolicy();
+  initializeBackground();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'policy_refresh') {
+  if (alarm.name === POLICY_REFRESH_ALARM) {
     syncPolicy().catch(() => {});
+    return;
+  }
+
+  if (alarm.name === EXTENSION_HEARTBEAT_ALARM || alarm.name === EXTENSION_HEARTBEAT_IMMEDIATE_ALARM) {
+    heartbeatExtension().catch(() => {});
   }
 });
 
@@ -58,7 +66,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     return;
   }
 
+  queueImmediateHeartbeat();
   await logVisit(tab.url, tab.title || null);
+});
+
+chrome.tabs.onActivated.addListener(() => {
+  queueImmediateHeartbeat();
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -93,12 +106,32 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return false;
 });
 
-schedulePolicyRefreshAlarm();
+initializeBackground();
+
+function initializeBackground() {
+  schedulePolicyRefreshAlarm();
+  scheduleExtensionHeartbeatAlarm();
+  queueImmediateHeartbeat();
+  syncPolicy().catch(() => {});
+}
 
 function schedulePolicyRefreshAlarm() {
-  chrome.alarms.create('policy_refresh', {
+  chrome.alarms.create(POLICY_REFRESH_ALARM, {
     delayInMinutes: POLICY_REFRESH_MINUTES,
     periodInMinutes: POLICY_REFRESH_MINUTES,
+  });
+}
+
+function scheduleExtensionHeartbeatAlarm() {
+  chrome.alarms.create(EXTENSION_HEARTBEAT_ALARM, {
+    delayInMinutes: EXTENSION_HEARTBEAT_MINUTES,
+    periodInMinutes: EXTENSION_HEARTBEAT_MINUTES,
+  });
+}
+
+function queueImmediateHeartbeat() {
+  chrome.alarms.create(EXTENSION_HEARTBEAT_IMMEDIATE_ALARM, {
+    when: Date.now() + IMMEDIATE_HEARTBEAT_DELAY_MS,
   });
 }
 
@@ -136,15 +169,7 @@ async function syncPolicy() {
     return DEFAULT_POLICY;
   }
 
-  const response = await fetch(`${settings.platformUrl}/api/companion/browser/policy`, {
-    headers: authHeaders(settings.deviceToken),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Policy sync failed with ${response.status}`);
-  }
-
-  const payload = await response.json();
+  const payload = await fetchRemotePolicy(settings);
   const policy = payload.policy || DEFAULT_POLICY;
 
   await applyNetworkRules(policy, settings.platformUrl);
@@ -152,9 +177,50 @@ async function syncPolicy() {
   await chrome.storage.local.set({
     policy,
     lastPolicySyncAt: new Date().toISOString(),
+    lastExtensionHeartbeatAt: new Date().toISOString(),
   });
 
   return policy;
+}
+
+async function heartbeatExtension() {
+  const settings = await getSettings();
+
+  if (!settings.platformUrl || !settings.deviceToken) {
+    return DEFAULT_POLICY;
+  }
+
+  const payload = await fetchRemotePolicy(settings);
+  const remotePolicy = payload.policy || DEFAULT_POLICY;
+  const stored = await chrome.storage.local.get(['policy']);
+  const currentPolicy = stored.policy || DEFAULT_POLICY;
+  const policyChanged = JSON.stringify(currentPolicy) !== JSON.stringify(remotePolicy);
+  const heartbeatAt = new Date().toISOString();
+  const nextState = {
+    lastExtensionHeartbeatAt: heartbeatAt,
+  };
+
+  if (policyChanged) {
+    await applyNetworkRules(remotePolicy, settings.platformUrl);
+    nextState.policy = remotePolicy;
+    nextState.lastPolicySyncAt = heartbeatAt;
+  }
+
+  await chrome.storage.local.set(nextState);
+  return policyChanged ? remotePolicy : currentPolicy;
+}
+
+async function fetchRemotePolicy(settings) {
+  const response = await fetch(`${settings.platformUrl}/api/companion/browser/policy`, {
+    cache: 'no-store',
+    headers: authHeaders(settings.deviceToken),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Policy sync failed with ${response.status}`);
+  }
+
+  return response.json();
 }
 
 async function applyNetworkRules(policy, platformUrl = '') {

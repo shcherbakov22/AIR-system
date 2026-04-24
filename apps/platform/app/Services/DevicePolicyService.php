@@ -11,7 +11,7 @@ use Illuminate\Support\Arr;
 
 class DevicePolicyService
 {
-    private const BROWSER_EXTENSION_STALE_AFTER_MINUTES = 10;
+    private const BROWSER_EXTENSION_STALE_AFTER_MINUTES = 20;
     private const BROWSER_ACTIVITY_FRESH_AFTER_MINUTES = 2;
 
     public function __construct(
