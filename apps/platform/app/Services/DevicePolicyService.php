@@ -85,7 +85,7 @@ class DevicePolicyService
                 'items' => $violationItems->all(),
             ],
             'violation_app_enforcement' => [
-                'kill_gui_apps' => $browserExtensionMissing || $openViolations->contains(
+                'kill_gui_apps' => $openViolations->contains(
                     fn ($violation) => $violation->created_at instanceof Carbon
                         && $violation->created_at->lessThanOrEqualTo($staleViolationDeadline)
                 ),

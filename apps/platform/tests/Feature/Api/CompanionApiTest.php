@@ -1119,7 +1119,7 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.app_control.blocked_processes', ['Game.exe', 'taskmgr.exe']);
     }
 
-    public function test_stale_installed_browser_extension_triggers_violation_style_app_enforcement(): void
+    public function test_stale_installed_browser_extension_reports_violation_without_gui_kill(): void
     {
         [$student, $studentUser] = $this->makeStudent('missing_extension_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -1161,7 +1161,7 @@ class CompanionApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('policy.violations.open_count', 1)
             ->assertJsonPath('policy.violations.items.0.rule_title', 'Browser extension removed')
-            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true)
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false)
             ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
     }
 
@@ -1266,6 +1266,54 @@ class CompanionApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('policy.violations.open_count', 0)
             ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false);
+    }
+
+    public function test_stale_browser_extension_does_not_add_gui_kill_on_top_of_real_violations(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('stale_extension_plus_violation_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'rule_title_snapshot' => 'Recent violation',
+            'status' => 'open',
+            'penalty_units' => 5,
+            'push_up_count' => 5,
+            'occurred_at' => now()->subMinutes(20),
+        ]);
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+            'label' => 'Chrome browser extension',
+            'hostname' => null,
+            'platform' => 'chrome_extension',
+            'app_version' => '0.1.0',
+            'last_seen_at' => now()->subMinutes(30),
+            'last_seen_ip' => '192.168.11.52',
+        ]);
+
+        Violation::query()->where('student_id', $student->id)->update([
+            'created_at' => now()->subMinutes(10),
+        ]);
+
+        $device->activityEvents()->create([
+            'event_type' => 'open_apps',
+            'payload' => [
+                'apps' => [
+                    ['app_name' => 'chrome.exe', 'window_title' => 'IXL'],
+                ],
+            ],
+            'observed_at' => now(),
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.violations.open_count', 2)
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true);
     }
 
     public function test_device_command_flow_is_scoped_and_result_submission_is_idempotent(): void
