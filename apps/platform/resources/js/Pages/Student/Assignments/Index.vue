@@ -8,6 +8,12 @@ defineProps<{
         id: number;
         title: string;
         body?: string | null;
+        attachment?: {
+            name?: string | null;
+            mime?: string | null;
+            size?: number | null;
+            url: string;
+        } | null;
         status: 'unread' | 'viewed' | 'in_progress' | 'handed_in' | 'completed';
         created_at_label?: string | null;
         viewed_at_label?: string | null;

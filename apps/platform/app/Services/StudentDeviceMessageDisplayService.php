@@ -56,6 +56,10 @@ class StudentDeviceMessageDisplayService
             $bodyParts[] = $trimmedBody;
         }
 
+        if ($assignment->hasAttachment()) {
+            $bodyParts[] = 'Image: '.($assignment->attachment_name ?: 'attachment');
+        }
+
         $displayBody = Str::limit(implode("\n\n", $bodyParts), 900);
         if ($displayBody === '') {
             return;

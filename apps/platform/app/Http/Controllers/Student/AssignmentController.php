@@ -69,6 +69,12 @@ class AssignmentController extends Controller
             'id' => $assignment->id,
             'title' => $assignment->title,
             'body' => $assignment->body,
+            'attachment' => $assignment->hasAttachment() ? [
+                'name' => $assignment->attachment_name,
+                'mime' => $assignment->attachment_mime,
+                'size' => $assignment->attachment_size,
+                'url' => route('student-assignments.attachment.show', $assignment),
+            ] : null,
             'status' => $assignment->status,
             'created_at_label' => $assignment->created_at?->format('j M, H:i'),
             'viewed_at_label' => $assignment->viewed_at?->format('j M, H:i'),

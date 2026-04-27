@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\StudentAppPolicyController as AdminStudentAppPoli
 use App\Http\Controllers\Admin\TaskSessionController as AdminTaskSessionController;
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
+use App\Http\Controllers\AssignmentAttachmentController;
 use App\Http\Controllers\ChatAttachmentController;
 use App\Http\Controllers\CompanionBrowserLoginController;
 use App\Http\Controllers\CompanionRootCertificateController;
@@ -99,6 +100,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/chat-messages/{chatMessage}/attachment', [ChatAttachmentController::class, 'show'])->name('chat-messages.attachment.show');
+    Route::get('/student-assignments/{studentAssignment}/attachment', [AssignmentAttachmentController::class, 'show'])->name('student-assignments.attachment.show');
 
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');

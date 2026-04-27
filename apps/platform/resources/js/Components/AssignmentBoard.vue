@@ -8,6 +8,12 @@ type Assignment = {
     id: number;
     title: string;
     body?: string | null;
+    attachment?: {
+        name?: string | null;
+        mime?: string | null;
+        size?: number | null;
+        url: string;
+    } | null;
     status: AssignmentStatus;
     created_at_label?: string | null;
     viewed_at_label?: string | null;
@@ -102,6 +108,25 @@ const groupedAssignments = computed(() =>
 
                         <p class="mt-2 whitespace-pre-wrap text-xs leading-5 text-stone-900">
                             {{ assignment.body || 'Assignment' }}
+                        </p>
+                        <a
+                            v-if="assignment.attachment?.url"
+                            :href="assignment.attachment.url"
+                            target="_blank"
+                            rel="noreferrer"
+                            class="mt-2 block overflow-hidden rounded-[0.9rem] ring-1 ring-stone-200 transition hover:ring-stone-400"
+                        >
+                            <img
+                                :src="assignment.attachment.url"
+                                :alt="assignment.attachment.name || 'Assignment image'"
+                                class="max-h-56 w-full object-cover"
+                            >
+                        </a>
+                        <p
+                            v-if="assignment.attachment?.name"
+                            class="mt-1 truncate text-[11px] text-stone-500"
+                        >
+                            {{ assignment.attachment.name }}
                         </p>
 
                         <div class="mt-3 flex flex-wrap gap-2">

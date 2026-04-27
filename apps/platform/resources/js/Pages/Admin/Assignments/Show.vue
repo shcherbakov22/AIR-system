@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import AssignmentBoard from '@/Components/AssignmentBoard.vue';
+import AssignmentImageDropzone from '@/Components/AssignmentImageDropzone.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 const props = defineProps<{
     student: {
@@ -13,6 +15,12 @@ const props = defineProps<{
         id: number;
         title: string;
         body?: string | null;
+        attachment?: {
+            name?: string | null;
+            mime?: string | null;
+            size?: number | null;
+            url: string;
+        } | null;
         status: 'unread' | 'viewed' | 'in_progress' | 'handed_in' | 'completed';
         created_at_label?: string | null;
         viewed_at_label?: string | null;
@@ -28,14 +36,25 @@ const props = defineProps<{
 const form = useForm({
     student_id: String(props.student.id),
     body: '',
+    image: null as File | null,
     return_to_student: true,
 });
+const imageDropActive = ref(false);
 
 const submit = () => {
     form.post(route('admin.assignments.store'), {
         preserveScroll: true,
-        onSuccess: () => form.reset('body'),
+        forceFormData: true,
+        onSuccess: () => form.reset('body', 'image'),
     });
+};
+
+const setDroppedImage = (file: File) => {
+    form.image = file;
+};
+
+const clearDroppedImage = () => {
+    form.image = null;
 };
 
 const completeAssignment = (url?: string | null) => {
@@ -87,6 +106,15 @@ const markIncomplete = (url?: string | null) => {
                             rows="5"
                             class="w-full rounded-[1rem] border-stone-300 px-4 py-3 text-sm shadow-sm focus:border-stone-950 focus:ring-stone-950"
                             placeholder="Assignment"
+                        />
+                        <AssignmentImageDropzone
+                            :image-file="form.image"
+                            :disabled="form.processing"
+                            :active="imageDropActive"
+                            @drop="setDroppedImage"
+                            @clear="clearDroppedImage"
+                            @drag-enter="imageDropActive = true"
+                            @drag-leave="imageDropActive = false"
                         />
                         <button
                             type="submit"

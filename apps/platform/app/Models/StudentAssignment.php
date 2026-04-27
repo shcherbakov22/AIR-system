@@ -15,6 +15,11 @@ class StudentAssignment extends Model
         'created_by_user_id',
         'title',
         'body',
+        'attachment_disk',
+        'attachment_path',
+        'attachment_name',
+        'attachment_mime',
+        'attachment_size',
         'status',
         'viewed_at',
         'started_at',
@@ -27,6 +32,7 @@ class StudentAssignment extends Model
             'viewed_at' => 'datetime',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'attachment_size' => 'integer',
         ];
     }
 
@@ -38,6 +44,11 @@ class StudentAssignment extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    public function hasAttachment(): bool
+    {
+        return filled($this->attachment_path) && filled($this->attachment_disk);
     }
 
     public function markViewed(): void

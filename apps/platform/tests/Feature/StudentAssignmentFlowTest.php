@@ -9,6 +9,8 @@ use App\Models\StudentDevice;
 use App\Models\StudentAssignment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StudentAssignmentFlowTest extends TestCase
@@ -101,6 +103,48 @@ class StudentAssignmentFlowTest extends TestCase
             'display_seconds' => 20,
             'student_assignment_id' => $assignment->id,
         ], $command->payload);
+    }
+
+    public function test_admin_can_create_assignment_with_drag_dropped_image(): void
+    {
+        Storage::fake('local');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $image = $this->fakeImageUpload('worksheet.png');
+
+        $this->actingAs($mentor)
+            ->post(route('admin.assignments.store'), [
+                'student_id' => $student->id,
+                'body' => '',
+                'image' => $image,
+            ])
+            ->assertRedirect(route('admin.assignments.index', ['student_id' => $student->id], absolute: false))
+            ->assertSessionHas('success', 'Assignment created.');
+
+        $assignment = StudentAssignment::query()->sole();
+
+        $this->assertSame($student->id, $assignment->student_id);
+        $this->assertNull($assignment->body);
+        $this->assertSame('local', $assignment->attachment_disk);
+        $this->assertSame('worksheet.png', $assignment->attachment_name);
+        $this->assertSame('image/png', $assignment->attachment_mime);
+        $this->assertNotNull($assignment->attachment_path);
+        Storage::disk('local')->assertExists($assignment->attachment_path);
     }
 
     public function test_student_opening_assignments_marks_unread_items_as_viewed(): void
@@ -305,6 +349,85 @@ class StudentAssignmentFlowTest extends TestCase
             );
     }
 
+    public function test_assignment_payload_exposes_attachment_url_and_attachment_route_is_access_controlled(): void
+    {
+        Storage::fake('local');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        $otherStudentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'other_student',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        Student::create([
+            'user_id' => $otherStudentUser->id,
+            'display_name' => 'Other Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $storedPath = $this->fakeImageUpload('geometry.png')->store("assignments/{$student->id}", 'local');
+
+        $assignment = StudentAssignment::create([
+            'student_id' => $student->id,
+            'created_by_user_id' => $mentor->id,
+            'title' => 'Geometry',
+            'body' => 'Review the image.',
+            'attachment_disk' => 'local',
+            'attachment_path' => $storedPath,
+            'attachment_name' => 'geometry.png',
+            'attachment_mime' => 'image/png',
+            'attachment_size' => Storage::disk('local')->size($storedPath),
+            'status' => 'unread',
+        ]);
+
+        $attachmentUrl = route('student-assignments.attachment.show', $assignment);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.assignments.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Student/Assignments/Index')
+                ->where('assignments.0.attachment.url', $attachmentUrl)
+                ->where('assignments.0.attachment.name', 'geometry.png')
+            );
+
+        $this->actingAs($mentor)
+            ->get(route('admin.assignments.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/Assignments/Index')
+                ->where('assignments.0.attachment.url', $attachmentUrl)
+            );
+
+        $this->actingAs($mentor)
+            ->get($attachmentUrl)
+            ->assertOk();
+
+        $this->actingAs($studentUser)
+            ->get($attachmentUrl)
+            ->assertOk();
+
+        $this->actingAs($otherStudentUser)
+            ->get($attachmentUrl)
+            ->assertNotFound();
+    }
+
     public function test_admin_assignments_pages_expose_complete_and_incomplete_actions_for_submitted_items(): void
     {
         $mentor = User::factory()->create([
@@ -419,5 +542,13 @@ class StudentAssignmentFlowTest extends TestCase
                 ->where('assignments.0.id', $keptAssignment->id)
                 ->where('assignments.0.student.id', $firstStudent->id)
             );
+    }
+
+    private function fakeImageUpload(string $name): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent(
+            $name,
+            base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0dkAAAAASUVORK5CYII='),
+        );
     }
 }

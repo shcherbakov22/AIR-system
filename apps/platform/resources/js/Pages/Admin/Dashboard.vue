@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AssignmentImageDropzone from '@/Components/AssignmentImageDropzone.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -208,6 +209,8 @@ const selectedViolationRuleIds = ref<Record<number, string>>({});
 const violationApplyPendingByStudentId = ref<Record<number, boolean>>({});
 const assignmentComposerOpenByStudentId = ref<Record<number, boolean>>({});
 const assignmentBodyByStudentId = ref<Record<number, string>>({});
+const assignmentImageByStudentId = ref<Record<number, File | null>>({});
+const assignmentImageDropActiveByStudentId = ref<Record<number, boolean>>({});
 const assignmentCreatePendingByStudentId = ref<Record<number, boolean>>({});
 const pushUpStationMenuOpen = ref(false);
 const violationSelectByStudentId = new Map<number, HTMLSelectElement>();
@@ -883,6 +886,19 @@ const toggleAssignmentComposer = (studentId: number) => {
         ...assignmentComposerOpenByStudentId.value,
         [studentId]: !assignmentComposerOpenByStudentId.value[studentId],
     };
+
+    if (assignmentComposerOpenByStudentId.value[studentId]) {
+        return;
+    }
+
+    assignmentImageByStudentId.value = {
+        ...assignmentImageByStudentId.value,
+        [studentId]: null,
+    };
+    assignmentImageDropActiveByStudentId.value = {
+        ...assignmentImageDropActiveByStudentId.value,
+        [studentId]: false,
+    };
 };
 
 const createAssignment = (studentId: number) => {
@@ -891,7 +907,9 @@ const createAssignment = (studentId: number) => {
     }
 
     const body = (assignmentBodyByStudentId.value[studentId] ?? '').trim();
-    if (!body) {
+    const image = assignmentImageByStudentId.value[studentId] ?? null;
+
+    if (!body && !image) {
         return;
     }
 
@@ -900,18 +918,36 @@ const createAssignment = (studentId: number) => {
     router.post(route('admin.assignments.store'), {
         student_id: studentId,
         body,
+        image,
         return_to_dashboard: true,
     }, {
         preserveScroll: true,
         preserveState: true,
+        forceFormData: true,
         onSuccess: () => {
             assignmentBodyByStudentId.value[studentId] = '';
+            assignmentImageByStudentId.value[studentId] = null;
+            assignmentImageDropActiveByStudentId.value[studentId] = false;
             assignmentComposerOpenByStudentId.value[studentId] = false;
         },
         onFinish: () => {
             assignmentCreatePendingByStudentId.value[studentId] = false;
         },
     });
+};
+
+const setAssignmentDroppedImage = (studentId: number, file: File) => {
+    assignmentImageByStudentId.value = {
+        ...assignmentImageByStudentId.value,
+        [studentId]: file,
+    };
+};
+
+const clearAssignmentDroppedImage = (studentId: number) => {
+    assignmentImageByStudentId.value = {
+        ...assignmentImageByStudentId.value,
+        [studentId]: null,
+    };
 };
 
 const queueStudentPushUps = (url?: string | null) => {
@@ -1495,11 +1531,22 @@ const blockTooltip = (block: DashboardBlock): string => {
                             placeholder="Assignment"
                             :disabled="!!assignmentCreatePendingByStudentId[student.id]"
                         />
+                        <AssignmentImageDropzone
+                            class="mt-1"
+                            compact
+                            :image-file="assignmentImageByStudentId[student.id] ?? null"
+                            :disabled="!!assignmentCreatePendingByStudentId[student.id]"
+                            :active="!!assignmentImageDropActiveByStudentId[student.id]"
+                            @drop="setAssignmentDroppedImage(student.id, $event)"
+                            @clear="clearAssignmentDroppedImage(student.id)"
+                            @drag-enter="assignmentImageDropActiveByStudentId[student.id] = true"
+                            @drag-leave="assignmentImageDropActiveByStudentId[student.id] = false"
+                        />
                         <div class="mt-1 flex justify-end">
                             <button
                                 type="submit"
                                 class="rounded-full bg-sky-700 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
-                                :disabled="!!assignmentCreatePendingByStudentId[student.id] || !(assignmentBodyByStudentId[student.id] ?? '').trim()"
+                                :disabled="!!assignmentCreatePendingByStudentId[student.id] || (!(assignmentBodyByStudentId[student.id] ?? '').trim() && !assignmentImageByStudentId[student.id])"
                             >
                                 Add
                             </button>

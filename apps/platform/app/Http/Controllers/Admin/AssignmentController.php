@@ -8,6 +8,7 @@ use App\Models\StudentAssignment;
 use App\Services\StudentDeviceMessageDisplayService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -65,14 +66,24 @@ class AssignmentController extends Controller
         $data = $request->validate([
             'student_id' => ['required', 'integer', 'exists:students,id'],
             'title' => ['nullable', 'string', 'max:255'],
-            'body' => ['required', 'string'],
+            'body' => ['nullable', 'string', 'required_without:image'],
+            'image' => ['nullable', 'image', 'max:8192', 'required_without:body'],
         ]);
+
+        $image = $request->file('image');
+        $path = $image?->store("assignments/{$data['student_id']}", 'local');
+        $trimmedBody = trim((string) ($data['body'] ?? ''));
 
         $assignment = StudentAssignment::create([
             'student_id' => $data['student_id'],
             'created_by_user_id' => $request->user()->id,
             'title' => 'Assignment',
-            'body' => trim((string) $data['body']),
+            'body' => $trimmedBody !== '' ? $trimmedBody : null,
+            'attachment_disk' => $path ? 'local' : null,
+            'attachment_path' => $path,
+            'attachment_name' => $image?->getClientOriginalName(),
+            'attachment_mime' => $image?->getClientMimeType(),
+            'attachment_size' => $image?->getSize(),
             'status' => 'unread',
         ]);
 
@@ -98,6 +109,11 @@ class AssignmentController extends Controller
     public function destroy(StudentAssignment $studentAssignment): RedirectResponse
     {
         $studentId = $studentAssignment->student_id;
+
+        if ($studentAssignment->attachment_path) {
+            Storage::disk($studentAssignment->attachment_disk ?? 'local')->delete($studentAssignment->attachment_path);
+        }
+
         $studentAssignment->delete();
 
         return redirect()
@@ -131,6 +147,12 @@ class AssignmentController extends Controller
             'id' => $assignment->id,
             'title' => $assignment->title,
             'body' => $assignment->body,
+            'attachment' => $assignment->hasAttachment() ? [
+                'name' => $assignment->attachment_name,
+                'mime' => $assignment->attachment_mime,
+                'size' => $assignment->attachment_size,
+                'url' => route('student-assignments.attachment.show', $assignment),
+            ] : null,
             'status' => $assignment->status,
             'created_at_label' => $assignment->created_at?->format('j M, H:i'),
             'viewed_at_label' => $assignment->viewed_at?->format('j M, H:i'),
