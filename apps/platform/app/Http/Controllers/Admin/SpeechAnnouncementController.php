@@ -76,15 +76,6 @@ class SpeechAnnouncementController extends Controller
         ]);
     }
 
-    public function latestPending(): JsonResponse
-    {
-        return response()->json([
-            'latest_pending_id' => SpeechAnnouncement::query()
-                ->whereNull('spoken_at')
-                ->max('id'),
-        ]);
-    }
-
     public function markSpoken(SpeechAnnouncement $speechAnnouncement, SpeechAnnouncementPlaybackService $playbackService): JsonResponse
     {
         $playbackService->markAnnouncementSpoken($speechAnnouncement);

@@ -289,7 +289,9 @@ watch(browserSpeechEnabled, (enabled) => {
         return;
     }
 
-    initializeSpeechWatermark().catch(() => {});
+    if ('speechSynthesis' in window) {
+        refreshSpeechVoice();
+    }
 });
 
 watch(browserSpeechWatermark, (value) => {
@@ -301,6 +303,7 @@ let reloadInterval: number | null = null;
 let speechPollInterval: number | null = null;
 let isReloading = false;
 const scheduleBoardRefs = new Map<number, HTMLElement>();
+let englishSpeechVoice: SpeechSynthesisVoice | null = null;
 
 const reloadMonitorBoard = () => {
     if (isReloading || document.hidden) {
@@ -369,25 +372,25 @@ const toggleBrowserSpeech = () => {
     browserSpeechEnabled.value = !browserSpeechEnabled.value;
 };
 
-const initializeSpeechWatermark = async () => {
-    if (!browserSpeechEnabled.value) {
-        return;
+const resolveEnglishSpeechVoice = (): SpeechSynthesisVoice | null => {
+    if (!('speechSynthesis' in window)) {
+        return null;
     }
 
-    const response = await window.fetch(route('admin.speech-announcements.latest-pending'), {
-        headers: {
-            Accept: 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-        },
-        credentials: 'same-origin',
-    });
-
-    if (!response.ok) {
-        return;
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) {
+        return null;
     }
 
-    const payload = await response.json() as { latest_pending_id: number | null };
-    browserSpeechWatermark.value = Math.max(browserSpeechWatermark.value, payload.latest_pending_id ?? 0);
+    return voices.find((voice) => voice.lang.toLowerCase() === 'en-us')
+        ?? voices.find((voice) => voice.lang.toLowerCase().startsWith('en-'))
+        ?? voices.find((voice) => voice.default && voice.lang.toLowerCase().startsWith('en'))
+        ?? voices.find((voice) => voice.lang.toLowerCase().includes('en'))
+        ?? null;
+};
+
+const refreshSpeechVoice = () => {
+    englishSpeechVoice = resolveEnglishSpeechVoice();
 };
 
 const fetchNextSpeechAnnouncement = async () => {
@@ -426,6 +429,7 @@ const fetchNextSpeechAnnouncement = async () => {
     utterance.lang = 'en-US';
     utterance.rate = 1;
     utterance.pitch = 1;
+    utterance.voice = englishSpeechVoice;
 
     const finish = async (markSpoken: boolean) => {
         if (markSpoken && activeSpeechAnnouncementId.value !== null) {
@@ -468,6 +472,7 @@ const fetchNextSpeechAnnouncement = async () => {
         });
     };
 
+    window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
 };
 
@@ -489,7 +494,13 @@ onMounted(() => {
     }, 3000);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', reloadMonitorBoard);
-    initializeSpeechWatermark().catch(() => {});
+
+    if ('speechSynthesis' in window) {
+        refreshSpeechVoice();
+        window.speechSynthesis.onvoiceschanged = () => {
+            refreshSpeechVoice();
+        };
+    }
 
     // Preload visible student captures on mount and scroll
     nextTick(() => {
@@ -512,6 +523,7 @@ onBeforeUnmount(() => {
     }
 
     if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null;
         window.speechSynthesis.cancel();
     }
 
