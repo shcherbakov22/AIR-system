@@ -7,7 +7,6 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 defineProps<{
     scheduleTemplates: Array<{
         id: number;
-        name: string;
         notes?: string | null;
         entries: Array<{
             id: number;
@@ -30,7 +29,7 @@ const flashError = computed(() => page.props.flash?.error ?? null);
 </script>
 
 <template>
-    <Head title="My schedules" />
+    <Head title="My schedule" />
 
     <AuthenticatedLayout>
 
@@ -53,7 +52,7 @@ const flashError = computed(() => page.props.flash?.error ?? null);
                 <div class="flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 class="text-2xl font-semibold text-stone-950">
-                            Schedules
+                            Schedule
                         </h2>
                     </div>
 
@@ -61,14 +60,12 @@ const flashError = computed(() => page.props.flash?.error ?? null);
                         :href="route('student.schedules.create')"
                         class="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                     >
-                        Create schedule
+                        Create or replace schedule
                     </Link>
                 </div>
 
                 <div v-if="scheduleTemplates.length === 0" class="mt-6 rounded-[1.5rem] bg-stone-100 px-5 py-6">
-                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
-                        No schedules yet
-                    </p>
+                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">No schedule yet</p>
                 </div>
 
                 <div v-else class="space-y-4">
@@ -79,12 +76,7 @@ const flashError = computed(() => page.props.flash?.error ?? null);
                     >
                         <div class="flex flex-col gap-3 border-b border-stone-200 pb-4 md:flex-row md:items-start md:justify-between">
                             <div>
-                                <p class="text-xs uppercase tracking-[0.22em] text-stone-500">
-                                    Schedule
-                                </p>
-                                <h4 class="mt-2 text-2xl font-semibold text-stone-950">
-                                    {{ scheduleTemplate.name }}
-                                </h4>
+                                <p class="text-xs uppercase tracking-[0.22em] text-stone-500">Schedule</p>
                                 <p v-if="scheduleTemplate.notes" class="mt-2 text-sm leading-6 text-stone-600">
                                     {{ scheduleTemplate.notes }}
                                 </p>

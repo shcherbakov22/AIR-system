@@ -12,7 +12,6 @@ class StoreScheduleTemplateRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
-        $name = trim((string) $this->input('name'));
         $notes = trim((string) $this->input('notes'));
         $entries = collect($this->input('entries', []))
             ->map(fn ($entry) => [
@@ -27,7 +26,6 @@ class StoreScheduleTemplateRequest extends FormRequest
             ->all();
 
         $this->merge([
-            'name' => $name,
             'notes' => $notes === '' ? null : $notes,
             'entries' => $entries,
         ]);
@@ -49,7 +47,6 @@ class StoreScheduleTemplateRequest extends FormRequest
                 'integer',
                 Rule::exists(Student::class, 'id'),
             ],
-            'name' => ['required', 'string', 'max:120'],
             'weekday' => ['required', Rule::enum(ScheduleWeekday::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
             'entries' => ['required', 'array', 'min:1'],

@@ -684,7 +684,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                         >
                             {{
                                 activeTaskSession?.task_title ??
-                                activeScheduleRun?.schedule_name ??
+                                (activeScheduleRun ? 'Schedule' : null) ??
                                 pausedTaskSession?.task_title ??
                                 'Choose a schedule'
                             }}
@@ -919,7 +919,10 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 @click="startScheduleRun(scheduleTemplate.id)"
                             >
                                 <span class="min-w-0">
-                                    <span class="block truncate font-semibold text-stone-950">{{ scheduleTemplate.name }}</span>
+                                    <span class="block truncate font-semibold text-stone-950">Schedule</span>
+                                    <span class="block truncate text-[11px] uppercase tracking-[0.14em] text-stone-500">
+                                        {{ scheduleTemplate.weekday.label }} · {{ scheduleTemplate.entries.length }} blocks
+                                    </span>
                                 </span>
                                 <span class="ml-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-700">
                                     Start
@@ -1011,7 +1014,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                     class="mt-3 rounded-[1.25rem] bg-stone-100 p-4"
                 >
                     <div class="flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-stone-500">
-                        <span>{{ activeScheduleRun.schedule_name }}</span>
+                        <span>Schedule</span>
                         <span>{{ activeScheduleRun.completed_blocks }} / {{ activeScheduleRun.total_blocks }}</span>
                     </div>
 

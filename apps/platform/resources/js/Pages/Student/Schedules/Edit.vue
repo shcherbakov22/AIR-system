@@ -6,7 +6,6 @@ import { Head, Link } from '@inertiajs/vue3';
 defineProps<{
     scheduleTemplate: {
         id: number;
-        name: string;
         notes: string;
         entries: Array<{
             task_template_id?: number | null;
@@ -26,7 +25,7 @@ defineProps<{
 </script>
 
 <template>
-    <Head :title="`Edit: ${scheduleTemplate.name}`" />
+    <Head title="Edit schedule" />
 
     <AuthenticatedLayout>
 

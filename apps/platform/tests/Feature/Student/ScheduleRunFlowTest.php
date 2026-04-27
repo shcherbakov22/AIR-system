@@ -122,7 +122,7 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.store', $scheduleTemplate))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tuesday Run'));
+            ->assertSessionHas('success', 'Schedule started.');
 
         $scheduleRun = ScheduleRun::query()
             ->with('blocks')
@@ -130,7 +130,7 @@ class ScheduleRunFlowTest extends TestCase
             ->sole();
 
         $this->assertSame('active', $scheduleRun->status);
-        $this->assertSame('Tuesday Run', $scheduleRun->schedule_name_snapshot);
+        $this->assertSame('Schedule', $scheduleRun->schedule_name_snapshot);
         $this->assertCount(2, $scheduleRun->blocks);
         $this->assertSame(['pending', 'pending'], $scheduleRun->blocks->pluck('status')->all());
 
@@ -139,7 +139,7 @@ class ScheduleRunFlowTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/Home')
-                ->where('activeScheduleRun.schedule_name', 'Tuesday Run')
+                ->where('activeScheduleRun.schedule_name', 'Schedule')
                 ->where('activeScheduleRun.weekday_label', ScheduleWeekday::Tuesday->label())
                 ->where('activeScheduleRun.completed_blocks', 0)
                 ->where('activeScheduleRun.total_blocks', 2)
@@ -249,7 +249,7 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->patch(route('student.task-sessions.stop', $secondTaskSession))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Reading Review') && str_contains($message, 'Tuesday Run'));
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Reading Review') && str_contains($message, 'Schedule completed.'));
 
         Carbon::setTestNow();
 
@@ -315,12 +315,12 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.store', $scheduleTemplate))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Schedule Tuesday Run started.'));
+            ->assertSessionHas('success', 'Schedule started.');
 
         $this->assertDatabaseHas('schedule_runs', [
             'student_id' => $student->id,
             'status' => 'active',
-            'schedule_name_snapshot' => 'Tuesday Run',
+            'schedule_name_snapshot' => 'Schedule',
         ]);
 
         $this->assertDatabaseMissing('task_sessions', [
@@ -382,7 +382,7 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.complete', $scheduleRun))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tuesday Run') && str_contains($message, 'finished') && str_contains($message, 'Sleeping started'));
+            ->assertSessionHas('success', 'Schedule finished. Sleeping started.');
 
         $scheduleRun->refresh();
         $scheduleRun->load('blocks');
@@ -498,7 +498,7 @@ class ScheduleRunFlowTest extends TestCase
                 'task_template_id' => $breakTemplate->id,
             ])
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tuesday Run'));
+            ->assertSessionHas('success', 'Schedule paused. Custom timer started.');
 
         $scheduleRun->refresh();
         $scheduleRun->load('blocks');
@@ -835,7 +835,7 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.store', $scheduleTemplate))
             ->assertRedirect(route('student.home', absolute: false))
-            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tuesday Run'));
+            ->assertSessionHas('success', 'Schedule started.');
     }
 
     public function test_student_can_not_start_a_schedule_block_while_unread_announcements_exist_until_announcements_are_opened(): void

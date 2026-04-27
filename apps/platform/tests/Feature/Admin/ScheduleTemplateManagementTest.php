@@ -101,7 +101,6 @@ class ScheduleTemplateManagementTest extends TestCase
 
         $response = $this->actingAs($admin)->post(route('admin.schedule-templates.store'), [
             'student_id' => $student->id,
-            'name' => 'Monday Reading',
             'weekday' => ScheduleWeekday::Monday->value,
             'notes' => 'Core literacy block.',
             'entries' => [
@@ -114,11 +113,11 @@ class ScheduleTemplateManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
-            ->assertSessionHas('success', 'Schedule Monday Reading created.');
+            ->assertSessionHas('success', 'Schedule saved for Student Schedules.');
 
         $this->assertDatabaseHas('schedule_templates', [
             'student_id' => $student->id,
-            'name' => 'Monday Reading',
+            'name' => ScheduleTemplate::DEFAULT_NAME,
             'weekday' => ScheduleWeekday::Monday->value,
             'notes' => 'Core literacy block.',
             'created_by_user_id' => $admin->id,
@@ -187,7 +186,6 @@ class ScheduleTemplateManagementTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/ScheduleTemplates/Edit')
                 ->where('scheduleTemplate.id', $scheduleTemplate->id)
-                ->where('scheduleTemplate.name', 'Monday Reading')
                 ->where('scheduleTemplate.entries.0.task_template_id', $taskTemplate->id)
                 ->has('students', 1)
                 ->has('taskTemplates', 1)
@@ -262,7 +260,6 @@ class ScheduleTemplateManagementTest extends TestCase
 
         $response = $this->actingAs($admin)->put(route('admin.schedule-templates.update', $scheduleTemplate), [
             'student_id' => $secondStudent->id,
-            'name' => 'Wednesday Writing',
             'weekday' => ScheduleWeekday::Wednesday->value,
             'notes' => 'Midweek writing focus.',
             'entries' => [
@@ -275,12 +272,12 @@ class ScheduleTemplateManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
-            ->assertSessionHas('success', 'Schedule Wednesday Writing updated.');
+            ->assertSessionHas('success', 'Schedule saved for Student Schedules Two.');
 
         $this->assertDatabaseHas('schedule_templates', [
             'id' => $scheduleTemplate->id,
             'student_id' => $secondStudent->id,
-            'name' => 'Wednesday Writing',
+            'name' => ScheduleTemplate::DEFAULT_NAME,
             'weekday' => ScheduleWeekday::Wednesday->value,
             'notes' => 'Midweek writing focus.',
             'created_by_user_id' => $admin->id,
@@ -358,7 +355,6 @@ class ScheduleTemplateManagementTest extends TestCase
         $this->actingAs($admin)
             ->put(route('admin.schedule-templates.update', $scheduleTemplate), [
                 'student_id' => $student->id,
-                'name' => 'Archived Monday Reading',
                 'weekday' => ScheduleWeekday::Monday->value,
                 'notes' => 'Legacy schedule updated.',
                 'entries' => [
@@ -369,7 +365,7 @@ class ScheduleTemplateManagementTest extends TestCase
                 ],
             ])
             ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
-            ->assertSessionHas('success', 'Schedule Archived Monday Reading updated.');
+            ->assertSessionHas('success', 'Schedule saved for Student Schedules.');
 
         $scheduleTemplate->refresh();
         $entry = $scheduleTemplate->entries()->firstOrFail();
@@ -429,7 +425,6 @@ class ScheduleTemplateManagementTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/ScheduleTemplates/Index')
                 ->has('scheduleTemplates', 1)
-                ->where('scheduleTemplates.0.name', 'Monday Reading')
                 ->where('scheduleTemplates.0.weekday.label', ScheduleWeekday::Monday->label())
                 ->where('scheduleTemplates.0.entries.0.task_template.title', 'Reading Block')
                 ->where('scheduleTemplates.0.entries.0.start_time', '09:15')
@@ -482,7 +477,7 @@ class ScheduleTemplateManagementTest extends TestCase
         $this->actingAs($admin)
             ->delete(route('admin.schedule-templates.destroy', $scheduleTemplate))
             ->assertRedirect(route('admin.schedule-templates.index', absolute: false))
-            ->assertSessionHas('success', 'Schedule Monday Reading deleted.');
+            ->assertSessionHas('success', 'Schedule deleted for Student Schedules.');
 
         $this->assertDatabaseMissing('schedule_templates', [
             'id' => $scheduleTemplate->id,

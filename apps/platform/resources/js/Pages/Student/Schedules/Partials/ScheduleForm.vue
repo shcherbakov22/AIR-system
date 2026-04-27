@@ -24,7 +24,6 @@ const props = defineProps<{
     mode: 'create' | 'edit';
     scheduleTemplate?: {
         id: number;
-        name: string;
         notes: string;
         entries: Array<{
             task_template_id?: number | null;
@@ -59,7 +58,6 @@ const buildEntry = (
 });
 
 const form = useForm({
-    name: props.scheduleTemplate?.name ?? 'Plan for the day',
     notes: props.scheduleTemplate?.notes ?? '',
     entries: props.scheduleTemplate?.entries.map((entry) => buildEntry(entry)) ?? [buildEntry()],
 });
@@ -150,20 +148,8 @@ const submit = () => {
 
 <template>
     <form class="grid gap-6" @submit.prevent="submit">
-        <div class="grid gap-6 md:grid-cols-2">
+        <div class="grid gap-6">
             <div>
-                <InputLabel for="name" value="Schedule name" />
-                <input
-                    id="name"
-                    v-model="form.name"
-                    type="text"
-                    class="mt-2 block w-full rounded-xl border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                    autocomplete="off"
-                />
-                <InputError class="mt-2" :message="form.errors.name" />
-            </div>
-
-            <div class="md:col-span-2">
                 <InputLabel for="notes" value="Schedule notes" />
                 <textarea
                     id="notes"

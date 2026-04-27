@@ -40,7 +40,6 @@ const props = defineProps<{
     scheduleTemplate?: {
         id: number;
         student_id: string;
-        name: string;
         weekday: string;
         notes: string;
         entries: Array<{
@@ -76,7 +75,6 @@ const buildEntry = (
 
 const form = useForm({
     student_id: props.scheduleTemplate?.student_id ?? (props.students[0]?.id ? String(props.students[0].id) : ''),
-    name: props.scheduleTemplate?.name ?? 'Plan for the day',
     weekday: props.scheduleTemplate?.weekday ?? (props.weekdays[0]?.value ?? 'monday'),
     notes: props.scheduleTemplate?.notes ?? '',
     entries: props.scheduleTemplate?.entries.map((entry) => buildEntry(entry)) ?? [buildEntry()],
@@ -203,18 +201,6 @@ const submit = () => {
                     </option>
                 </select>
                 <InputError class="mt-2" :message="form.errors.weekday" />
-            </div>
-
-            <div>
-                <InputLabel for="name" value="Schedule name" />
-                <input
-                    id="name"
-                    v-model="form.name"
-                    type="text"
-                    class="mt-2 block w-full rounded-xl border-stone-300 shadow-sm focus:border-amber-700 focus:ring-amber-700"
-                    autocomplete="off"
-                />
-                <InputError class="mt-2" :message="form.errors.name" />
             </div>
 
             <div class="md:col-span-2">

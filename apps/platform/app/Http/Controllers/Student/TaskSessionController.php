@@ -147,7 +147,7 @@ class TaskSessionController extends Controller
             $message = "Task session {$lockedTaskSession->task_title_snapshot} finished.";
 
             if ($completedScheduleName !== null) {
-                $message .= " Schedule {$completedScheduleName} completed.";
+                $message .= ' Schedule completed.';
             }
 
             if (
@@ -165,7 +165,7 @@ class TaskSessionController extends Controller
             }
 
             if ($resumePausedScheduleName !== null) {
-                $message .= " Resume schedule {$resumePausedScheduleName} when you're ready.";
+                $message .= ' Resume schedule when you\'re ready.';
             }
 
             $hasActiveOrPausedScheduleRun = ScheduleRun::query()

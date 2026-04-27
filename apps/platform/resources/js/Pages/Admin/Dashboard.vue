@@ -1648,12 +1648,6 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </div>
                     </div>
 
-                    <div class="mt-1 min-w-0">
-                        <p class="truncate text-[13px] font-medium text-stone-900">
-                            {{ student.schedule_board?.name ?? 'No schedule' }}
-                        </p>
-                    </div>
-
                     <div class="mt-1 rounded-[0.75rem] bg-amber-100 px-2 py-2">
                         <div class="flex items-center justify-between gap-2">
                             <p class="min-w-0 truncate text-[16px] font-semibold text-stone-900">

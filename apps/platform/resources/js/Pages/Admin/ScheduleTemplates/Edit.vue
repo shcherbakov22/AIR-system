@@ -7,7 +7,6 @@ defineProps<{
     scheduleTemplate: {
         id: number;
         student_id: string;
-        name: string;
         weekday: string;
         notes: string;
         entries: Array<{
@@ -38,7 +37,7 @@ defineProps<{
 </script>
 
 <template>
-    <Head :title="`Edit: ${scheduleTemplate.name}`" />
+    <Head title="Edit schedule" />
 
     <AuthenticatedLayout>
 

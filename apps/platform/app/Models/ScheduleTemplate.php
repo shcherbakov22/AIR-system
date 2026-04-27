@@ -11,6 +11,8 @@ class ScheduleTemplate extends Model
 {
     use HasFactory;
 
+    public const DEFAULT_NAME = 'Schedule';
+
     protected $fillable = [
         'student_id',
         'name',

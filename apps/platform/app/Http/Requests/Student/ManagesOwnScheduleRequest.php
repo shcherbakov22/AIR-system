@@ -10,7 +10,6 @@ abstract class ManagesOwnScheduleRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
-        $name = trim((string) $this->input('name'));
         $notes = trim((string) $this->input('notes'));
 
         $entries = collect($this->input('entries', []))
@@ -26,7 +25,6 @@ abstract class ManagesOwnScheduleRequest extends FormRequest
             ->all();
 
         $this->merge([
-            'name' => $name,
             'notes' => $notes === '' ? null : $notes,
             'entries' => $entries,
         ]);
@@ -38,7 +36,6 @@ abstract class ManagesOwnScheduleRequest extends FormRequest
     protected function scheduleRules(array $currentTaskTemplateIds = [], ?int $ignoreScheduleTemplateId = null): array
     {
         return [
-            'name' => ['required', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'entries' => ['required', 'array', 'min:1'],
             'entries.*.task_template_id' => [

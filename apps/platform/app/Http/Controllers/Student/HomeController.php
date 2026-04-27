@@ -328,6 +328,7 @@ class HomeController extends Controller
                         $scheduleTemplate->entries->first()?->start_time ?? '23:59:59',
                         $scheduleTemplate->id,
                     ))
+                    ->take(1)
                     ->values()
                     ->map(fn (ScheduleTemplate $scheduleTemplate) => [
                         'id' => $scheduleTemplate->id,
@@ -338,19 +339,19 @@ class HomeController extends Controller
                         ],
                         'notes' => $scheduleTemplate->notes,
                         'entries' => $scheduleTemplate->entries
-                            ->map(fn ($entry) => [
-                                'id' => $entry->id,
-                                'start_time' => substr((string) $entry->start_time, 0, 5),
-                                'duration_minutes' => $entry->duration_minutes,
-                                'notes' => $entry->notes,
-                                'task' => [
-                                    'title' => $entry->resolvedTaskTitle(),
-                                    'summary' => $entry->resolvedTaskSummary(),
-                                    'instructions' => $entry->resolvedTaskInstructions(),
-                                ],
-                            ])
-                            ->values()
-                            ->all(),
+                        ->map(fn ($entry) => [
+                            'id' => $entry->id,
+                            'start_time' => substr((string) $entry->start_time, 0, 5),
+                            'duration_minutes' => $entry->duration_minutes,
+                            'notes' => $entry->notes,
+                            'task' => [
+                                'title' => $entry->resolvedTaskTitle(),
+                                'summary' => $entry->resolvedTaskSummary(),
+                                'instructions' => $entry->resolvedTaskInstructions(),
+                            ],
+                        ])
+                        ->values()
+                        ->all(),
                     ])
                     ->all()
                 : [],

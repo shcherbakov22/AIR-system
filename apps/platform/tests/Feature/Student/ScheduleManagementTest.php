@@ -67,7 +67,6 @@ class ScheduleManagementTest extends TestCase
 
         $response = $this->actingAs($studentUser)
             ->post(route('student.schedules.store'), [
-                'name' => 'Monday Plan',
                 'notes' => 'Core morning plan.',
                 'entries' => [
                     [
@@ -83,14 +82,14 @@ class ScheduleManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('student.schedules.index', absolute: false))
-            ->assertSessionHas('success', 'Schedule Monday Plan saved.');
+            ->assertSessionHas('success', 'Schedule saved.');
 
         $scheduleTemplate = ScheduleTemplate::query()
             ->with('entries.taskTemplate')
             ->where('student_id', $student->id)
             ->sole();
 
-        $this->assertSame('Monday Plan', $scheduleTemplate->name);
+        $this->assertSame(ScheduleTemplate::DEFAULT_NAME, $scheduleTemplate->name);
         $this->assertSame('monday', $scheduleTemplate->weekday);
         $this->assertSame('Core morning plan.', $scheduleTemplate->notes);
         $this->assertCount(2, $scheduleTemplate->entries);
@@ -109,7 +108,7 @@ class ScheduleManagementTest extends TestCase
         );
     }
 
-    public function test_student_can_create_more_than_one_schedule(): void
+    public function test_student_schedule_creation_replaces_the_existing_schedule(): void
     {
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
@@ -143,7 +142,6 @@ class ScheduleManagementTest extends TestCase
 
         $this->actingAs($studentUser)
             ->post(route('student.schedules.store'), [
-                'name' => 'Morning Plan',
                 'notes' => null,
                 'entries' => [
                     [
@@ -156,7 +154,6 @@ class ScheduleManagementTest extends TestCase
 
         $this->actingAs($studentUser)
             ->post(route('student.schedules.store'), [
-                'name' => 'Evening Plan',
                 'notes' => null,
                 'entries' => [
                     [
@@ -167,12 +164,14 @@ class ScheduleManagementTest extends TestCase
             ])
             ->assertRedirect(route('student.schedules.index', absolute: false));
 
+        $this->assertSame(1, ScheduleTemplate::query()->where('student_id', $student->id)->count());
         $this->assertSame(
-            ['Evening Plan', 'Morning Plan'],
+            [$secondTemplate->id],
             ScheduleTemplate::query()
                 ->where('student_id', $student->id)
-                ->orderBy('name')
-                ->pluck('name')
+                ->firstOrFail()
+                ->entries()
+                ->pluck('task_template_id')
                 ->all(),
         );
     }
@@ -231,7 +230,6 @@ class ScheduleManagementTest extends TestCase
 
         $this->actingAs($studentUser)
             ->put(route('student.schedules.update', $scheduleTemplate), [
-                'name' => 'Tuesday Plan',
                 'notes' => 'Updated note.',
                 'entries' => [
                     [
@@ -318,7 +316,6 @@ class ScheduleManagementTest extends TestCase
 
         $this->actingAs($studentUser)
             ->put(route('student.schedules.update', $scheduleTemplate), [
-                'name' => 'Stolen Plan',
                 'notes' => null,
                 'entries' => [
                     [
@@ -381,7 +378,6 @@ class ScheduleManagementTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/Schedules/Index')
                 ->has('scheduleTemplates', 1)
-                ->where('scheduleTemplates.0.name', 'Monday Plan')
                 ->where('scheduleTemplates.0.entries.0.task.title', 'Reading Review')
             );
 

@@ -7,7 +7,6 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 const props = defineProps<{
     scheduleTemplates: Array<{
         id: number;
-        name: string;
         weekday: {
             value: string;
             label: string;
@@ -37,8 +36,8 @@ const props = defineProps<{
 const page = usePage<PageProps>();
 const successMessage = computed(() => page.props.flash?.success ?? null);
 
-function deleteSchedule(scheduleTemplateId: number, scheduleName: string): void {
-    if (!window.confirm(`Delete schedule "${scheduleName}"?`)) {
+function deleteSchedule(scheduleTemplateId: number, studentName: string): void {
+    if (!window.confirm(`Delete ${studentName}'s schedule?`)) {
         return;
     }
 
@@ -65,7 +64,7 @@ function deleteSchedule(scheduleTemplateId: number, scheduleName: string): void 
                         :href="route('admin.schedule-templates.create')"
                         class="inline-flex rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-stone-800"
                     >
-                        Add schedule
+                        Add or replace schedule
                     </Link>
                 </div>
 
@@ -77,9 +76,7 @@ function deleteSchedule(scheduleTemplateId: number, scheduleName: string): void 
                     >
                         <div>
                             <div class="flex items-start justify-between gap-4">
-                                <p class="text-xs uppercase tracking-[0.25em] text-stone-500">
-                                    Schedule
-                                </p>
+                                <p class="text-xs uppercase tracking-[0.25em] text-stone-500">Schedule</p>
 
                                 <div class="flex items-center gap-2">
                                     <Link
@@ -91,15 +88,12 @@ function deleteSchedule(scheduleTemplateId: number, scheduleName: string): void 
                                     <button
                                         type="button"
                                         class="inline-flex rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:border-rose-700 hover:text-rose-800"
-                                        @click="deleteSchedule(scheduleTemplate.id, scheduleTemplate.name)"
+                                        @click="deleteSchedule(scheduleTemplate.id, scheduleTemplate.student.display_name)"
                                     >
                                         Delete
                                     </button>
                                 </div>
                             </div>
-                            <h3 class="mt-2 text-2xl font-semibold text-stone-950">
-                                {{ scheduleTemplate.name }}
-                            </h3>
                             <p class="mt-2 text-sm text-stone-600">
                                 {{ scheduleTemplate.weekday.label }}
                             </p>

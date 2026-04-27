@@ -118,7 +118,7 @@ class ScheduleRunController extends Controller
                 'student_id' => $studentId,
                 'schedule_template_id' => $ownedScheduleTemplate->id,
                 'status' => 'active',
-                'schedule_name_snapshot' => $ownedScheduleTemplate->name,
+                'schedule_name_snapshot' => ScheduleTemplate::DEFAULT_NAME,
                 'schedule_weekday_snapshot' => $this->scheduleWeekdayLabel($ownedScheduleTemplate->weekday),
                 'schedule_notes_snapshot' => $ownedScheduleTemplate->notes,
                 'started_at' => now(),
@@ -142,7 +142,7 @@ class ScheduleRunController extends Controller
 
             return [
                 'success' => true,
-                'message' => "Schedule {$ownedScheduleTemplate->name} started.",
+                'message' => 'Schedule started.',
             ];
         });
 
@@ -277,7 +277,7 @@ class ScheduleRunController extends Controller
 
             return [
                 'success' => true,
-                'message' => "Schedule {$ownedScheduleRun->schedule_name_snapshot} paused. Custom timer started.",
+                'message' => 'Schedule paused. Custom timer started.',
             ];
         });
 
@@ -398,7 +398,7 @@ class ScheduleRunController extends Controller
             if (! $pausedBlock) {
                 return [
                     'success' => true,
-                    'message' => "Schedule {$ownedScheduleRun->schedule_name_snapshot} resumed.",
+                    'message' => 'Schedule resumed.',
                 ];
             }
 
@@ -524,7 +524,7 @@ class ScheduleRunController extends Controller
 
             return [
                 'success' => true,
-                'message' => "Schedule {$ownedScheduleRun->schedule_name_snapshot} finished. Sleeping started.",
+                'message' => 'Schedule finished. Sleeping started.',
             ];
         });
 
