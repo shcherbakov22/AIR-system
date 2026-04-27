@@ -203,6 +203,7 @@ const captureReadyUrls = ref<Record<string, true>>({});
 const captureHistoryCache = new Map<number, DashboardCapture[]>();
 const captureHistoryRequestCache = new Map<number, Promise<DashboardCapture[]>>();
 const selectedAppsStudent = ref<DashboardStudent | null>(null);
+const appsPanelRefreshing = ref(false);
 const selectedViolationRuleIds = ref<Record<number, string>>({});
 const violationApplyPendingByStudentId = ref<Record<number, boolean>>({});
 const assignmentComposerOpenByStudentId = ref<Record<number, boolean>>({});
@@ -808,6 +809,7 @@ const preloadVisibleCaptures = () => {
 watch(
     () => props.monitorStudents,
     () => {
+        syncSelectedAppsStudent();
         nextTick(() => observeStudentCards());
     },
 );
@@ -962,6 +964,32 @@ const openAppsPanel = (student: DashboardStudent) => {
 
 const closeAppsPanel = () => {
     selectedAppsStudent.value = null;
+};
+
+const syncSelectedAppsStudent = () => {
+    if (!selectedAppsStudent.value) {
+        return;
+    }
+
+    selectedAppsStudent.value = monitorStudents.value.find((student) => student.id === selectedAppsStudent.value?.id) ?? null;
+};
+
+const refreshAppsPanel = () => {
+    if (!selectedAppsStudent.value || appsPanelRefreshing.value) {
+        return;
+    }
+
+    appsPanelRefreshing.value = true;
+
+    router.reload({
+        only: ['serverNow', 'monitorStudents'],
+        onSuccess: () => {
+            syncSelectedAppsStudent();
+        },
+        onFinish: () => {
+            appsPanelRefreshing.value = false;
+        },
+    });
 };
 
 const hasAnyAdminChatGate = computed(() =>
@@ -1710,13 +1738,23 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 {{ selectedAppsStudent.latest_device_activity?.device_label ?? 'No active companion device' }}
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            class="rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700"
-                            @click="closeAppsPanel"
-                        >
-                            Close
-                        </button>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700 transition hover:border-stone-400 hover:text-stone-950 disabled:cursor-wait disabled:opacity-60"
+                                :disabled="appsPanelRefreshing"
+                                @click="refreshAppsPanel"
+                            >
+                                {{ appsPanelRefreshing ? 'Refreshing' : 'Refresh' }}
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700"
+                                @click="closeAppsPanel"
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
 
                     <div class="min-h-0 space-y-4 overflow-y-auto px-5 py-5">
