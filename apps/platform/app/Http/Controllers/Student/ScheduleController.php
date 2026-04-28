@@ -139,6 +139,13 @@ class ScheduleController extends Controller
             ->keyBy('id');
     }
 
+    protected function hasOwnedSchedule(Student $student): bool
+    {
+        return ScheduleTemplate::query()
+            ->where('student_id', $student->id)
+            ->exists();
+    }
+
     protected function toPayload(ScheduleTemplate $scheduleTemplate): array
     {
         $scheduleTemplate->loadMissing('entries.taskTemplate');
@@ -215,6 +222,10 @@ class ScheduleController extends Controller
             abort(403);
         }
 
+        if ($this->hasOwnedSchedule($student)) {
+            abort(403);
+        }
+
         return Inertia::render('Student/Schedules/Create', [
             'taskTemplates' => $this->taskTemplateOptions(),
         ]);
@@ -225,6 +236,10 @@ class ScheduleController extends Controller
         $student = $this->currentStudent($request);
 
         if (! $student->canManageOwnSchedule()) {
+            abort(403);
+        }
+
+        if ($this->hasOwnedSchedule($student)) {
             abort(403);
         }
 

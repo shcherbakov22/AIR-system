@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 
-defineProps<{
+const props = defineProps<{
     scheduleTemplates: Array<{
         id: number;
         notes?: string | null;
@@ -26,6 +26,7 @@ defineProps<{
 const page = usePage<PageProps>();
 const flashSuccess = computed(() => page.props.flash?.success ?? null);
 const flashError = computed(() => page.props.flash?.error ?? null);
+const canCreateSchedule = computed(() => props.scheduleTemplates.length === 0);
 </script>
 
 <template>
@@ -57,10 +58,11 @@ const flashError = computed(() => page.props.flash?.error ?? null);
                     </div>
 
                     <Link
+                        v-if="canCreateSchedule"
                         :href="route('student.schedules.create')"
                         class="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                     >
-                        Create or replace schedule
+                        Create schedule
                     </Link>
                 </div>
 

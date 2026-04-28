@@ -108,7 +108,7 @@ class ScheduleManagementTest extends TestCase
         );
     }
 
-    public function test_student_schedule_creation_replaces_the_existing_schedule(): void
+    public function test_student_can_not_replace_their_existing_schedule_after_creation(): void
     {
         $studentUser = User::factory()->create([
             'role' => UserRole::Student,
@@ -153,6 +153,10 @@ class ScheduleManagementTest extends TestCase
             ->assertRedirect(route('student.schedules.index', absolute: false));
 
         $this->actingAs($studentUser)
+            ->get(route('student.schedules.create'))
+            ->assertForbidden();
+
+        $this->actingAs($studentUser)
             ->post(route('student.schedules.store'), [
                 'notes' => null,
                 'entries' => [
@@ -162,11 +166,11 @@ class ScheduleManagementTest extends TestCase
                     ],
                 ],
             ])
-            ->assertRedirect(route('student.schedules.index', absolute: false));
+            ->assertForbidden();
 
         $this->assertSame(1, ScheduleTemplate::query()->where('student_id', $student->id)->count());
         $this->assertSame(
-            [$secondTemplate->id],
+            [$firstTemplate->id],
             ScheduleTemplate::query()
                 ->where('student_id', $student->id)
                 ->firstOrFail()
@@ -383,14 +387,7 @@ class ScheduleManagementTest extends TestCase
 
         $this->actingAs($studentUser)
             ->get(route('student.schedules.create'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Student/Schedules/Create')
-                ->has('taskTemplates', 1)
-                ->where('taskTemplates.0.id', $taskTemplate->id)
-                ->where('taskTemplates.0.default_duration_minutes', 35)
-                ->missing('weekdays')
-            );
+            ->assertForbidden();
 
         $this->actingAs($studentUser)
             ->get(route('student.schedules.edit', $scheduleTemplate))
