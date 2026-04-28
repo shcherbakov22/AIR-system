@@ -26,15 +26,13 @@ class DevicePolicyService
             ->with([
                 'user',
                 'violations',
-                'scheduleRuns.blocks.taskTemplate',
+                'activeOrPausedScheduleRun.blocks.taskTemplate',
                 'taskSessions.taskTemplate',
             ])
             ->firstOrFail();
 
         $activeTaskSession = $this->resolveActiveTaskSession($student);
-        $activeScheduleRun = $student->scheduleRuns
-            ->firstWhere('status', 'active')
-            ?? $student->scheduleRuns->firstWhere('status', 'paused');
+        $activeScheduleRun = $student->activeOrPausedScheduleRun;
         $communicationGate = $this->communicationGateService->payload($student);
         $openViolations = $student->violations->where('status', 'open')->values();
         $staleViolationDeadline = now()->subMinutes(10);

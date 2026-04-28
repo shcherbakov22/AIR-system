@@ -142,7 +142,7 @@ class HomeController extends Controller
             $student->load([
                 'setting',
                 'scheduleTemplates.entries.taskTemplate',
-                'scheduleRuns.blocks.taskSessions',
+                'activeOrPausedScheduleRun.blocks.taskSessions',
                 'taskSessions.scheduleRun',
                 'taskSessions.scheduleRunBlock',
                 'violations',
@@ -168,12 +168,7 @@ class HomeController extends Controller
                 ->filter(fn (TaskSession $taskSession) => $taskSession->schedule_run_block_id !== null)
             : collect();
 
-        $activeScheduleRun = null;
-
-        if ($student?->scheduleRuns) {
-            $activeScheduleRun = $student->scheduleRuns->firstWhere('status', 'active')
-                ?? $student->scheduleRuns->firstWhere('status', 'paused');
-        }
+        $activeScheduleRun = $student?->activeOrPausedScheduleRun;
 
         $nextScheduleRunBlock = null;
         $pausedScheduleRunBlock = null;

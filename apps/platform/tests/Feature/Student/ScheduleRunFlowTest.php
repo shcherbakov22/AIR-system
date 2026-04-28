@@ -148,6 +148,121 @@ class ScheduleRunFlowTest extends TestCase
             );
     }
 
+    public function test_student_home_uses_latest_active_schedule_run_when_a_stale_run_is_still_active(): void
+    {
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_run_latest_student',
+        ]);
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'schedule_run_latest_admin',
+        ]);
+
+        $student = $this->createStudent($studentUser, 'Latest Schedule Student');
+        $taskTemplate = $this->createTaskTemplate(
+            $admin,
+            'Current Reading',
+            15,
+            'Read the current passage.',
+            'Keep notes while reading.',
+        );
+
+        $oldRun = ScheduleRun::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'schedule_name_snapshot' => 'Old Schedule',
+            'schedule_weekday_snapshot' => 'monday',
+            'schedule_notes_snapshot' => null,
+            'started_at' => Carbon::parse('2026-03-08 09:00:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $oldBlock = $oldRun->blocks()->create([
+            'task_template_id' => $taskTemplate->id,
+            'position' => 1,
+            'status' => 'completed',
+            'start_time_snapshot' => '09:00',
+            'duration_minutes_snapshot' => 60,
+            'task_title_snapshot' => 'Old Reading',
+            'task_summary_snapshot' => 'Old summary.',
+            'task_instructions_snapshot' => 'Old instructions.',
+            'entry_notes_snapshot' => null,
+            'started_at' => Carbon::parse('2026-03-08 09:00:00'),
+            'completed_at' => Carbon::parse('2026-03-08 10:00:00'),
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'schedule_run_id' => $oldRun->id,
+            'schedule_run_block_id' => $oldBlock->id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Old Reading',
+            'task_summary_snapshot' => 'Old summary.',
+            'task_instructions_snapshot' => 'Old instructions.',
+            'planned_duration_minutes' => 60,
+            'started_at' => Carbon::parse('2026-03-08 09:00:00'),
+            'ended_at' => Carbon::parse('2026-03-08 10:00:00'),
+            'duration_seconds' => 3600,
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
+        $currentRun = ScheduleRun::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'schedule_name_snapshot' => 'Current Schedule',
+            'schedule_weekday_snapshot' => 'monday',
+            'schedule_notes_snapshot' => null,
+            'started_at' => Carbon::parse('2026-03-08 11:00:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $currentBlock = $currentRun->blocks()->create([
+            'task_template_id' => $taskTemplate->id,
+            'position' => 1,
+            'status' => 'completed',
+            'start_time_snapshot' => '11:00',
+            'duration_minutes_snapshot' => 15,
+            'task_title_snapshot' => 'Current Reading',
+            'task_summary_snapshot' => 'Read the current passage.',
+            'task_instructions_snapshot' => 'Keep notes while reading.',
+            'entry_notes_snapshot' => null,
+            'started_at' => Carbon::parse('2026-03-08 11:00:00'),
+            'completed_at' => Carbon::parse('2026-03-08 11:05:00'),
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'schedule_run_id' => $currentRun->id,
+            'schedule_run_block_id' => $currentBlock->id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Current Reading',
+            'task_summary_snapshot' => 'Read the current passage.',
+            'task_instructions_snapshot' => 'Keep notes while reading.',
+            'planned_duration_minutes' => 15,
+            'started_at' => Carbon::parse('2026-03-08 11:00:00'),
+            'ended_at' => Carbon::parse('2026-03-08 11:05:00'),
+            'duration_seconds' => 300,
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/Home')
+                ->where('activeScheduleRun.id', $currentRun->id)
+                ->where('activeScheduleRun.schedule_name', 'Current Schedule')
+                ->where('activeScheduleRun.blocks.0.task.title', 'Current Reading')
+                ->where('activeScheduleRun.blocks.0.actual_duration_label', '05:00')
+            );
+    }
+
     public function test_student_can_start_any_pending_schedule_block_out_of_order(): void
     {
         $studentUser = User::factory()->create([
