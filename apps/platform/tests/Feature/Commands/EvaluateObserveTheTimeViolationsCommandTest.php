@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\TaskSession;
 use App\Models\TaskTemplate;
 use App\Models\User;
+use App\Models\Violation;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -119,6 +120,85 @@ class EvaluateObserveTheTimeViolationsCommandTest extends TestCase
         $this->assertSame('completed', $taskSession->status);
         $this->assertNotNull($taskSession->ended_at);
         $this->assertGreaterThanOrEqual(35 * 60, (int) $taskSession->duration_seconds);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_command_does_not_create_observe_the_time_violation_while_another_open_violation_exists(): void
+    {
+        Carbon::setTestNow('2026-03-23 10:36:00');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        RuleDefinition::create([
+            'title' => 'Observe the time',
+            'description' => 'Imported legacy rule.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $mentor->id,
+        ]);
+
+        $blockingRule = RuleDefinition::create([
+            'title' => 'Talking',
+            'description' => 'No talking.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 25,
+            'is_active' => true,
+            'created_by_user_id' => $mentor->id,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'observe_blocked_by_other_violation',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Observe Blocked By Other Violation',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $blockingRule->id,
+            'status' => 'open',
+            'rule_title_snapshot' => $blockingRule->title,
+            'penalty_units' => 25,
+            'occurred_at' => '2026-03-23 10:20:00',
+            'notes' => 'Existing open non-observe violation.',
+            'reported_by_user_id' => $mentor->id,
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-23 10:00:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->artisan(EvaluateObserveTheTimeViolationsCommand::class)
+            ->expectsOutput('Evaluated Observe the time for 1 students.')
+            ->assertSuccessful();
+
+        $this->assertDatabaseCount('violations', 1);
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Observe the time',
+            'status' => 'open',
+        ]);
+
+        $taskSession->refresh();
+
+        $this->assertSame('active', $taskSession->status);
+        $this->assertNull($taskSession->ended_at);
 
         Carbon::setTestNow();
     }
