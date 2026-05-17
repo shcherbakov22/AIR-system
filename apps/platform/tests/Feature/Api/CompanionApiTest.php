@@ -1116,6 +1116,144 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.app_control.blocked_processes', ['Steam.exe']);
     }
 
+    public function test_open_app_review_is_scoped_to_active_task_template(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('task_app_scope_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'task_app_scope_admin',
+        ]);
+        $codingTemplate = TaskTemplate::create([
+            'title' => 'Coding',
+            'summary' => null,
+            'instructions' => 'Build.',
+            'default_duration_minutes' => 45,
+            'created_by_user_id' => $admin->id,
+        ]);
+        $readingTemplate = TaskTemplate::create([
+            'title' => 'Reading',
+            'summary' => null,
+            'instructions' => 'Read.',
+            'default_duration_minutes' => 30,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $codingSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $codingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 45,
+            'started_at' => now()->subMinutes(5),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $device->forceFill(['meta' => ['app_policy_initialized_at' => now()->subHour()->toAtomString()]])->save();
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'open_apps',
+                'payload' => ['apps' => [['app_name' => 'Blender.exe']]],
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('student_app_policies', [
+            'student_id' => $student->id,
+            'task_template_id' => $codingTemplate->id,
+            'app_key' => 'blender.exe',
+            'status' => 'pending_review',
+        ]);
+
+        $policy = $student->appPolicies()->where('app_key', 'blender.exe')->firstOrFail();
+        $this->actingAs($admin)
+            ->patch(route('admin.students.app-policies.permit', [$student, $policy]))
+            ->assertRedirect();
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonCount(0, 'policy.app_control.blocked_processes');
+
+        $codingSession->update(['status' => 'completed', 'ended_at' => now()]);
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $readingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 30,
+            'started_at' => now(),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'open_apps',
+                'payload' => ['apps' => [['app_name' => 'Blender.exe']]],
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('student_app_policies', [
+            'student_id' => $student->id,
+            'task_template_id' => $readingTemplate->id,
+            'app_key' => 'blender.exe',
+            'status' => 'pending_review',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.app_control.blocked_processes', ['Blender.exe']);
+    }
+
+    public function test_app_policy_can_be_promoted_to_global_permission(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('global_app_scope_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'global_app_scope_admin',
+        ]);
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Coding',
+            'summary' => null,
+            'instructions' => 'Build.',
+            'default_duration_minutes' => 45,
+            'created_by_user_id' => $admin->id,
+        ]);
+        $policy = $student->appPolicies()->create([
+            'task_template_id' => $taskTemplate->id,
+            'app_key' => 'code.exe',
+            'app_name' => 'Code.exe',
+            'status' => 'pending_review',
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+            'grace_deadline_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.app-policies.permit', [$student, $policy]), [
+                'global' => true,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('student_app_policies', [
+            'student_id' => $student->id,
+            'task_template_id' => null,
+            'app_key' => 'code.exe',
+            'status' => 'permitted',
+        ]);
+        $this->assertDatabaseHas('student_app_policies', [
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'app_key' => 'code.exe',
+            'status' => 'pending_review',
+        ]);
+    }
+
     public function test_installed_apps_inventory_is_persisted_and_grandfathered_as_permitted(): void
     {
         [$student, $studentUser] = $this->makeStudent('installed_apps_student', 'secret-pass');

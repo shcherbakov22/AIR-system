@@ -19,7 +19,7 @@ class StudentAppPolicyController extends Controller
     ): RedirectResponse {
         abort_unless($studentAppPolicy->student_id === $student->id, 404);
 
-        $studentAppPolicyService->permit($studentAppPolicy, $request->user()->id);
+        $studentAppPolicyService->permit($studentAppPolicy, $request->user()->id, $request->boolean('global'));
 
         return back()->with('success', "{$studentAppPolicy->app_name} permitted.");
     }
@@ -32,7 +32,7 @@ class StudentAppPolicyController extends Controller
     ): RedirectResponse {
         abort_unless($studentAppPolicy->student_id === $student->id, 404);
 
-        $studentAppPolicyService->block($studentAppPolicy, $request->user()->id);
+        $studentAppPolicyService->block($studentAppPolicy, $request->user()->id, $request->boolean('global'));
 
         return back()->with('success', "{$studentAppPolicy->app_name} blocked.");
     }

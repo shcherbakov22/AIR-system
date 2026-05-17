@@ -2,7 +2,7 @@
 import AssignmentImageDropzone from '@/Components/AssignmentImageDropzone.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
 type DashboardBlock = {
     id: number;
@@ -116,6 +116,9 @@ type DashboardStudent = {
     app_control?: {
         pending_review: Array<{
             id: number;
+            task_template_id?: number | null;
+            task_title?: string | null;
+            scope?: string | null;
             app_key: string;
             app_name: string;
             status: string;
@@ -123,12 +126,18 @@ type DashboardStudent = {
         }>;
         permitted: Array<{
             id: number;
+            task_template_id?: number | null;
+            task_title?: string | null;
+            scope?: string | null;
             app_key: string;
             app_name: string;
             status: string;
         }>;
         blocked: Array<{
             id: number;
+            task_template_id?: number | null;
+            task_title?: string | null;
+            scope?: string | null;
             app_key: string;
             app_name: string;
             status: string;
@@ -1084,6 +1093,8 @@ const markTaskSessionUnfinishedByUrl = (unfinishedUrl?: string | null) => {
 const appPolicyUrl = (template: string, policyId: number): string =>
     template.replace('__APP_POLICY__', String(policyId));
 
+const globalAppPolicyActions = reactive<Record<number, boolean>>({});
+
 const moveStudentAppPolicy = (
     student: DashboardStudent,
     policyId: number,
@@ -1095,7 +1106,16 @@ const moveStudentAppPolicy = (
 
     const buckets = student.app_control;
     const sourceKeys: Array<'pending_review' | 'permitted' | 'blocked'> = ['pending_review', 'permitted', 'blocked'];
-    let movedPolicy: { id: number; app_key: string; app_name: string; status: string; grace_deadline_at?: string | null } | null = null;
+    let movedPolicy: {
+        id: number;
+        app_key: string;
+        app_name: string;
+        status: string;
+        grace_deadline_at?: string | null;
+        task_template_id?: number | null;
+        task_title?: string | null;
+        scope?: string | null;
+    } | null = null;
 
     for (const key of sourceKeys) {
         const index = buckets[key].findIndex((policy) => policy.id === policyId);
@@ -1129,11 +1149,18 @@ const permitStudentApp = (student: DashboardStudent, policyId: number) => {
         return;
     }
 
-    router.patch(appPolicyUrl(student.app_control.permit_url_template, policyId), {}, {
+    const applyGlobally = Boolean(globalAppPolicyActions[policyId]);
+
+    router.patch(appPolicyUrl(student.app_control.permit_url_template, policyId), {
+        global: applyGlobally,
+    }, {
         preserveScroll: true,
         preserveState: true,
         onSuccess: () => {
-            moveStudentAppPolicy(student, policyId, 'permitted');
+            if (!applyGlobally) {
+                moveStudentAppPolicy(student, policyId, 'permitted');
+            }
+            delete globalAppPolicyActions[policyId];
         },
     });
 };
@@ -1143,11 +1170,18 @@ const blockStudentApp = (student: DashboardStudent, policyId: number) => {
         return;
     }
 
-    router.patch(appPolicyUrl(student.app_control.block_url_template, policyId), {}, {
+    const applyGlobally = Boolean(globalAppPolicyActions[policyId]);
+
+    router.patch(appPolicyUrl(student.app_control.block_url_template, policyId), {
+        global: applyGlobally,
+    }, {
         preserveScroll: true,
         preserveState: true,
         onSuccess: () => {
-            moveStudentAppPolicy(student, policyId, 'blocked');
+            if (!applyGlobally) {
+                moveStudentAppPolicy(student, policyId, 'blocked');
+            }
+            delete globalAppPolicyActions[policyId];
         },
     });
 };
@@ -1940,11 +1974,22 @@ const blockTooltip = (block: DashboardBlock): string => {
                                             <p class="text-sm font-medium text-stone-950">
                                                 {{ app.app_name }}
                                             </p>
+                                            <p class="mt-1 text-xs text-stone-500">
+                                                {{ app.scope === 'task' ? `Task: ${app.task_title || 'task-specific'}` : 'Global' }}
+                                            </p>
                                             <p class="mt-1 text-xs uppercase tracking-[0.14em] text-amber-700">
                                                 Shuts down at {{ app.grace_deadline_at ? new Date(app.grace_deadline_at).toLocaleTimeString() : 'soon' }}
                                             </p>
                                         </div>
-                                        <div class="flex shrink-0 items-center gap-2">
+                                        <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                            <label class="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                                                <input
+                                                    v-model="globalAppPolicyActions[app.id]"
+                                                    type="checkbox"
+                                                    class="rounded border-stone-300 text-amber-700 focus:ring-amber-700"
+                                                />
+                                                Global
+                                            </label>
                                             <button
                                                 type="button"
                                                 class="rounded-full border border-emerald-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700"
@@ -1980,16 +2025,31 @@ const blockTooltip = (block: DashboardBlock): string => {
                                         class="rounded-[0.9rem] bg-white px-3 py-2 ring-1 ring-stone-200"
                                     >
                                         <div class="flex items-center justify-between gap-3">
-                                            <p class="text-sm font-medium text-stone-950">
-                                                {{ app.app_name }}
-                                            </p>
-                                            <button
-                                                type="button"
-                                                class="rounded-full border border-rose-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-700"
-                                                @click="blockStudentApp(selectedAppsStudent, app.id)"
-                                            >
-                                                Block
-                                            </button>
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-medium text-stone-950">
+                                                    {{ app.app_name }}
+                                                </p>
+                                                <p class="mt-1 text-xs text-stone-500">
+                                                    {{ app.scope === 'task' ? `Task: ${app.task_title || 'task-specific'}` : 'Global' }}
+                                                </p>
+                                            </div>
+                                            <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                                <label class="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                                                    <input
+                                                        v-model="globalAppPolicyActions[app.id]"
+                                                        type="checkbox"
+                                                        class="rounded border-stone-300 text-amber-700 focus:ring-amber-700"
+                                                    />
+                                                    Global
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    class="rounded-full border border-rose-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-700"
+                                                    @click="blockStudentApp(selectedAppsStudent, app.id)"
+                                                >
+                                                    Block
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2009,16 +2069,31 @@ const blockTooltip = (block: DashboardBlock): string => {
                                         class="rounded-[0.9rem] bg-white px-3 py-2 ring-1 ring-stone-200"
                                     >
                                         <div class="flex items-center justify-between gap-3">
-                                            <p class="text-sm font-medium text-stone-950">
-                                                {{ app.app_name }}
-                                            </p>
-                                            <button
-                                                type="button"
-                                                class="rounded-full border border-emerald-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700"
-                                                @click="permitStudentApp(selectedAppsStudent, app.id)"
-                                            >
-                                                Permit
-                                            </button>
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-medium text-stone-950">
+                                                    {{ app.app_name }}
+                                                </p>
+                                                <p class="mt-1 text-xs text-stone-500">
+                                                    {{ app.scope === 'task' ? `Task: ${app.task_title || 'task-specific'}` : 'Global' }}
+                                                </p>
+                                            </div>
+                                            <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                                <label class="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                                                    <input
+                                                        v-model="globalAppPolicyActions[app.id]"
+                                                        type="checkbox"
+                                                        class="rounded border-stone-300 text-amber-700 focus:ring-amber-700"
+                                                    />
+                                                    Global
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    class="rounded-full border border-emerald-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700"
+                                                    @click="permitStudentApp(selectedAppsStudent, app.id)"
+                                                >
+                                                    Permit
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

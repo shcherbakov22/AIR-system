@@ -29,6 +29,7 @@ class StudentAppPolicyService
     {
         $student = $device->student;
         $now = now();
+        $activeTaskTemplateId = $this->activeTaskTemplateId($student);
         $normalizedApps = collect($apps)
             ->map(fn ($app) => $this->normalizeOpenApp($app))
             ->filter()
@@ -42,11 +43,11 @@ class StudentAppPolicyService
         $existingPolicies = $student->appPolicies()
             ->whereIn('app_key', $normalizedApps->pluck('app_key')->all())
             ->get()
-            ->keyBy('app_key');
+            ->groupBy('app_key');
 
         foreach ($normalizedApps as $app) {
             /** @var StudentAppPolicy|null $policy */
-            $policy = $existingPolicies->get($app['app_key']);
+            $policy = $this->policyForOpenAppScope($existingPolicies->get($app['app_key'], collect()), $activeTaskTemplateId);
             if ($policy !== null) {
                 $policy->forceFill([
                     'app_name' => $app['app_name'],
@@ -58,6 +59,7 @@ class StudentAppPolicyService
             }
 
             $student->appPolicies()->create([
+                'task_template_id' => $this->isProtectedAppKey($app['app_key']) ? null : $activeTaskTemplateId,
                 'app_key' => $app['app_key'],
                 'app_name' => $app['app_name'],
                 'status' => $this->defaultStatusForAppKey($app['app_key'], $initialized),
@@ -123,7 +125,9 @@ class StudentAppPolicyService
 
     public function appControlPolicy(StudentDevice $device): array
     {
-        $policies = $device->student->appPolicies()->get();
+        $student = $device->student;
+        $activeTaskTemplateId = $this->activeTaskTemplateId($student);
+        $policies = $this->effectivePoliciesForTask($student, $activeTaskTemplateId);
 
         return [
             'mode' => 'review',
@@ -142,6 +146,7 @@ class StudentAppPolicyService
     public function policyGroupsForStudent(Student $student): array
     {
         $policies = $student->appPolicies()
+            ->with('taskTemplate')
             ->orderBy('app_name')
             ->get();
 
@@ -152,8 +157,12 @@ class StudentAppPolicyService
         ];
     }
 
-    public function permit(StudentAppPolicy $policy, int $userId): void
+    public function permit(StudentAppPolicy $policy, int $userId, bool $global = false): void
     {
+        if ($global && $policy->task_template_id !== null) {
+            $policy = $this->globalPolicyFor($policy);
+        }
+
         $policy->forceFill([
             'status' => self::STATUS_PERMITTED,
             'grace_deadline_at' => null,
@@ -162,8 +171,12 @@ class StudentAppPolicyService
         ])->save();
     }
 
-    public function block(StudentAppPolicy $policy, int $userId): void
+    public function block(StudentAppPolicy $policy, int $userId, bool $global = false): void
     {
+        if ($global && $policy->task_template_id !== null) {
+            $policy = $this->globalPolicyFor($policy);
+        }
+
         if ($this->isProtectedAppKey($policy->app_key)) {
             $this->permit($policy, $userId);
             return;
@@ -177,11 +190,32 @@ class StudentAppPolicyService
         ])->save();
     }
 
+    protected function globalPolicyFor(StudentAppPolicy $policy): StudentAppPolicy
+    {
+        return StudentAppPolicy::firstOrCreate(
+            [
+                'student_id' => $policy->student_id,
+                'task_template_id' => null,
+                'app_key' => $policy->app_key,
+            ],
+            [
+                'app_name' => $policy->app_name,
+                'status' => self::STATUS_PENDING_REVIEW,
+                'first_seen_at' => $policy->first_seen_at ?? now(),
+                'last_seen_at' => $policy->last_seen_at ?? now(),
+                'grace_deadline_at' => null,
+            ],
+        );
+    }
+
     protected function formatPolicies(Collection $policies): array
     {
         return $policies
             ->map(fn (StudentAppPolicy $policy) => [
                 'id' => $policy->id,
+                'task_template_id' => $policy->task_template_id,
+                'task_title' => $policy->taskTemplate?->title,
+                'scope' => $policy->task_template_id ? 'task' : 'global',
                 'app_key' => $policy->app_key,
                 'app_name' => $policy->app_name,
                 'status' => $policy->status,
@@ -191,6 +225,46 @@ class StudentAppPolicyService
             ])
             ->values()
             ->all();
+    }
+
+    protected function policyForOpenAppScope(Collection $policies, ?int $activeTaskTemplateId): ?StudentAppPolicy
+    {
+        if ($activeTaskTemplateId !== null) {
+            $taskPolicy = $policies->first(
+                fn (StudentAppPolicy $policy) => (int) $policy->task_template_id === $activeTaskTemplateId
+            );
+
+            if ($taskPolicy) {
+                return $taskPolicy;
+            }
+        }
+
+        return $policies->first(fn (StudentAppPolicy $policy) => $policy->task_template_id === null);
+    }
+
+    protected function effectivePoliciesForTask(Student $student, ?int $activeTaskTemplateId): Collection
+    {
+        $policies = $student->appPolicies()
+            ->where(function ($query) use ($activeTaskTemplateId) {
+                $query->whereNull('task_template_id')
+                    ->when($activeTaskTemplateId !== null, fn ($query) => $query->orWhere('task_template_id', $activeTaskTemplateId));
+            })
+            ->orderByRaw('case when task_template_id is null then 0 else 1 end')
+            ->get();
+
+        return $policies
+            ->groupBy('app_key')
+            ->map(fn (Collection $group) => $group->sortByDesc(fn (StudentAppPolicy $policy) => $policy->task_template_id !== null)->first())
+            ->values();
+    }
+
+    protected function activeTaskTemplateId(Student $student): ?int
+    {
+        return $student->taskSessions()
+            ->where('status', 'active')
+            ->latest('started_at')
+            ->latest('id')
+            ->value('task_template_id');
     }
 
     protected function normalizeOpenApp(mixed $app): ?array

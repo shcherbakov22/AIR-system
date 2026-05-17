@@ -12,6 +12,7 @@ class StudentAppPolicy extends Model
 
     protected $fillable = [
         'student_id',
+        'task_template_id',
         'app_key',
         'app_name',
         'status',
@@ -35,6 +36,11 @@ class StudentAppPolicy extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function taskTemplate(): BelongsTo
+    {
+        return $this->belongsTo(TaskTemplate::class);
     }
 
     public function decidedBy(): BelongsTo
