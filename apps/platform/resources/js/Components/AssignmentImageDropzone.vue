@@ -30,6 +30,21 @@ const acceptDrop = (event: DragEvent) => {
 
     emit('drop', file);
 };
+
+const acceptPaste = (event: ClipboardEvent) => {
+    if (props.disabled) {
+        return;
+    }
+
+    const file = Array.from(event.clipboardData?.files ?? [])
+        .find((item) => item.type.startsWith('image/'));
+
+    if (!file) {
+        return;
+    }
+
+    emit('drop', file);
+};
 </script>
 
 <template>
@@ -47,10 +62,12 @@ const acceptDrop = (event: DragEvent) => {
         @dragover.prevent
         @dragleave.prevent="emit('dragLeave')"
         @drop.prevent="acceptDrop($event); emit('dragLeave')"
+        @paste.prevent="acceptPaste($event)"
+        tabindex="0"
     >
         <div class="flex items-center justify-between gap-3">
             <p class="min-w-0 truncate">
-                {{ imageFile ? imageFile.name : 'Drop image here' }}
+                {{ imageFile ? imageFile.name : 'Paste image here' }}
             </p>
             <button
                 v-if="imageFile"
@@ -68,7 +85,7 @@ const acceptDrop = (event: DragEvent) => {
             class="mt-1 text-stone-500"
             :class="compact ? 'text-[10px]' : 'text-xs'"
         >
-            Images only. No file picker.
+            Images only. Paste from clipboard or drop a file.
         </p>
     </div>
 </template>

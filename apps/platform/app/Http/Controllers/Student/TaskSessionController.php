@@ -59,7 +59,7 @@ class TaskSessionController extends Controller
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             $lockedTaskSession = TaskSession::query()
-                ->with(['taskAssignment', 'scheduleRun', 'scheduleRunBlock'])
+                ->with(['taskAssignment', 'scheduleRun', 'scheduleRunBlock', 'taskTemplate'])
                 ->whereKey($taskSession->id)
                 ->where('student_id', $studentId)
                 ->lockForUpdate()
@@ -130,7 +130,7 @@ class TaskSessionController extends Controller
                 }
 
                 $hasPendingBlocks = $lockedScheduleRun->blocks()
-                    ->where('status', '!=', 'completed')
+                    ->whereNotIn('status', ['completed', 'skipped'])
                     ->exists();
 
                 if (! $hasPendingBlocks && $lockedScheduleRun->status === 'active') {
@@ -257,6 +257,7 @@ class TaskSessionController extends Controller
                 'schedule_run_id' => null,
                 'schedule_run_block_id' => $unfinishedTaskSession->schedule_run_block_id,
                 'task_template_id' => $unfinishedTaskSession->task_template_id,
+                'resumed_from_task_session_id' => $unfinishedTaskSession->id,
                 'status' => 'active',
                 'task_title_snapshot' => $unfinishedTaskSession->task_title_snapshot,
                 'task_summary_snapshot' => $unfinishedTaskSession->task_summary_snapshot,

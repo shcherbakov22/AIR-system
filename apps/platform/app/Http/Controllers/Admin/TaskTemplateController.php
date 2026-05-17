@@ -24,6 +24,8 @@ class TaskTemplateController extends Controller
             'instructions' => $taskTemplate->instructions,
             'default_duration_minutes' => $taskTemplate->default_duration_minutes,
             'requires_internet' => $taskTemplate->requires_internet,
+            'can_end_early' => $taskTemplate->can_end_early,
+            'can_interrupt_schedule' => $taskTemplate->can_interrupt_schedule,
             'browser_allowed_domains' => $taskTemplate->browserPolicyRules
                 ->whereNull('student_id')
                 ->where('effect', 'allow')
@@ -70,6 +72,8 @@ class TaskTemplateController extends Controller
             'instructions' => $request->input('instructions'),
             'default_duration_minutes' => (int) $request->input('default_duration_minutes'),
             'requires_internet' => $request->boolean('requires_internet'),
+            'can_end_early' => $request->boolean('can_end_early'),
+            'can_interrupt_schedule' => $request->boolean('can_interrupt_schedule'),
             'created_by_user_id' => $request->user()->id,
         ]);
 
@@ -96,6 +100,8 @@ class TaskTemplateController extends Controller
             'instructions' => $request->input('instructions'),
             'default_duration_minutes' => (int) $request->input('default_duration_minutes'),
             'requires_internet' => $request->boolean('requires_internet'),
+            'can_end_early' => $request->boolean('can_end_early'),
+            'can_interrupt_schedule' => $request->boolean('can_interrupt_schedule'),
         ]);
 
         $browserPolicyService->syncTaskAllowDomains(

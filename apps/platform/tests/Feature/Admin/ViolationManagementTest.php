@@ -446,6 +446,51 @@ class ViolationManagementTest extends TestCase
         ]);
     }
 
+    public function test_resolving_an_automatic_violation_dismisses_its_auto_key(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_auto_violation_resolve',
+        ]);
+
+        $student = $this->createStudent('student_auto_violation_resolve', 'Student Auto Violation Resolve');
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Observe the time',
+            'description' => 'Automatic time rule.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Observe the time',
+            'penalty_units' => 0,
+            'occurred_at' => '2026-03-08 09:45:00',
+            'notes' => 'Automatic overtime violation.',
+            'reported_by_user_id' => null,
+            'auto_generated_key' => 'observe-time:overtime:block:1234',
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.violations.resolve', $violation), [
+                'action' => 'resolved',
+                'notes' => 'Handled.',
+            ])
+            ->assertRedirect(route('admin.violations.show', $violation, absolute: false));
+
+        $this->assertDatabaseHas('dismissed_automatic_violations', [
+            'student_id' => $student->id,
+            'auto_generated_key' => 'observe-time:overtime:block:1234',
+            'dismissed_by_user_id' => $admin->id,
+        ]);
+    }
+
     public function test_admin_can_waive_an_open_violation_and_record_a_resolution(): void
     {
         $admin = User::factory()->create([

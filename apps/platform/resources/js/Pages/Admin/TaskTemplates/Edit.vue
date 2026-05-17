@@ -14,6 +14,8 @@ const props = defineProps<{
         instructions?: string | null;
         default_duration_minutes: number;
         requires_internet: boolean;
+        can_end_early: boolean;
+        can_interrupt_schedule: boolean;
         browser_allowed_domains: string[];
     };
 }>();
@@ -23,6 +25,8 @@ const form = useForm({
     instructions: props.taskTemplate.instructions ?? '',
     default_duration_minutes: String(props.taskTemplate.default_duration_minutes),
     requires_internet: props.taskTemplate.requires_internet,
+    can_end_early: props.taskTemplate.can_end_early,
+    can_interrupt_schedule: props.taskTemplate.can_interrupt_schedule,
     browser_allowed_domains: props.taskTemplate.browser_allowed_domains.join('\n'),
 });
 
@@ -107,6 +111,24 @@ const submit = () => {
                             </span>
                         </label>
                         <InputError class="mt-2" :message="form.errors.requires_internet" />
+                    </div>
+
+                    <div class="md:col-span-2 grid gap-3 rounded-[1.5rem] bg-stone-100 p-5">
+                        <label class="inline-flex items-center gap-3">
+                            <Checkbox v-model:checked="form.can_end_early" />
+                            <span class="text-sm text-stone-700">
+                                Allow this task to be finished before 80% of its planned time.
+                            </span>
+                        </label>
+                        <InputError class="mt-2" :message="form.errors.can_end_early" />
+
+                        <label class="inline-flex items-center gap-3">
+                            <Checkbox v-model:checked="form.can_interrupt_schedule" />
+                            <span class="text-sm text-stone-700">
+                                Allow this task when switching away from a running schedule task.
+                            </span>
+                        </label>
+                        <InputError class="mt-2" :message="form.errors.can_interrupt_schedule" />
                     </div>
 
                     <div class="md:col-span-2">

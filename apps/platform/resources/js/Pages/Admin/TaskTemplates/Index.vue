@@ -11,6 +11,8 @@ const props = defineProps<{
         instructions?: string | null;
         default_duration_minutes: number;
         requires_internet: boolean;
+        can_end_early: boolean;
+        can_interrupt_schedule: boolean;
     }>;
 }>();
 
@@ -92,6 +94,12 @@ const deleteTaskTemplate = (taskTemplateId: number, taskTemplateTitle: string) =
                             </p>
                             <p class="mt-2 text-xs uppercase tracking-[0.18em] text-stone-500">
                                 {{ taskTemplate.requires_internet ? 'Internet allowed' : 'Internet blocked' }}
+                            </p>
+                            <p class="mt-2 text-xs uppercase tracking-[0.18em] text-stone-500">
+                                {{ taskTemplate.can_end_early ? 'Early finish allowed' : '80% finish required' }}
+                            </p>
+                            <p class="mt-2 text-xs uppercase tracking-[0.18em] text-stone-500">
+                                {{ taskTemplate.can_interrupt_schedule ? 'Can interrupt schedule' : 'No schedule interrupt' }}
                             </p>
                         </div>
 

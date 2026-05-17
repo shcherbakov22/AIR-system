@@ -108,6 +108,7 @@ const props = defineProps<{
         assignment_notes?: string | null;
         planned_duration_minutes?: number | null;
         duration_seconds?: number | null;
+        can_end_early: boolean;
         started_at?: string | null;
         started_at_label?: string | null;
         source_type: string;
@@ -157,6 +158,8 @@ const props = defineProps<{
         summary?: string | null;
         instructions?: string | null;
         default_duration_minutes: number;
+        can_end_early: boolean;
+        can_interrupt_schedule: boolean;
     }>;
 }>();
 
@@ -185,7 +188,14 @@ const canFinishScheduleNow = computed(() =>
     props.scheduleFinishWindow.can_finish_now,
 );
 const pauseOwnTimerFormOpen = ref(false);
-const hasTaskTemplates = computed(() => props.taskTemplates.length > 0);
+const pauseTaskTemplates = computed(() => {
+    if (activeScheduleTaskIsRunning.value) {
+        return props.taskTemplates.filter((taskTemplate) => taskTemplate.can_interrupt_schedule);
+    }
+
+    return props.taskTemplates;
+});
+const hasTaskTemplates = computed(() => pauseTaskTemplates.value.length > 0);
 const hasBlockingViolations = computed(() => props.openViolations.length > 0);
 const queueViolationPushUps = (url?: string | null) => {
     if (!url) {
@@ -204,7 +214,7 @@ const pauseOwnTimerForm = useForm({
     task_template_id: '',
 });
 const selectedPauseTaskTemplate = computed(
-    () => props.taskTemplates.find((taskTemplate) => String(taskTemplate.id) === pauseOwnTimerForm.task_template_id) ?? null,
+    () => pauseTaskTemplates.value.find((taskTemplate) => String(taskTemplate.id) === pauseOwnTimerForm.task_template_id) ?? null,
 );
 
 const parseTimestamp = (value?: string | null): number | null => {
@@ -416,6 +426,14 @@ const resumeScheduleBlockTask = (resumeUrl?: string | null) => {
     }
 
     router.post(resumeUrl, {}, { preserveScroll: true });
+};
+
+const openAiChatForViolation = (violationId: number, ruleTitle: string) => {
+    router.get(
+        route('student.ai-overseer-decisions.index'),
+        { violation_id: violationId, label: ruleTitle },
+        { preserveScroll: false },
+    );
 };
 
 const showBlockingViolationDialog = () => {
@@ -847,8 +865,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 <button
                                     v-if="activeTaskSession"
                                     type="button"
-                                    :disabled="stopTaskSessionForm.processing"
-                                    class="inline-block rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    class="inline-block rounded-full bg-stone-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-stone-800"
                                     @click="stopTaskSession"
                                 >
                                     Finish
@@ -859,7 +876,11 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                             v-if="!hasTaskTemplates && canPauseForOwnTimer"
                             class="mt-3 rounded-[1rem] bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200"
                         >
-                            There are no tasks in the catalog for a custom timer yet.
+                            {{
+                                activeScheduleTaskIsRunning
+                                    ? 'There are no tasks allowed while switching away from a running schedule task.'
+                                    : 'There are no tasks in the catalog for a custom timer yet.'
+                            }}
                         </div>
 
                         <div
@@ -883,7 +904,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                     Choose a task
                                 </option>
                                 <option
-                                    v-for="taskTemplate in props.taskTemplates"
+                                    v-for="taskTemplate in pauseTaskTemplates"
                                     :key="taskTemplate.id"
                                     :value="String(taskTemplate.id)"
                                 >
@@ -1004,6 +1025,13 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 >
                                     Do pushups
                                 </button>
+                                <button
+                                    type="button"
+                                    class="shrink-0 rounded-full border border-rose-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-700 transition hover:border-rose-500 hover:text-rose-900 disabled:opacity-50"
+                                    @click="openAiChatForViolation(violation.id, violation.rule_title)"
+                                >
+                                    Ask AI
+                                </button>
                             </p>
                         </div>
                     </div>
@@ -1032,7 +1060,9 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 :class="
                                     (block.status_label ?? block.status) === 'completed'
                                         ? 'bg-emerald-200 text-emerald-950'
-                                        : (block.status_label ?? block.status) === 'unfinished'
+                                        : (block.status_label ?? block.status) === 'skipped'
+                                          ? 'bg-sky-100 text-sky-900'
+                                          : (block.status_label ?? block.status) === 'unfinished'
                                           ? 'bg-stone-950 text-white'
                                           : (block.status_label ?? block.status) === 'paused'
                                           ? 'bg-stone-950 text-white'
@@ -1046,7 +1076,9 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 {{
                                     (block.status_label ?? block.status) === 'completed'
                                         ? 'done'
-                                        : (block.status_label ?? block.status) === 'unfinished'
+                                        : (block.status_label ?? block.status) === 'skipped'
+                                          ? 'skipped'
+                                          : (block.status_label ?? block.status) === 'unfinished'
                                           ? 'unfinished'
                                           : (block.status_label ?? block.status) === 'paused'
                                           ? 'paused'

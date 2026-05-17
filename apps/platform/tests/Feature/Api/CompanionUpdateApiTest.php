@@ -42,6 +42,7 @@ class CompanionUpdateApiTest extends TestCase
         file_put_contents($packagePath, 'fake-zip-bytes');
 
         config()->set('services.companion_updates.enabled', true);
+        config()->set('services.companion_updates.version', '0.1.13');
         config()->set('services.companion_updates.windows_package_path', $packagePath);
 
         $this->get(route('api.companion.update.download'))

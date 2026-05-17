@@ -132,6 +132,11 @@ class Student extends Model
         return $this->hasMany(BrowserAccessRequest::class);
     }
 
+    public function aiOverseerDecisions(): HasMany
+    {
+        return $this->hasMany(AiOverseerDecision::class);
+    }
+
     public function latestScreenCapture(): HasOne
     {
         return $this->hasOne(StudentMonitorCapture::class)

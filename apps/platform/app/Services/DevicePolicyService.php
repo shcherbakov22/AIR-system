@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DeviceActivityEvent;
+use App\Models\BrowserVisitLog;
 use App\Models\Student;
 use App\Models\StudentDevice;
 use App\Models\TaskSession;
@@ -11,8 +12,9 @@ use Illuminate\Support\Arr;
 
 class DevicePolicyService
 {
-    private const BROWSER_EXTENSION_STALE_AFTER_MINUTES = 20;
+    private const BROWSER_EXTENSION_STALE_AFTER_MINUTES = 3;
     private const BROWSER_ACTIVITY_FRESH_AFTER_MINUTES = 2;
+    private const BROWSER_EXTENSION_WAKE_GRACE_SECONDS = 60;
 
     public function __construct(
         private readonly StudentCommunicationGateService $communicationGateService,
@@ -83,11 +85,11 @@ class DevicePolicyService
                 'items' => $violationItems->all(),
             ],
             'violation_app_enforcement' => [
-                'kill_gui_apps' => $openViolations->contains(
+                'kill_gui_apps' => $browserExtensionMissing || $openViolations->contains(
                     fn ($violation) => $violation->created_at instanceof Carbon
                         && $violation->created_at->lessThanOrEqualTo($staleViolationDeadline)
                 ),
-                'browser_reopen_grace_seconds' => 60,
+                'browser_reopen_grace_seconds' => $browserExtensionMissing ? 0 : 60,
             ],
             'communication_gate' => $communicationGate,
             'internet_policy' => $internetPolicy,
@@ -146,6 +148,16 @@ class DevicePolicyService
             ->whereNull('revoked_at')
             ->get(['last_seen_at']);
 
+        $latestBrowserObservedAt = $this->latestRecentlyObservedBrowserAt($student);
+
+        if (! $latestBrowserObservedAt) {
+            return false;
+        }
+
+        if ($latestBrowserObservedAt->greaterThan(now()->subSeconds(self::BROWSER_EXTENSION_WAKE_GRACE_SECONDS))) {
+            return false;
+        }
+
         if ($extensionDevices->isEmpty()) {
             return false;
         }
@@ -156,7 +168,7 @@ class DevicePolicyService
         );
 
         if ($seenDevices->isEmpty()) {
-            return false;
+            return true;
         }
 
         $hasFreshExtension = $seenDevices->contains(
@@ -164,10 +176,33 @@ class DevicePolicyService
                 && $device->last_seen_at->greaterThan($staleDeadline)
         );
 
-        return ! $hasFreshExtension && $this->hasRecentlyObservedBrowser($student);
+        if (! $hasFreshExtension) {
+            return true;
+        }
+
+        return ! $this->hasRecentlyObservedExtensionContent($student);
+    }
+
+    protected function hasRecentlyObservedExtensionContent(Student $student): bool
+    {
+        return BrowserVisitLog::query()
+            ->where('student_id', $student->id)
+            ->where('visited_at', '>=', now()->subMinutes(self::BROWSER_EXTENSION_STALE_AFTER_MINUTES))
+            ->where(function ($query) {
+                $query->where('meta->source', 'content_script')
+                    ->orWhere(fn ($query) => $query
+                        ->where('meta->source', 'chrome_extension')
+                        ->where('decision', 'blocked'));
+            })
+            ->exists();
     }
 
     protected function hasRecentlyObservedBrowser(Student $student): bool
+    {
+        return $this->latestRecentlyObservedBrowserAt($student) !== null;
+    }
+
+    protected function latestRecentlyObservedBrowserAt(Student $student): ?Carbon
     {
         $latestOpenApps = DeviceActivityEvent::query()
             ->where('event_type', 'open_apps')
@@ -182,11 +217,13 @@ class DevicePolicyService
             ->first();
 
         if (! $latestOpenApps) {
-            return false;
+            return null;
         }
 
-        return collect($this->normalizeOpenApps($latestOpenApps->payload['apps'] ?? []))
+        $hasBrowser = collect($this->normalizeOpenApps($latestOpenApps->payload['apps'] ?? []))
             ->contains(fn (array $app) => $this->isBrowserAppName((string) ($app['app_name'] ?? '')));
+
+        return $hasBrowser ? $latestOpenApps->observed_at : null;
     }
 
     protected function isBrowserAppName(string $appName): bool

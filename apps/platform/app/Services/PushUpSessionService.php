@@ -285,6 +285,7 @@ class PushUpSessionService
                 $violation->update([
                     'status' => 'resolved',
                 ]);
+                app(AutomaticViolationDismissalService::class)->dismiss($violation, $completedBy?->id);
 
                 $violation->resolutions()->create([
                     'action' => 'resolved',

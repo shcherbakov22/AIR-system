@@ -102,10 +102,10 @@ class TaskSessionUnfinishService
                     ]);
                 }
 
-                if ($lockedScheduleRun && $lockedScheduleRun->status === 'active') {
-                    $hasPendingBlocks = $lockedScheduleRun->blocks()
-                        ->where('status', '!=', 'completed')
-                        ->exists();
+                    if ($lockedScheduleRun && $lockedScheduleRun->status === 'active') {
+                        $hasPendingBlocks = $lockedScheduleRun->blocks()
+                            ->whereNotIn('status', ['completed', 'skipped'])
+                            ->exists();
 
                     if (! $hasPendingBlocks) {
                         $lockedScheduleRun->update([
@@ -203,7 +203,7 @@ class TaskSessionUnfinishService
 
                 if ($lockedScheduleRun && $lockedScheduleRun->status === 'active') {
                     $hasPendingBlocks = $lockedScheduleRun->blocks()
-                        ->where('status', '!=', 'completed')
+                        ->whereNotIn('status', ['completed', 'skipped'])
                         ->exists();
 
                     if (! $hasPendingBlocks) {

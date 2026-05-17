@@ -123,6 +123,10 @@ class ExtensionController extends Controller
                 'default_unblock_scope' => 'domain_tree',
                 'mode_update_url' => route('admin.students.browser-mode.update', $student),
                 'rule_store_url' => route('admin.students.browser-rules.store', $student),
+                'history_clear_url' => route('admin.students.browser-history.destroy', $student),
+                'current_visit' => $student->browserVisitLogs->first()
+                    ? $this->browserVisitPayload($student, $student->browserVisitLogs->first())
+                    : null,
                 'rules' => $student->browserPolicyRules
                     ->map(fn (BrowserPolicyRule $rule) => [
                         'id' => $rule->id,
@@ -138,6 +142,7 @@ class ExtensionController extends Controller
                     ->map(fn (BrowserAccessRequest $request) => [
                         'id' => $request->id,
                         'requested_url' => $request->requested_url,
+                        'display_url' => $this->cleanUrlForDisplay($request->requested_url),
                         'host' => $request->host,
                         'registrable_domain' => $request->registrable_domain,
                         'reason' => $request->reason,
@@ -148,25 +153,12 @@ class ExtensionController extends Controller
                         'decided_at_label' => $request->decided_at?->format('d M, H:i'),
                         'approve_url' => route('admin.students.browser-access-requests.approve', [$student, $request]),
                         'deny_url' => route('admin.students.browser-access-requests.deny', [$student, $request]),
+                        'destroy_url' => route('admin.students.browser-access-requests.destroy', [$student, $request]),
                     ])
                     ->values()
                     ->all(),
                 'recent_visits' => $student->browserVisitLogs
-                    ->map(fn (BrowserVisitLog $visit) => [
-                        'id' => $visit->id,
-                        'mode' => $visit->mode,
-                        'decision' => $visit->decision,
-                        'host' => $visit->host,
-                        'registrable_domain' => $visit->registrable_domain,
-                        'url' => $visit->url,
-                        'page_title' => $visit->page_title,
-                        'visited_at' => $visit->visited_at?->toIso8601String(),
-                        'visited_at_label' => $visit->visited_at?->format('d M, H:i'),
-                        'matched_rule' => $visit->matchedRule ? [
-                            'effect' => $visit->matchedRule->effect,
-                            'value' => $visit->matchedRule->value,
-                        ] : null,
-                    ])
+                    ->map(fn (BrowserVisitLog $visit) => $this->browserVisitPayload($student, $visit))
                     ->values()
                     ->all(),
             ],
@@ -214,6 +206,87 @@ class ExtensionController extends Controller
                     ->all(),
             ],
         ];
+    }
+
+    protected function browserVisitPayload(Student $student, BrowserVisitLog $visit): array
+    {
+        return [
+            'id' => $visit->id,
+            'mode' => $visit->mode,
+            'decision' => $visit->decision,
+            'host' => $visit->host,
+            'registrable_domain' => $visit->registrable_domain,
+            'url' => $visit->url,
+            'display_url' => $this->cleanUrlForDisplay($visit->url),
+            'page_title' => $visit->page_title,
+            'visited_at' => $visit->visited_at?->toIso8601String(),
+            'visited_at_label' => $visit->visited_at?->format('d M, H:i'),
+            'destroy_url' => route('admin.students.browser-history.logs.destroy', [$student, $visit]),
+            'matched_rule' => $visit->matchedRule ? [
+                'effect' => $visit->matchedRule->effect,
+                'value' => $visit->matchedRule->value,
+            ] : null,
+        ];
+    }
+
+    protected function cleanUrlForDisplay(?string $url): ?string
+    {
+        if (! $url) {
+            return null;
+        }
+
+        $parts = parse_url($url);
+
+        if (! is_array($parts) || empty($parts['host'])) {
+            return $url;
+        }
+
+        $path = $parts['path'] ?? '';
+        $display = $parts['host'].$path;
+        $query = [];
+
+        if (! empty($parts['query'])) {
+            parse_str($parts['query'], $query);
+
+            $query = collect($query)
+                ->reject(fn ($value, string $key) => $this->isTrackingQueryParameter($key))
+                ->map(fn ($value) => is_array($value) ? reset($value) : $value)
+                ->filter(fn ($value) => filled($value))
+                ->take(4)
+                ->all();
+        }
+
+        if ($query !== []) {
+            $display .= '?'.http_build_query($query);
+        }
+
+        return $display;
+    }
+
+    protected function isTrackingQueryParameter(string $key): bool
+    {
+        $normalized = strtolower($key);
+
+        return str_starts_with($normalized, 'utm_')
+            || in_array($normalized, [
+                'fbclid',
+                'gclid',
+                'dclid',
+                'gbraid',
+                'wbraid',
+                'msclkid',
+                'mc_cid',
+                'mc_eid',
+                'igshid',
+                'ref',
+                'ref_src',
+                'spm',
+                'ved',
+                'ei',
+                'sxsrf',
+                'source',
+                'campaign',
+            ], true);
     }
 
     protected function taskAllowlistPayload(): array

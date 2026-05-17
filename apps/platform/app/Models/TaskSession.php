@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TaskSession extends Model
 {
@@ -16,6 +17,7 @@ class TaskSession extends Model
         'schedule_run_id',
         'schedule_run_block_id',
         'task_template_id',
+        'resumed_from_task_session_id',
         'status',
         'task_title_snapshot',
         'task_summary_snapshot',
@@ -65,6 +67,11 @@ class TaskSession extends Model
         return $this->belongsTo(TaskTemplate::class);
     }
 
+    public function resumedFromTaskSession(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'resumed_from_task_session_id');
+    }
+
     public function startedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'started_by_user_id');
@@ -73,5 +80,10 @@ class TaskSession extends Model
     public function stoppedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'stopped_by_user_id');
+    }
+
+    public function aiOverseerDecisions(): HasMany
+    {
+        return $this->hasMany(AiOverseerDecision::class);
     }
 }

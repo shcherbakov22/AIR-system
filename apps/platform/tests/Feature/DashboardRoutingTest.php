@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\UserRole;
 use App\Enums\ScheduleWeekday;
+use App\Models\AiOverseerDecision;
 use App\Models\RuleDefinition;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
@@ -449,6 +450,24 @@ class DashboardRoutingTest extends TestCase
             'updated_at' => now()->subSeconds(45),
         ]);
 
+        AiOverseerDecision::create([
+            'student_id' => $student->id,
+            'requested_by_user_id' => $studentUser->id,
+            'request_type' => 'remove_violation',
+            'status' => 'mentor_review',
+            'decision' => 'remove_violation',
+            'confidence' => 85,
+            'student_reason' => 'Please review this.',
+            'student_message' => 'I sent this to your mentor for review.',
+            'mentor_summary' => 'Student asked to remove a violation.',
+            'reason' => 'Needs mentor decision.',
+            'context_snapshot' => [],
+            'raw_response' => [],
+            'model' => 'openai/gpt-oss-120b',
+            'prompt_version' => 'ai-overseer-v1',
+            'decided_at' => now(),
+        ]);
+
         $this->actingAs($admin)
             ->get(route('admin.dashboard'))
             ->assertOk()
@@ -463,6 +482,9 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.latest_device_activity.open_apps.1.app_name', 'chrome.exe')
                 ->where('monitorStudents.0.latest_device_activity.installed_apps.0.display_name', 'Visual Studio Code')
                 ->where('monitorStudents.0.app_control.pending_review.0.app_name', 'Steam.exe')
+                ->where('monitorStudents.0.ai_overseer_notifications.count', 1)
+                ->where('monitorStudents.0.ai_overseer_notifications.items.0.request_type', 'remove_violation')
+                ->where('monitorStudents.0.ai_overseer_notifications.items.0.confidence', 85)
                 ->where('monitorStudents.0.app_control.permitted.0.app_name', 'Code.exe')
                 ->where('monitorStudents.0.app_control.blocked.0.app_name', 'Game.exe')
                 ->where('monitorStudents.0.app_control.permit_url_template', route('admin.students.app-policies.permit', [$student, '__APP_POLICY__']))

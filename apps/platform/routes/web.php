@@ -1,52 +1,55 @@
 <?php
 
-use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Admin\BrowserAccountabilityController as AdminBrowserAccountabilityController;
-use App\Http\Controllers\Admin\ExtensionController as AdminExtensionController;
+use App\Http\Controllers\Admin\AdminerController as AdminAdminerController;
+use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
+use App\Http\Controllers\Admin\AiOverseerDecisionController as AdminAiOverseerDecisionController;
 use App\Http\Controllers\Admin\AnnouncementController as AdminAnnouncementController;
 use App\Http\Controllers\Admin\AssignmentController as AdminAssignmentController;
-use App\Http\Controllers\Admin\AdminerController as AdminAdminerController;
+use App\Http\Controllers\Admin\BrowserAccountabilityController as AdminBrowserAccountabilityController;
 use App\Http\Controllers\Admin\ChatController as AdminChatController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ExtensionController as AdminExtensionController;
+use App\Http\Controllers\Admin\HiddenScheduleBlockTimeController as AdminHiddenScheduleBlockTimeController;
 use App\Http\Controllers\Admin\PushUpSessionController as AdminPushUpSessionController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
 use App\Http\Controllers\Admin\SpeechAnnouncementController as AdminSpeechAnnouncementController;
-use App\Http\Controllers\Admin\StudentMonitorCaptureController as AdminStudentMonitorCaptureController;
-use App\Http\Controllers\Admin\StudentProgressController as AdminStudentProgressController;
-use App\Http\Controllers\Admin\HiddenScheduleBlockTimeController as AdminHiddenScheduleBlockTimeController;
+use App\Http\Controllers\Admin\StudentAppPolicyController as AdminStudentAppPolicyController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\StudentDeviceController as AdminStudentDeviceController;
-use App\Http\Controllers\Admin\StudentAppPolicyController as AdminStudentAppPolicyController;
+use App\Http\Controllers\Admin\StudentMonitorCaptureController as AdminStudentMonitorCaptureController;
+use App\Http\Controllers\Admin\StudentProgressController as AdminStudentProgressController;
 use App\Http\Controllers\Admin\TaskSessionController as AdminTaskSessionController;
 use App\Http\Controllers\Admin\TaskTemplateController as AdminTaskTemplateController;
 use App\Http\Controllers\Admin\ViolationController as AdminViolationController;
+use App\Http\Controllers\Api\CompanionUpdateController;
 use App\Http\Controllers\AssignmentAttachmentController;
 use App\Http\Controllers\ChatAttachmentController;
 use App\Http\Controllers\CompanionBrowserLoginController;
 use App\Http\Controllers\CompanionRootCertificateController;
-use App\Http\Controllers\Api\CompanionUpdateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LegacyCaptureController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PushUpStationController;
-use App\Http\Controllers\Student\CompanionEnrollmentController as StudentCompanionEnrollmentController;
-use App\Http\Controllers\Student\ChatController as StudentChatController;
+use App\Http\Controllers\Student\AiOverseerDecisionController as StudentAiOverseerDecisionController;
 use App\Http\Controllers\Student\AnnouncementController as StudentAnnouncementController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\AttentionEventController as StudentAttentionEventController;
+use App\Http\Controllers\Student\ChatController as StudentChatController;
+use App\Http\Controllers\Student\CompanionEnrollmentController as StudentCompanionEnrollmentController;
 use App\Http\Controllers\Student\HomeController as StudentHomeController;
 use App\Http\Controllers\Student\PushUpSessionController as StudentPushUpSessionController;
 use App\Http\Controllers\Student\RuleController as StudentRuleController;
+use App\Http\Controllers\Student\ScheduleController as StudentScheduleController;
 use App\Http\Controllers\Student\ScheduleRunController as StudentScheduleRunController;
 use App\Http\Controllers\Student\ScheduleRunTaskSessionController as StudentScheduleRunTaskSessionController;
-use App\Http\Controllers\Student\ScheduleController as StudentScheduleController;
 use App\Http\Controllers\Student\TaskSessionController as StudentTaskSessionController;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Session\Middleware\StartSession;
-use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Inertia\Inertia;
 
 $companionRootCertificateRoute = trim(
@@ -82,9 +85,9 @@ Route::prefix('ss')
         VerifyCsrfToken::class,
     ])
     ->group(function () {
-    Route::match(['get', 'post'], '/upl1.php', [LegacyCaptureController::class, 'check']);
-    Route::post('/uplcam.php', [LegacyCaptureController::class, 'storeCamera']);
-    Route::post('/uplscr.php', [LegacyCaptureController::class, 'storeScreen']);
+        Route::match(['get', 'post'], '/upl1.php', [LegacyCaptureController::class, 'check']);
+        Route::post('/uplcam.php', [LegacyCaptureController::class, 'storeCamera']);
+        Route::post('/uplscr.php', [LegacyCaptureController::class, 'storeScreen']);
     });
 
 Route::middleware('auth')->group(function () {
@@ -104,11 +107,15 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+        Route::get('/logs', [AdminActivityLogController::class, 'index'])->name('logs.index');
+        Route::delete('/logs/category', [AdminActivityLogController::class, 'destroyCategory'])->name('logs.destroy-category');
         Route::get('/extension', [AdminExtensionController::class, 'index'])->name('extension.index');
         Route::get('/students/{student}/extension', [AdminExtensionController::class, 'show'])->name('extension.show');
         Route::get('/announcements', [AdminAnnouncementController::class, 'index'])->name('announcements.index');
         Route::post('/announcements', [AdminAnnouncementController::class, 'store'])->name('announcements.store');
         Route::delete('/announcements/{chatMessage}', [AdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
+        Route::get('/ai-overseer-decisions', [AdminAiOverseerDecisionController::class, 'index'])->name('ai-overseer-decisions.index');
+        Route::patch('/ai-overseer-decisions/{aiOverseerDecision}', [AdminAiOverseerDecisionController::class, 'update'])->name('ai-overseer-decisions.update');
         Route::get('/database', AdminAdminerController::class)->name('database');
         Route::get('/assignments', [AdminAssignmentController::class, 'index'])->name('assignments.index');
         Route::post('/assignments', [AdminAssignmentController::class, 'store'])->name('assignments.store');
@@ -158,8 +165,11 @@ Route::middleware('auth')->group(function () {
         Route::patch('/students/{student}/browser-mode', [AdminBrowserAccountabilityController::class, 'updateMode'])->name('students.browser-mode.update');
         Route::post('/students/{student}/browser-rules', [AdminBrowserAccountabilityController::class, 'storeRule'])->name('students.browser-rules.store');
         Route::delete('/students/{student}/browser-rules/{browserPolicyRule}', [AdminBrowserAccountabilityController::class, 'destroyRule'])->name('students.browser-rules.destroy');
+        Route::delete('/students/{student}/browser-history/{browserVisitLog}', [AdminBrowserAccountabilityController::class, 'destroyHistoryLog'])->name('students.browser-history.logs.destroy');
+        Route::delete('/students/{student}/browser-history', [AdminBrowserAccountabilityController::class, 'destroyHistory'])->name('students.browser-history.destroy');
         Route::patch('/students/{student}/browser-access-requests/{browserAccessRequest}/approve', [AdminBrowserAccountabilityController::class, 'approveRequest'])->name('students.browser-access-requests.approve');
         Route::patch('/students/{student}/browser-access-requests/{browserAccessRequest}/deny', [AdminBrowserAccountabilityController::class, 'denyRequest'])->name('students.browser-access-requests.deny');
+        Route::delete('/students/{student}/browser-access-requests/{browserAccessRequest}', [AdminBrowserAccountabilityController::class, 'destroyRequest'])->name('students.browser-access-requests.destroy');
         Route::patch('/students/{student}/app-policies/{studentAppPolicy}/permit', [AdminStudentAppPolicyController::class, 'permit'])->name('students.app-policies.permit');
         Route::patch('/students/{student}/app-policies/{studentAppPolicy}/block', [AdminStudentAppPolicyController::class, 'block'])->name('students.app-policies.block');
         Route::get('/students/{student}/edit', [AdminStudentController::class, 'edit'])->name('students.edit');
@@ -183,6 +193,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/home', StudentHomeController::class)->name('home');
         Route::post('/violations/{violation}/push-up-sessions', [StudentPushUpSessionController::class, 'store'])->name('violations.push-up-sessions.store');
         Route::get('/announcements', [StudentAnnouncementController::class, 'show'])->name('announcements.show');
+        Route::get('/ai-overseer-decisions', [StudentAiOverseerDecisionController::class, 'index'])->name('ai-overseer-decisions.index');
+        Route::post('/ai-overseer-decisions', [StudentAiOverseerDecisionController::class, 'store'])->name('ai-overseer-decisions.store');
         Route::get('/assignments', [StudentAssignmentController::class, 'index'])->name('assignments.index');
         Route::patch('/assignments/{studentAssignment}/start', [StudentAssignmentController::class, 'start'])->name('assignments.start');
         Route::patch('/assignments/{studentAssignment}/hand-in', [StudentAssignmentController::class, 'handIn'])->name('assignments.hand-in');

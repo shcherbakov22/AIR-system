@@ -65,4 +65,15 @@ return [
         ),
     ],
 
+    'ai_overseer' => [
+        'enabled' => env('AI_OVERSEER_ENABLED', true),
+        'provider' => env('AI_OVERSEER_PROVIDER', 'openrouter'),
+        'model' => env('AI_OVERSEER_MODEL', 'openai/gpt-oss-120b'),
+        'api_key' => env('OPENROUTER_API_KEY'),
+        'base_url' => env('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1'),
+        'confidence_threshold' => (int) env('AI_OVERSEER_CONFIDENCE_THRESHOLD', 75),
+        'auto_apply_skip' => env('AI_OVERSEER_AUTO_APPLY_SKIP', true),
+        'prompt_version' => env('AI_OVERSEER_PROMPT_VERSION', 'ai-overseer-v1'),
+    ],
+
 ];

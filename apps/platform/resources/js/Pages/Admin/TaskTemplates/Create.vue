@@ -12,6 +12,8 @@ const form = useForm({
     instructions: '',
     default_duration_minutes: '30',
     requires_internet: false,
+    can_end_early: false,
+    can_interrupt_schedule: false,
     browser_allowed_domains: '',
 });
 
@@ -73,6 +75,24 @@ const submit = () => {
                             </span>
                         </label>
                         <InputError class="mt-2" :message="form.errors.requires_internet" />
+                    </div>
+
+                    <div class="md:col-span-2 grid gap-3 rounded-[1.5rem] bg-stone-100 p-5">
+                        <label class="inline-flex items-center gap-3">
+                            <Checkbox v-model:checked="form.can_end_early" />
+                            <span class="text-sm text-stone-700">
+                                Allow this task to be finished before 80% of its planned time.
+                            </span>
+                        </label>
+                        <InputError class="mt-2" :message="form.errors.can_end_early" />
+
+                        <label class="inline-flex items-center gap-3">
+                            <Checkbox v-model:checked="form.can_interrupt_schedule" />
+                            <span class="text-sm text-stone-700">
+                                Allow this task when switching away from a running schedule task.
+                            </span>
+                        </label>
+                        <InputError class="mt-2" :message="form.errors.can_interrupt_schedule" />
                     </div>
 
                     <div class="md:col-span-2">

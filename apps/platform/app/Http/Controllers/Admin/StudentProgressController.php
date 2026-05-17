@@ -41,6 +41,13 @@ class StudentProgressController extends Controller
         return sprintf('%02d:%02d', $minutes, $seconds);
     }
 
+    protected function scheduleBlockActualDurationSeconds(ScheduleRunBlock $block): int
+    {
+        return (int) $block->taskSessions
+            ->map(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession))
+            ->max() ?? 0;
+    }
+
     protected function sessionLogPayload(TaskSession $taskSession): array
     {
         $actualDurationSeconds = $this->actualDurationSeconds($taskSession);
@@ -64,7 +71,7 @@ class StudentProgressController extends Controller
             ->values()
             ->map(fn (TaskSession $taskSession) => $this->sessionLogPayload($taskSession));
 
-        $actualDurationSeconds = $sessionLogs->sum('duration_seconds');
+        $actualDurationSeconds = $this->scheduleBlockActualDurationSeconds($block);
         $plannedDurationSeconds = max(0, (int) ($block->duration_minutes_snapshot ?? 0) * 60);
         $deltaSeconds = $actualDurationSeconds - $plannedDurationSeconds;
 
@@ -248,7 +255,7 @@ class StudentProgressController extends Controller
             'completed_at' => $scheduleRun->completed_at?->toIso8601String(),
             'completed_at_label' => $scheduleRun->completed_at?->format('d M, H:i'),
             'total_blocks' => $scheduleRun->blocks->count(),
-            'completed_blocks' => $scheduleRun->blocks->where('status', 'completed')->count(),
+            'completed_blocks' => $scheduleRun->blocks->whereIn('status', ['completed', 'skipped'])->count(),
             'total_planned_minutes' => $totalPlannedDurationMinutes,
             'total_planned_duration_label' => $this->formatDuration($totalPlannedDurationMinutes * 60),
             'total_actual_duration_seconds' => $totalActualDurationSeconds,
@@ -321,7 +328,7 @@ class StudentProgressController extends Controller
             ->map(function ($blocks, string $taskTitle): array {
                 $totalActualSeconds = $blocks->sum('actual_duration_seconds');
                 $totalPlannedMinutes = $blocks->sum('planned_duration_minutes');
-                $completedBlocks = $blocks->where('status', 'completed')->count();
+                $completedBlocks = $blocks->whereIn('status', ['completed', 'skipped'])->count();
 
                 return [
                     'task_title' => $taskTitle,

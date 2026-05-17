@@ -32,3 +32,14 @@ window.addEventListener('message', async (event) => {
     }, window.location.origin);
   }
 });
+
+sendContentScriptHeartbeat();
+setInterval(sendContentScriptHeartbeat, 30_000);
+
+function sendContentScriptHeartbeat() {
+  chrome.runtime.sendMessage({
+    type: 'content_script_heartbeat',
+    url: location.href,
+    title: document.title || null,
+  }).catch(() => {});
+}

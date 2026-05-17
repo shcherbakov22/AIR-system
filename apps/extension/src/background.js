@@ -91,6 +91,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'content_script_heartbeat') {
+    contentScriptHeartbeat(message.url || '', message.title || null)
+      .then((response) => sendResponse({ ok: true, response }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+
+    return true;
+  }
+
   if (message?.type === 'evaluate_url_after_sync') {
     syncPolicy()
       .then((policy) => sendResponse({
@@ -331,12 +339,12 @@ async function getPolicy() {
   return stored.policy;
 }
 
-async function logVisit(url, pageTitle, knownEvaluation = null) {
+async function logVisit(url, pageTitle, knownEvaluation = null, extraMeta = {}) {
   if (!isHttpUrl(url) || isBlockedPage(url)) {
     return;
   }
 
-  const key = `${url}:${pageTitle || ''}`;
+  const key = `${extraMeta.source || 'chrome_extension'}:${url}:${pageTitle || ''}`;
   const lastSeen = recentVisits.get(key) || 0;
 
   if (Date.now() - lastSeen < 10_000) {
@@ -351,7 +359,7 @@ async function logVisit(url, pageTitle, knownEvaluation = null) {
     return;
   }
 
-  if (isPlatformUrl(url, settings.platformUrl)) {
+  if (isPlatformUrl(url, settings.platformUrl) && extraMeta.source !== 'content_script') {
     return;
   }
 
@@ -370,9 +378,16 @@ async function logVisit(url, pageTitle, knownEvaluation = null) {
       meta: {
         source: 'chrome_extension',
         decision: evaluation.allowed ? 'allowed' : 'blocked',
+        ...extraMeta,
       },
     }),
   }).catch(() => {});
+}
+
+async function contentScriptHeartbeat(url, pageTitle) {
+  await logVisit(String(url || ''), pageTitle ? String(pageTitle) : null, null, {
+    source: 'content_script',
+  });
 }
 
 async function requestAccess(url, reason) {

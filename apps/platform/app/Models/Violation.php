@@ -55,4 +55,9 @@ class Violation extends Model
     {
         return $this->hasMany(PushUpSession::class);
     }
+
+    public function aiOverseerDecisions(): HasMany
+    {
+        return $this->hasMany(AiOverseerDecision::class);
+    }
 }

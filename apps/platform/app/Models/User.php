@@ -100,6 +100,16 @@ class User extends Authenticatable
         return $this->hasMany(ChatMessage::class, 'sender_user_id');
     }
 
+    public function requestedAiOverseerDecisions(): HasMany
+    {
+        return $this->hasMany(AiOverseerDecision::class, 'requested_by_user_id');
+    }
+
+    public function reviewedAiOverseerDecisions(): HasMany
+    {
+        return $this->hasMany(AiOverseerDecision::class, 'reviewed_by_user_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;

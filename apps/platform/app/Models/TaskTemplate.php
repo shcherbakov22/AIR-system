@@ -18,6 +18,8 @@ class TaskTemplate extends Model
         'instructions',
         'default_duration_minutes',
         'requires_internet',
+        'can_end_early',
+        'can_interrupt_schedule',
         'created_by_user_id',
     ];
 
@@ -27,6 +29,8 @@ class TaskTemplate extends Model
             'legacy_task_id' => 'integer',
             'default_duration_minutes' => 'integer',
             'requires_internet' => 'boolean',
+            'can_end_early' => 'boolean',
+            'can_interrupt_schedule' => 'boolean',
         ];
     }
 

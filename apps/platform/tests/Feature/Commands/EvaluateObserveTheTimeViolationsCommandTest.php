@@ -203,6 +203,71 @@ class EvaluateObserveTheTimeViolationsCommandTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_command_does_not_create_repeated_observe_the_time_violations_while_one_is_open(): void
+    {
+        Carbon::setTestNow('2026-03-23 10:36:00');
+
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $rule = RuleDefinition::create([
+            'title' => 'Observe the time',
+            'description' => 'Imported legacy rule.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $mentor->id,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'observe_not_repeated_student',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Observe Not Repeated Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $rule->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Observe the time',
+            'penalty_units' => 0,
+            'occurred_at' => '2026-03-23 10:30:00',
+            'notes' => 'Existing automatic observe violation.',
+            'reported_by_user_id' => null,
+            'auto_generated_key' => 'observe-time:overtime:session:1:threshold:2026-03-23T10:30:00+00:00',
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-23 10:00:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->artisan(EvaluateObserveTheTimeViolationsCommand::class)
+            ->expectsOutput('Evaluated Observe the time for 1 students.')
+            ->assertSuccessful();
+
+        $this->assertDatabaseCount('violations', 1);
+
+        $taskSession->refresh();
+
+        $this->assertSame('active', $taskSession->status);
+        $this->assertNull($taskSession->ended_at);
+
+        Carbon::setTestNow();
+    }
+
     public function test_command_creates_idle_schedule_observe_the_time_violation_without_page_load(): void
     {
         Carbon::setTestNow('2026-03-23 10:16:00');

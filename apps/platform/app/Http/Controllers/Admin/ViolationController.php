@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\Violation;
 use App\Models\ViolationResolution;
 use App\Services\SpeechAnnouncementService;
+use App\Services\AutomaticViolationDismissalService;
 use App\Services\StudentPushUpCounterService;
 use App\Services\TaskSessionUnfinishService;
 use Illuminate\Http\RedirectResponse;
@@ -269,9 +270,13 @@ class ViolationController extends Controller
         ]);
     }
 
-    public function resolve(ResolveViolationRequest $request, Violation $violation): RedirectResponse
+    public function resolve(
+        ResolveViolationRequest $request,
+        Violation $violation,
+        AutomaticViolationDismissalService $automaticViolationDismissalService,
+    ): RedirectResponse
     {
-        $result = DB::transaction(function () use ($request, $violation) {
+        $result = DB::transaction(function () use ($request, $violation, $automaticViolationDismissalService) {
             $lockedViolation = Violation::query()
                 ->whereKey($violation->id)
                 ->lockForUpdate()
@@ -289,6 +294,8 @@ class ViolationController extends Controller
             $lockedViolation->update([
                 'status' => $action,
             ]);
+
+            $automaticViolationDismissalService->dismiss($lockedViolation, $request->user()->id);
 
             $resolution = $lockedViolation->resolutions()->create([
                 'action' => $action,
@@ -317,28 +324,17 @@ class ViolationController extends Controller
             ->with('success', $result['message']);
     }
 
-    public function destroy(Violation $violation): RedirectResponse
+    public function destroy(Violation $violation, AutomaticViolationDismissalService $automaticViolationDismissalService): RedirectResponse
     {
         $violationTitle = $violation->rule_title_snapshot;
 
-        DB::transaction(function () use ($violation) {
+        DB::transaction(function () use ($violation, $automaticViolationDismissalService) {
             $lockedViolation = Violation::query()
                 ->whereKey($violation->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($lockedViolation->auto_generated_key) {
-                DB::table('dismissed_automatic_violations')->updateOrInsert(
-                    ['auto_generated_key' => $lockedViolation->auto_generated_key],
-                    [
-                        'student_id' => $lockedViolation->student_id,
-                        'dismissed_by_user_id' => auth()->id(),
-                        'dismissed_at' => now(),
-                        'updated_at' => now(),
-                        'created_at' => now(),
-                    ],
-                );
-            }
+            $automaticViolationDismissalService->dismiss($lockedViolation, auth()->id());
 
             $lockedViolation->resolutions()->delete();
             $lockedViolation->delete();

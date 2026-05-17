@@ -44,14 +44,20 @@ class HomeController extends Controller
         return sprintf('%02d:%02d', $minutes, $seconds);
     }
 
+    protected function scheduleBlockActualDurationSeconds(ScheduleRunBlock $block): int
+    {
+        return (int) $block->taskSessions
+            ->map(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession))
+            ->max() ?? 0;
+    }
+
     protected function scheduleRunBlockPayload(
         ScheduleRunBlock $block,
         ?ScheduleRunBlock $nextScheduleRunBlock,
         ?TaskSession $unfinishedTaskSession,
     ): array
     {
-        $actualDurationSeconds = $block->taskSessions
-            ->sum(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession));
+        $actualDurationSeconds = $this->scheduleBlockActualDurationSeconds($block);
         $actionableTaskSession = $block->taskSessions
             ->filter(fn (TaskSession $taskSession) => in_array($taskSession->status, ['active', 'completed'], true))
             ->sortByDesc(fn (TaskSession $taskSession) => [
@@ -145,6 +151,7 @@ class HomeController extends Controller
                 'activeOrPausedScheduleRun.blocks.taskSessions',
                 'taskSessions.scheduleRun',
                 'taskSessions.scheduleRunBlock',
+                'taskSessions.taskTemplate',
                 'violations',
             ]);
         }
@@ -169,7 +176,6 @@ class HomeController extends Controller
             : collect();
 
         $activeScheduleRun = $student?->activeOrPausedScheduleRun;
-
         $nextScheduleRunBlock = null;
         $pausedScheduleRunBlock = null;
         $openViolations = $student?->violations
@@ -245,6 +251,7 @@ class HomeController extends Controller
                     'assignment_notes' => $activeTaskSession->assignment_notes_snapshot,
                     'planned_duration_minutes' => $activeTaskSession->planned_duration_minutes,
                     'duration_seconds' => $activeTaskSession->duration_seconds,
+                    'can_end_early' => (bool) ($activeTaskSession->taskTemplate?->can_end_early ?? false),
                     'started_at' => $activeTaskSession->started_at?->toAtomString(),
                     'started_at_label' => $activeTaskSession->started_at?->locale(app()->getLocale())->translatedFormat('d M, H:i'),
                     'source_type' => $activeTaskSession->schedule_run_id
@@ -282,7 +289,7 @@ class HomeController extends Controller
                     'notes' => $activeScheduleRun->schedule_notes_snapshot,
                     'started_at_label' => $activeScheduleRun->started_at?->locale(app()->getLocale())->translatedFormat('d M, H:i'),
                     'completed_blocks' => $activeScheduleRun->blocks
-                        ->where('status', 'completed')
+                        ->whereIn('status', ['completed', 'skipped'])
                         ->count(),
                     'total_blocks' => $activeScheduleRun->blocks->count(),
                     'next_block' => $nextScheduleRunBlock
@@ -359,6 +366,8 @@ class HomeController extends Controller
                     'summary' => $taskTemplate->summary,
                     'instructions' => $taskTemplate->instructions,
                     'default_duration_minutes' => $taskTemplate->default_duration_minutes,
+                    'can_end_early' => $taskTemplate->can_end_early,
+                    'can_interrupt_schedule' => $taskTemplate->can_interrupt_schedule,
                 ])
                 ->all(),
         ]);

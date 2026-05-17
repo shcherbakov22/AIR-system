@@ -64,6 +64,16 @@ class LegacyRuleDefinitionSeeder extends Seeder
                 'default_penalty_units' => 50,
                 'description' => 'Legacy imported violation preset: respect timing expectations for the block.',
             ],
+            [
+                'title' => 'Skipped scheduled task',
+                'default_penalty_units' => 50,
+                'description' => 'Automatic violation preset: schedule was finished while a planned task was still incomplete.',
+            ],
+            [
+                'title' => 'Task completed too quickly',
+                'default_penalty_units' => 50,
+                'description' => 'Automatic violation preset: task was marked complete too early for the planned duration.',
+            ],
         ];
     }
 

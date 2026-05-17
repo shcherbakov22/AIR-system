@@ -129,9 +129,7 @@ class StudentAppPolicyService
             'mode' => 'review',
             'blocked_processes' => $policies
                 ->filter(fn (StudentAppPolicy $policy) => $policy->status === self::STATUS_BLOCKED
-                    || ($policy->status === self::STATUS_PENDING_REVIEW
-                        && $policy->grace_deadline_at !== null
-                        && $policy->grace_deadline_at->lessThanOrEqualTo(now())))
+                    || $policy->status === self::STATUS_PENDING_REVIEW)
                 ->reject(fn (StudentAppPolicy $policy) => $this->isProtectedAppKey($policy->app_key))
                 ->pluck('app_name')
                 ->filter()

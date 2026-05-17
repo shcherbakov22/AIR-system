@@ -61,4 +61,9 @@ class ScheduleRun extends Model
     {
         return $this->belongsTo(User::class, 'completed_by_user_id');
     }
+
+    public function aiOverseerDecisions(): HasMany
+    {
+        return $this->hasMany(AiOverseerDecision::class);
+    }
 }

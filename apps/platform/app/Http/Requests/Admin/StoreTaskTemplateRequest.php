@@ -14,6 +14,8 @@ class StoreTaskTemplateRequest extends FormRequest
             'title' => trim((string) $this->input('title')),
             'instructions' => $instructions === '' ? null : $instructions,
             'requires_internet' => $this->boolean('requires_internet'),
+            'can_end_early' => $this->boolean('can_end_early'),
+            'can_interrupt_schedule' => $this->boolean('can_interrupt_schedule'),
             'browser_allowed_domains' => collect($this->input('browser_allowed_domains', []))
                 ->when(
                     is_string($this->input('browser_allowed_domains')),
@@ -41,6 +43,8 @@ class StoreTaskTemplateRequest extends FormRequest
             'instructions' => ['nullable', 'string', 'max:5000'],
             'default_duration_minutes' => ['required', 'integer', 'min:1', 'max:10000'],
             'requires_internet' => ['required', 'boolean'],
+            'can_end_early' => ['required', 'boolean'],
+            'can_interrupt_schedule' => ['required', 'boolean'],
             'browser_allowed_domains' => ['nullable', 'array'],
             'browser_allowed_domains.*' => ['string', 'max:255'],
         ];

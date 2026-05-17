@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiOverseerDecision;
 use App\Models\RuleDefinition;
 use App\Models\ScheduleEntry;
 use App\Models\ScheduleRun;
@@ -54,6 +55,13 @@ class DashboardController extends Controller
         }
 
         return sprintf('%02d:%02d', $minutes, $seconds);
+    }
+
+    protected function scheduleBlockActualDurationSeconds(ScheduleRunBlock $block): int
+    {
+        return (int) $block->taskSessions
+            ->map(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession))
+            ->max() ?? 0;
     }
 
     protected function formatStatus(string $status): string
@@ -146,8 +154,7 @@ class DashboardController extends Controller
 
     protected function scheduleRunBlockPayload(ScheduleRunBlock $block): array
     {
-        $actualDurationSeconds = $block->taskSessions
-            ->sum(fn (TaskSession $taskSession) => $this->actualDurationSeconds($taskSession));
+        $actualDurationSeconds = $this->scheduleBlockActualDurationSeconds($block);
         $unfinishedTaskSession = $block->taskSessions
             ->filter(fn (TaskSession $taskSession) => $taskSession->status === 'unfinished')
             ->sortByDesc(fn (TaskSession $taskSession) => [
@@ -216,7 +223,7 @@ class DashboardController extends Controller
             'started_at_label' => $scheduleRun->started_at?->format('d M, H:i'),
             'completed_at' => $scheduleRun->completed_at?->toIso8601String(),
             'completed_at_label' => $scheduleRun->completed_at?->format('d M, H:i'),
-            'completed_blocks' => $scheduleRun->blocks->where('status', 'completed')->count(),
+            'completed_blocks' => $scheduleRun->blocks->whereIn('status', ['completed', 'skipped'])->count(),
             'total_blocks' => $scheduleRun->blocks->count(),
             'blocks' => $blocks->all(),
         ];
@@ -394,6 +401,31 @@ class DashboardController extends Controller
                 'permit_url_template' => route('admin.students.app-policies.permit', [$student, '__APP_POLICY__']),
                 'block_url_template' => route('admin.students.app-policies.block', [$student, '__APP_POLICY__']),
             ],
+            'ai_overseer_notifications' => (function () use ($student) {
+                $decisions = AiOverseerDecision::query()
+                    ->where('student_id', $student->id)
+                    ->where('status', 'mentor_review')
+                    ->latest('created_at')
+                    ->limit(3)
+                    ->get();
+
+                return [
+                    'count' => AiOverseerDecision::query()
+                        ->where('student_id', $student->id)
+                        ->where('status', 'mentor_review')
+                        ->count(),
+                    'url' => route('admin.ai-overseer-decisions.index'),
+                    'items' => $decisions
+                        ->map(fn (AiOverseerDecision $decision) => [
+                            'id' => $decision->id,
+                            'request_type' => $decision->request_type,
+                            'confidence' => $decision->confidence,
+                            'message' => $decision->student_message ?: $decision->mentor_summary ?: $decision->reason,
+                            'created_at_label' => $decision->created_at?->format('d M, H:i'),
+                        ])
+                        ->all(),
+                ];
+            })(),
             'communication_gate' => (function () use ($student) {
                 $payload = $this->studentCommunicationGateService->payload($student);
                 $payload['unread_student_chats'] = collect($payload['unread_student_chats'] ?? [])

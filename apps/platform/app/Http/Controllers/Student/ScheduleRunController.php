@@ -14,8 +14,8 @@ use App\Models\Student;
 use App\Models\TaskSession;
 use App\Models\TaskTemplate;
 use App\Models\Violation;
-use App\Services\AutomaticObserveTheTimeViolationService;
 use App\Services\AttentionTrackingViolationService;
+use App\Services\AutomaticObserveTheTimeViolationService;
 use App\Services\ScheduleRunFinishWindowService;
 use App\Services\StudentCommunicationGateService;
 use App\Services\TaskSessionSleepService;
@@ -172,7 +172,7 @@ class ScheduleRunController extends Controller
                 ->with('error', 'Custom timers are disabled for this student.');
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $attentionTrackingViolationService, $communicationGateService, $taskSessionSleepService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $automaticViolationService, $attentionTrackingViolationService, $communicationGateService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             $activeTaskSession = TaskSession::query()
@@ -220,6 +220,13 @@ class ScheduleRunController extends Controller
                 return [
                     'success' => false,
                     'message' => 'Stop the current timer before pausing the schedule.',
+                ];
+            }
+
+            if ($activeTaskSession && $activeTaskSession->schedule_run_block_id && ! $taskTemplate->can_interrupt_schedule) {
+                return [
+                    'success' => false,
+                    'message' => 'This task is not allowed while interrupting a running schedule task.',
                 ];
             }
 
@@ -426,6 +433,7 @@ class ScheduleRunController extends Controller
                 'schedule_run_id' => $ownedScheduleRun->id,
                 'schedule_run_block_id' => $pausedBlock->id,
                 'task_template_id' => $pausedBlock->task_template_id,
+                'resumed_from_task_session_id' => $latestPausedTaskSession?->id,
                 'status' => 'active',
                 'task_title_snapshot' => $pausedBlock->task_title_snapshot,
                 'task_summary_snapshot' => $pausedBlock->task_summary_snapshot,
@@ -454,6 +462,7 @@ class ScheduleRunController extends Controller
         ResumeScheduleRunRequest $request,
         ScheduleRun $scheduleRun,
         ScheduleRunFinishWindowService $scheduleRunFinishWindowService,
+        AutomaticObserveTheTimeViolationService $automaticViolationService,
         StudentCommunicationGateService $communicationGateService,
         TaskSessionSleepService $taskSessionSleepService,
     ): RedirectResponse {
@@ -463,7 +472,7 @@ class ScheduleRunController extends Controller
             abort(403);
         }
 
-        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunFinishWindowService, $communicationGateService, $taskSessionSleepService) {
+        $result = DB::transaction(function () use ($request, $studentId, $scheduleRun, $scheduleRunFinishWindowService, $automaticViolationService, $communicationGateService, $taskSessionSleepService) {
             $student = Student::query()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
             if (! $scheduleRunFinishWindowService->canManuallyFinish(now())) {
@@ -472,6 +481,8 @@ class ScheduleRunController extends Controller
                     'message' => 'Schedules can only be finished manually between 7:00 PM and 8:00 PM.',
                 ];
             }
+
+            $automaticViolationService->evaluate($student);
 
             if ($blockingMessage = $this->blockingViolationMessage($student)) {
                 return [

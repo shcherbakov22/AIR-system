@@ -5,11 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\BrowserAccessRequest;
 use App\Models\BrowserPolicyRule;
+use App\Models\BrowserVisitLog;
 use App\Models\Student;
 use App\Services\BrowserAccountabilityPolicyService;
-use Illuminate\Support\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class BrowserAccountabilityController extends Controller
 {
@@ -100,5 +101,47 @@ class BrowserAccountabilityController extends Controller
         );
 
         return back()->with('success', 'Browser access request denied.');
+    }
+
+    public function destroyRequest(
+        Request $request,
+        Student $student,
+        BrowserAccessRequest $browserAccessRequest,
+        BrowserAccountabilityPolicyService $browserPolicyService,
+    ): RedirectResponse {
+        abort_unless($browserAccessRequest->student_id === $student->id, 404);
+
+        $domain = $browserAccessRequest->registrable_domain;
+
+        if ($browserAccessRequest->status === 'pending') {
+            $browserPolicyService->denyRequest(
+                $browserAccessRequest,
+                $request->user(),
+                'Denied and hidden from the extension page.',
+            );
+        }
+
+        $browserAccessRequest->delete();
+
+        return back()->with('success', "Denied and hid {$domain} request.");
+    }
+
+    public function destroyHistoryLog(Student $student, BrowserVisitLog $browserVisitLog): RedirectResponse
+    {
+        abort_unless($browserVisitLog->student_id === $student->id, 404);
+
+        $host = $browserVisitLog->host;
+        $browserVisitLog->delete();
+
+        return back()->with('success', "Removed {$host} from browser history.");
+    }
+
+    public function destroyHistory(Student $student): RedirectResponse
+    {
+        $deleted = BrowserVisitLog::query()
+            ->where('student_id', $student->id)
+            ->delete();
+
+        return back()->with('success', "Cleared {$deleted} browser history entr".($deleted === 1 ? 'y' : 'ies').'.');
     }
 }

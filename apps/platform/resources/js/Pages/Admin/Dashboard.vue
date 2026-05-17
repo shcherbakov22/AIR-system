@@ -136,6 +136,17 @@ type DashboardStudent = {
         permit_url_template: string;
         block_url_template: string;
     } | null;
+    ai_overseer_notifications?: {
+        count: number;
+        url: string;
+        items: Array<{
+            id: number;
+            request_type: string;
+            confidence: number;
+            message?: string | null;
+            created_at_label?: string | null;
+        }>;
+    } | null;
     communication_gate?: {
         has_unread: boolean;
         has_unread_student_chat: boolean;
@@ -1032,6 +1043,9 @@ const hasAnyAdminChatGate = computed(() =>
     monitorStudents.value.some((student) => Boolean(student.communication_gate?.has_unread_student_chat)),
 );
 
+const pendingAppNotifications = (student: DashboardStudent) =>
+    student.app_control?.pending_review.slice(0, 3) ?? [];
+
 const markStudentChatNotificationRead = (student: DashboardStudent, readUrl?: string | null) => {
     if (!readUrl) {
         return;
@@ -1253,6 +1267,10 @@ const blockRowClass = (block: DashboardBlock): string => {
         return 'border-emerald-200 bg-emerald-50';
     }
 
+    if (block.status === 'skipped') {
+        return 'border-sky-200 bg-sky-50';
+    }
+
     if (block.status === 'in_progress') {
         return 'border-amber-300 bg-amber-50';
     }
@@ -1286,7 +1304,9 @@ const blockTooltip = (block: DashboardBlock): string => {
         `${block.display_duration_caption}: ${block.display_duration_label}`,
     ];
 
-    if (block.completed_at_label) {
+    if (block.completed_at_label && block.status === 'skipped') {
+        parts.push(`Skipped ${block.completed_at_label}`);
+    } else if (block.completed_at_label) {
         parts.push(`Finished ${block.completed_at_label}`);
     } else if (block.started_at_label) {
         parts.push(`Started ${block.started_at_label}`);
@@ -1486,12 +1506,21 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 class="rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition disabled:cursor-not-allowed disabled:opacity-50"
                                 :class="hasAnyAdminChatGate
                                     ? 'border-stone-200 bg-stone-100 text-stone-400'
+                                    : (student.app_control?.pending_review.length ?? 0) > 0
+                                        ? 'border-amber-400 bg-amber-100 text-amber-900 hover:border-amber-600 hover:bg-amber-200'
                                     : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-950'"
                                 :disabled="hasAnyAdminChatGate"
                                 @click="openAppsPanel(student)"
                             >
-                                Ap
+                                Ap<span v-if="(student.app_control?.pending_review.length ?? 0) > 0"> {{ student.app_control?.pending_review.length }}</span>
                             </button>
+                            <Link
+                                v-if="(student.ai_overseer_notifications?.count ?? 0) > 0"
+                                :href="student.ai_overseer_notifications?.url ?? route('admin.ai-overseer-decisions.index')"
+                                class="rounded-full border border-violet-300 bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-800 transition hover:border-violet-500 hover:bg-violet-100"
+                            >
+                                AI {{ student.ai_overseer_notifications?.count }}
+                            </Link>
                             <button
                                 type="button"
                                 class="rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition disabled:cursor-not-allowed disabled:opacity-50"
@@ -1515,6 +1544,62 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 @click="openViolationDropdown(student.id)"
                             >
                                 VL
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="(student.ai_overseer_notifications?.count ?? 0) > 0"
+                        class="mt-1 rounded-[0.75rem] border border-violet-200 bg-violet-50 px-2 py-2"
+                    >
+                        <Link
+                            :href="student.ai_overseer_notifications?.url ?? route('admin.ai-overseer-decisions.index')"
+                            class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-800 transition hover:text-violet-950"
+                        >
+                            AI Overseer {{ student.ai_overseer_notifications?.count }}
+                        </Link>
+                        <div class="mt-1 space-y-1">
+                            <Link
+                                v-for="item in student.ai_overseer_notifications?.items ?? []"
+                                :key="item.id"
+                                :href="student.ai_overseer_notifications?.url ?? route('admin.ai-overseer-decisions.index')"
+                                class="block rounded-[0.65rem] bg-white/80 px-2 py-1.5 ring-1 ring-violet-100 transition hover:ring-violet-300"
+                            >
+                                <p class="truncate text-[11px] font-medium text-violet-950">
+                                    {{ item.request_type.replace('_', ' ') }} · {{ item.confidence }}%
+                                </p>
+                                <p class="line-clamp-2 text-[10px] text-violet-700">
+                                    {{ item.message || 'Needs mentor review.' }}
+                                </p>
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="pendingAppNotifications(student).length > 0"
+                        class="mt-1 rounded-[0.75rem] border border-amber-200 bg-amber-50 px-2 py-2"
+                    >
+                        <button
+                            type="button"
+                            class="block text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-800 transition hover:text-amber-950"
+                            @click="openAppsPanel(student)"
+                        >
+                            New open apps {{ student.app_control?.pending_review.length }}
+                        </button>
+                        <div class="mt-1 space-y-1">
+                            <button
+                                v-for="app in pendingAppNotifications(student)"
+                                :key="app.id"
+                                type="button"
+                                class="block w-full rounded-[0.65rem] bg-white/80 px-2 py-1.5 text-left ring-1 ring-amber-100 transition hover:ring-amber-300"
+                                @click="openAppsPanel(student)"
+                            >
+                                <p class="truncate text-[11px] font-medium text-amber-950">
+                                    {{ app.app_name }}
+                                </p>
+                                <p class="text-[10px] text-amber-700">
+                                    Closed until permitted
+                                </p>
                             </button>
                         </div>
                     </div>

@@ -35,6 +35,19 @@ class TaskSessionFlowTest extends TestCase
         ]);
     }
 
+    protected function createTaskCompletedTooQuicklyRule(User $mentor): RuleDefinition
+    {
+        return RuleDefinition::create([
+            'title' => 'Task completed too quickly',
+            'description' => 'Imported automatic rule.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $mentor->id,
+        ]);
+    }
+
     protected function createAssignedTask(User $admin, Student $student, string $title = 'Math Review'): TaskAssignment
     {
         $taskTemplate = TaskTemplate::create([
@@ -42,6 +55,7 @@ class TaskSessionFlowTest extends TestCase
             'summary' => 'Review the assigned work.',
             'instructions' => 'Complete the work carefully.',
             'default_duration_minutes' => 30,
+            'can_end_early' => true,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -63,6 +77,7 @@ class TaskSessionFlowTest extends TestCase
             'summary' => 'Sleep.',
             'instructions' => 'Go to sleep.',
             'default_duration_minutes' => 900,
+            'can_end_early' => true,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -237,6 +252,7 @@ class TaskSessionFlowTest extends TestCase
             'summary' => 'Read.',
             'instructions' => 'Keep reading.',
             'default_duration_minutes' => 55,
+            'can_end_early' => true,
             'is_active' => true,
             'created_by_user_id' => $admin->id,
         ]);
@@ -269,6 +285,74 @@ class TaskSessionFlowTest extends TestCase
             'status' => 'active',
             'task_title_snapshot' => 'Sleeping',
             'started_by_user_id' => $studentUser->id,
+        ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_task_marked_can_end_early_can_finish_before_eighty_percent_without_too_short_violation(): void
+    {
+        Carbon::setTestNow('2026-03-07 11:12:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_early_finish_allowed',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_early_finish_allowed',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Early Finish Allowed',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $this->createObserveTheTimeRule($admin);
+        $this->createTaskCompletedTooQuicklyRule($admin);
+        $this->createSleepingTemplate($admin);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Tennis',
+            'summary' => 'Practice tennis.',
+            'instructions' => 'Practice with focus.',
+            'default_duration_minutes' => 55,
+            'can_end_early' => true,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Tennis',
+            'task_summary_snapshot' => 'Practice tennis.',
+            'task_instructions_snapshot' => 'Practice with focus.',
+            'assignment_notes_snapshot' => null,
+            'planned_duration_minutes' => 55,
+            'started_at' => CarbonImmutable::parse('2026-03-07 11:00:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $taskSession))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Tennis'));
+
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $taskSession->id,
+            'status' => 'completed',
+            'duration_seconds' => 720,
+        ]);
+
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Task completed too quickly',
+            'auto_generated_key' => 'observe-time:too-short:session:'.$taskSession->id,
         ]);
 
         Carbon::setTestNow();
@@ -400,6 +484,85 @@ class TaskSessionFlowTest extends TestCase
             'task_title_snapshot' => 'Math Review',
             'duration_seconds' => 1800,
             'started_by_user_id' => $studentUser->id,
+        ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_finishing_a_resumed_unfinished_task_early_does_not_create_too_short_violation(): void
+    {
+        Carbon::setTestNow('2026-03-07 11:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_unfinished_too_short',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_unfinished_too_short',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Unfinished Too Short',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $this->createObserveTheTimeRule($admin);
+        $this->createTaskCompletedTooQuicklyRule($admin);
+        $taskAssignment = $this->createAssignedTask($admin, $student);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:57:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.unfinished', $taskSession))
+            ->assertRedirect(route('student.home', absolute: false));
+
+        Carbon::setTestNow('2026-03-07 11:05:00');
+
+        $this->actingAs($studentUser)
+            ->post(route('student.task-sessions.resume', $taskSession))
+            ->assertRedirect(route('student.home', absolute: false));
+
+        $resumedTaskSession = TaskSession::query()
+            ->where('student_id', $student->id)
+            ->where('status', 'active')
+            ->sole();
+
+        $this->assertSame($taskSession->id, $resumedTaskSession->resumed_from_task_session_id);
+
+        Carbon::setTestNow('2026-03-07 11:07:00');
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $resumedTaskSession))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Math Review'));
+
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $resumedTaskSession->id,
+            'status' => 'completed',
+            'duration_seconds' => 300,
+            'resumed_from_task_session_id' => $taskSession->id,
+        ]);
+
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Task completed too quickly',
+            'auto_generated_key' => 'observe-time:too-short:session:'.$resumedTaskSession->id,
         ]);
 
         Carbon::setTestNow();
@@ -727,6 +890,25 @@ class TaskSessionFlowTest extends TestCase
             'completed_at' => CarbonImmutable::parse('2026-03-07 10:30:00'),
         ]);
 
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'schedule_run_id' => $scheduleRun->id,
+            'schedule_run_block_id' => $unfinishedBlock->id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:00:00'),
+            'ended_at' => CarbonImmutable::parse('2026-03-07 10:30:00'),
+            'duration_seconds' => 1800,
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
         $unfinishedTaskSession = TaskSession::create([
             'student_id' => $student->id,
             'task_assignment_id' => $taskAssignment->id,
@@ -844,6 +1026,34 @@ class TaskSessionFlowTest extends TestCase
         $this->assertDatabaseMissing('task_sessions', [
             'id' => $unfinishedTaskSession->id,
         ]);
+
+        $resumedTaskSession = TaskSession::query()
+            ->where('student_id', $student->id)
+            ->where('status', 'active')
+            ->where('schedule_run_block_id', $unfinishedBlock->id)
+            ->sole();
+
+        Carbon::setTestNow('2026-03-07 11:10:00');
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $resumedTaskSession))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', fn (?string $message) => is_string($message) && str_contains($message, 'Math Review'));
+
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $resumedTaskSession->id,
+            'status' => 'completed',
+            'duration_seconds' => 2400,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/Home')
+                ->where('activeScheduleRun.blocks.0.actual_duration_seconds', 2400)
+                ->where('activeScheduleRun.blocks.0.actual_duration_label', '40:00')
+            );
 
         Carbon::setTestNow();
     }

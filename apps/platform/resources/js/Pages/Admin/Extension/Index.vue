@@ -2,7 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import type { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, reactive } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 
 type StudentSummary = {
     id: number;
@@ -27,6 +27,7 @@ type FocusedStudent = {
         default_unblock_scope: string;
         mode_update_url: string;
         rule_store_url: string;
+        history_clear_url: string;
         rules: Array<{
             id: number;
             effect: string;
@@ -38,6 +39,7 @@ type FocusedStudent = {
         access_requests: Array<{
             id: number;
             requested_url: string;
+            display_url?: string | null;
             host: string;
             registrable_domain: string;
             reason?: string | null;
@@ -47,6 +49,7 @@ type FocusedStudent = {
             decided_at_label?: string | null;
             approve_url: string;
             deny_url: string;
+            destroy_url: string;
         }>;
         recent_visits: Array<{
             id: number;
@@ -55,10 +58,25 @@ type FocusedStudent = {
             host: string;
             registrable_domain: string;
             url?: string | null;
+            display_url?: string | null;
             page_title?: string | null;
             visited_at_label?: string | null;
+            destroy_url: string;
             matched_rule?: { effect: string; value: string } | null;
         }>;
+        current_visit?: {
+            id: number;
+            mode: string;
+            decision: string;
+            host: string;
+            registrable_domain: string;
+            url?: string | null;
+            display_url?: string | null;
+            page_title?: string | null;
+            visited_at_label?: string | null;
+            destroy_url: string;
+            matched_rule?: { effect: string; value: string } | null;
+        } | null;
     };
     devices: Array<{
         id: number;
@@ -113,6 +131,7 @@ const successMessage = computed(() => page.props.flash?.success ?? null);
 const errorMessage = computed(() => page.props.flash?.error ?? null);
 const browserMode = computed(() => props.focusedStudent?.browser_accountability.mode === 'whitelist' ? 'whitelist' : 'blacklist');
 const pendingRequests = computed(() => props.focusedStudent?.browser_accountability.access_requests.filter((request) => request.status === 'pending') ?? []);
+const historyCollapsed = ref(true);
 
 const browserRuleForm = reactive({
     effect: 'allow',
@@ -155,7 +174,42 @@ const denyBrowserRequest = (denyUrl: string) => {
     router.patch(denyUrl, {}, { preserveScroll: true });
 };
 
+const deleteBrowserRequest = (request: FocusedStudent['browser_accountability']['access_requests'][number]) => {
+    if (!window.confirm(`Deny and hide ${request.registrable_domain} request?`)) {
+        return;
+    }
+
+    router.delete(request.destroy_url, { preserveScroll: true });
+};
+
+const clearBrowserHistory = () => {
+    if (!props.focusedStudent) {
+        return;
+    }
+
+    if (!window.confirm(`Clear browser history for ${props.focusedStudent.display_name}? Rules and requests will stay.`)) {
+        return;
+    }
+
+    router.delete(props.focusedStudent.browser_accountability.history_clear_url, { preserveScroll: true });
+};
+
+const deleteBrowserHistoryLog = (visit: FocusedStudent['browser_accountability']['recent_visits'][number]) => {
+    if (!window.confirm(`Remove ${visit.host} from browser history?`)) {
+        return;
+    }
+
+    router.delete(visit.destroy_url, { preserveScroll: true });
+};
+
 const pretty = (value?: string | null) => (value || 'unknown').replaceAll('_', ' ');
+
+watch(
+    () => props.focusedStudent?.id,
+    () => {
+        historyCollapsed.value = true;
+    },
+);
 </script>
 
 <template>
@@ -294,13 +348,14 @@ const pretty = (value?: string | null) => (value || 'unknown').replaceAll('_', '
                                         <div class="flex flex-wrap items-start justify-between gap-3">
                                             <div>
                                                 <p class="font-semibold text-stone-950">{{ request.registrable_domain }} and subdomains</p>
-                                                <p class="mt-1 break-all text-xs text-stone-500">{{ request.requested_url }}</p>
+                                                <p class="mt-1 break-all text-xs text-stone-500">{{ request.display_url || request.requested_url }}</p>
                                                 <p v-if="request.reason" class="mt-2 text-sm text-stone-700">{{ request.reason }}</p>
                                                 <p v-if="request.task_title" class="mt-1 text-xs text-stone-500">{{ request.task_title }}</p>
                                             </div>
                                             <div class="flex gap-2">
                                                 <button type="button" class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700" @click="approveBrowserRequest(request.approve_url)">Allow</button>
                                                 <button type="button" class="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700" @click="denyBrowserRequest(request.deny_url)">Deny</button>
+                                                <button type="button" class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 transition hover:text-rose-700" @click="deleteBrowserRequest(request)">Delete</button>
                                             </div>
                                         </div>
                                     </li>
@@ -361,18 +416,89 @@ const pretty = (value?: string | null) => (value || 'unknown').replaceAll('_', '
                     </section>
 
                     <section class="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
-                        <p class="text-xs uppercase tracking-[0.22em] text-stone-500">History</p>
-                        <div class="mt-4 grid gap-4 xl:grid-cols-2">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.22em] text-stone-500">History</p>
+                                <p class="mt-1 text-sm text-stone-600">
+                                    {{ props.focusedStudent.browser_accountability.recent_visits.length }} recent website{{ props.focusedStudent.browser_accountability.recent_visits.length === 1 ? '' : 's' }}
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    class="inline-flex rounded-full border border-stone-300 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                                    @click="historyCollapsed = !historyCollapsed"
+                                >
+                                    {{ historyCollapsed ? 'Show history' : 'Hide history' }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex rounded-full border border-rose-300 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-700 transition hover:border-rose-600 hover:text-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    :disabled="props.focusedStudent.browser_accountability.recent_visits.length === 0"
+                                    @click="clearBrowserHistory"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 rounded-[1.25rem] bg-stone-100 p-4">
+                            <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Currently open</p>
+                            <div v-if="props.focusedStudent.browser_accountability.current_visit" class="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                                <div class="min-w-0">
+                                    <div class="flex min-w-0 items-center gap-2">
+                                        <p class="truncate font-semibold text-stone-950">
+                                            {{ props.focusedStudent.browser_accountability.current_visit.page_title || props.focusedStudent.browser_accountability.current_visit.host }}
+                                        </p>
+                                        <span
+                                            class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                                            :class="props.focusedStudent.browser_accountability.current_visit.decision === 'blocked' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'"
+                                        >
+                                            {{ props.focusedStudent.browser_accountability.current_visit.decision }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-0.5 truncate text-xs text-stone-500">
+                                        {{ props.focusedStudent.browser_accountability.current_visit.display_url || props.focusedStudent.browser_accountability.current_visit.url || props.focusedStudent.browser_accountability.current_visit.registrable_domain }}
+                                    </p>
+                                </div>
+                                <p class="shrink-0 text-xs text-stone-500 sm:text-right">
+                                    {{ props.focusedStudent.browser_accountability.current_visit.mode }} · {{ props.focusedStudent.browser_accountability.current_visit.visited_at_label ?? 'Unknown time' }}
+                                </p>
+                            </div>
+                            <p v-else class="mt-2 text-sm text-stone-500">No website logged yet.</p>
+                        </div>
+
+                        <div v-if="!historyCollapsed" class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
                             <div>
                                 <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">Websites</h3>
-                                <ul class="mt-3 space-y-2 text-sm text-stone-700">
+                                <ul class="mt-3 space-y-1.5 text-sm text-stone-700">
                                     <li v-for="visit in props.focusedStudent.browser_accountability.recent_visits" :key="visit.id" class="rounded-xl bg-stone-100 px-3 py-2">
-                                        <div class="flex flex-wrap items-center justify-between gap-3">
-                                            <p class="font-semibold text-stone-950">{{ visit.host }}</p>
-                                            <span class="text-xs uppercase tracking-[0.16em]" :class="visit.decision === 'blocked' ? 'text-rose-700' : 'text-emerald-700'">{{ visit.decision }}</span>
+                                        <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                                            <div class="min-w-0">
+                                                <div class="flex min-w-0 items-center gap-2">
+                                                    <p class="truncate font-semibold text-stone-950">{{ visit.host }}</p>
+                                                    <span
+                                                        class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                                                        :class="visit.decision === 'blocked' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'"
+                                                    >
+                                                        {{ visit.decision }}
+                                                    </span>
+                                                </div>
+                                                <p class="mt-0.5 truncate text-xs text-stone-500">{{ visit.display_url || visit.url || visit.registrable_domain }}</p>
+                                            </div>
+                                            <p class="shrink-0 text-xs text-stone-500 sm:text-right">
+                                                {{ visit.mode }} · {{ visit.visited_at_label ?? 'Unknown time' }}
+                                            </p>
                                         </div>
-                                        <p class="mt-1 break-all text-xs text-stone-500">{{ visit.page_title || visit.url || visit.registrable_domain }}</p>
-                                        <p class="mt-1 text-xs text-stone-500">{{ visit.mode }} · {{ visit.visited_at_label ?? 'Unknown time' }}</p>
+                                        <div class="mt-2 flex justify-end">
+                                            <button
+                                                type="button"
+                                                class="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700 transition hover:text-rose-800"
+                                                @click="deleteBrowserHistoryLog(visit)"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
                                     </li>
                                     <li v-if="props.focusedStudent.browser_accountability.recent_visits.length === 0" class="text-sm text-stone-500">No websites logged yet.</li>
                                 </ul>
@@ -386,8 +512,17 @@ const pretty = (value?: string | null) => (value || 'unknown').replaceAll('_', '
                                             <p class="font-semibold text-stone-950">{{ request.registrable_domain }}</p>
                                             <span class="text-xs uppercase tracking-[0.16em]" :class="request.status === 'pending' ? 'text-amber-800' : request.status === 'approved' ? 'text-emerald-700' : 'text-rose-700'">{{ request.status }}</span>
                                         </div>
-                                        <p class="mt-1 break-all text-xs text-stone-500">{{ request.requested_url }}</p>
-                                        <p class="mt-1 text-xs text-stone-500">{{ request.created_at_label ?? 'Unknown time' }}</p>
+                                        <p class="mt-1 break-all text-xs text-stone-500">{{ request.display_url || request.requested_url }}</p>
+                                        <div class="mt-1 flex flex-wrap items-center justify-between gap-2">
+                                            <p class="text-xs text-stone-500">{{ request.created_at_label ?? 'Unknown time' }}</p>
+                                            <button
+                                                type="button"
+                                                class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 transition hover:text-rose-700"
+                                                @click="deleteBrowserRequest(request)"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
                                     </li>
                                     <li v-if="props.focusedStudent.browser_accountability.access_requests.length === 0" class="text-sm text-stone-500">No access requests yet.</li>
                                 </ul>

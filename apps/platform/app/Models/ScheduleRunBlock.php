@@ -56,4 +56,9 @@ class ScheduleRunBlock extends Model
     {
         return $this->hasMany(TaskSession::class);
     }
+
+    public function aiOverseerDecisions(): HasMany
+    {
+        return $this->hasMany(AiOverseerDecision::class);
+    }
 }

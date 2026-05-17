@@ -65,7 +65,7 @@ class HiddenScheduleBlockTimeController extends Controller
                             'start_time' => $block->start_time_snapshot,
                             'task_title' => $block->task_title_snapshot,
                             'shown_duration_minutes' => $block->duration_minutes_snapshot,
-                            'shown_duration_seconds' => (int) $block->taskSessions->sum(
+                            'shown_duration_seconds' => (int) $block->taskSessions->max(
                                 fn ($taskSession) => (int) ($taskSession->duration_seconds ?? 0)
                             ),
                         ])

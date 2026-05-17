@@ -131,6 +131,12 @@ const navItems = computed(() => {
             active: route().current('admin.students.*'),
         });
         items.push({
+            label: 'Logs',
+            href: route('admin.logs.index'),
+            external: false,
+            active: route().current('admin.logs.*'),
+        });
+        items.push({
             label: 'Extension',
             href: route('admin.extension.index'),
             external: false,
@@ -173,6 +179,12 @@ const navItems = computed(() => {
             active: route().current('admin.violations.*'),
         });
         items.push({
+            label: 'AI Overseer',
+            href: route('admin.ai-overseer-decisions.index'),
+            external: false,
+            active: route().current('admin.ai-overseer-decisions.*'),
+        });
+        items.push({
             label: 'Counter',
             href: route('push-up-station.show'),
             external: false,
@@ -202,6 +214,12 @@ const navItems = computed(() => {
             href: route('student.announcements.show'),
             external: false,
             active: route().current('student.announcements.*'),
+        });
+        items.push({
+            label: 'AI Chat',
+            href: route('student.ai-overseer-decisions.index'),
+            external: false,
+            active: route().current('student.ai-overseer-decisions.*'),
         });
         items.push({
             label: 'Assignments',
