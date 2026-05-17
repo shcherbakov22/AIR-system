@@ -70,14 +70,20 @@ class BrowserAccountabilityController extends Controller
         $validated = $request->validate([
             'expires_at' => ['nullable', 'date'],
             'mentor_note' => ['nullable', 'string', 'max:2000'],
+            'global' => ['sometimes', 'boolean'],
         ]);
 
-        $rule = $browserPolicyService->approveRequest(
-            $browserAccessRequest,
-            $request->user(),
-            isset($validated['expires_at']) ? Carbon::parse($validated['expires_at']) : null,
-            $validated['mentor_note'] ?? null,
-        );
+        try {
+            $rule = $browserPolicyService->approveRequest(
+                $browserAccessRequest,
+                $request->user(),
+                isset($validated['expires_at']) ? Carbon::parse($validated['expires_at']) : null,
+                $validated['mentor_note'] ?? null,
+                $request->boolean('global'),
+            );
+        } catch (\RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
 
         return back()->with('success', "Allowed {$rule->value} and subdomains.");
     }

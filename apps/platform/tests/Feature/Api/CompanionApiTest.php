@@ -245,8 +245,8 @@ class CompanionApiTest extends TestCase
                 'url' => 'https://docs.google.com/document/d/abc',
                 'reason' => 'Need this document for math.',
             ])
-            ->assertCreated()
-            ->assertJsonPath('request.status', 'pending')
+            ->assertAccepted()
+            ->assertJsonPath('request.status', 'denied')
             ->assertJsonPath('request.registrable_domain', 'google.com');
 
         $this->assertDatabaseHas('browser_access_requests', [
@@ -254,7 +254,7 @@ class CompanionApiTest extends TestCase
             'student_device_id' => $device->id,
             'host' => 'docs.google.com',
             'registrable_domain' => 'google.com',
-            'status' => 'pending',
+            'status' => 'denied',
         ]);
     }
 
@@ -399,6 +399,103 @@ class CompanionApiTest extends TestCase
         ]);
     }
 
+    public function test_browser_access_request_without_active_task_is_denied_automatically(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_no_task_request_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $requestResponse = $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.access-requests.store'), [
+                'url' => 'https://docs.github.com/actions',
+                'reason' => 'No task is open.',
+            ])
+            ->assertAccepted()
+            ->assertJsonPath('request.status', 'denied')
+            ->assertJsonPath('request.task_template_id', null);
+
+        $this->assertDatabaseHas('browser_access_requests', [
+            'id' => $requestResponse->json('request.id'),
+            'student_id' => $student->id,
+            'status' => 'denied',
+            'task_template_id' => null,
+        ]);
+    }
+
+    public function test_browser_access_approval_uses_task_from_request_time_after_task_switch(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_switched_task_request_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'browser_switched_task_request_admin',
+        ]);
+
+        $originalTemplate = TaskTemplate::create([
+            'title' => 'Coding',
+            'summary' => null,
+            'instructions' => 'Build the project.',
+            'default_duration_minutes' => 45,
+            'requires_internet' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+        $newTemplate = TaskTemplate::create([
+            'title' => 'Reading',
+            'summary' => null,
+            'instructions' => 'Read.',
+            'default_duration_minutes' => 30,
+            'requires_internet' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $originalSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $originalTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 45,
+            'started_at' => now()->subMinutes(10),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $requestResponse = $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.access-requests.store'), [
+                'url' => 'https://docs.github.com/actions',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('request.task_template_id', $originalTemplate->id);
+
+        $originalSession->update(['status' => 'completed', 'ended_at' => now()]);
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $newTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 30,
+            'started_at' => now(),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.browser-access-requests.approve', [$student, $requestResponse->json('request.id')]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('browser_policy_rules', [
+            'student_id' => null,
+            'task_template_id' => $originalTemplate->id,
+            'effect' => 'allow',
+            'match_type' => 'domain_tree',
+            'value' => 'github.com',
+        ]);
+        $this->assertDatabaseMissing('browser_policy_rules', [
+            'task_template_id' => $newTemplate->id,
+            'value' => 'github.com',
+        ]);
+    }
+
     public function test_mentor_can_switch_browser_mode_for_student_devices(): void
     {
         [$student, $studentUser] = $this->makeStudent('browser_mode_student', 'secret-pass');
@@ -482,6 +579,25 @@ class CompanionApiTest extends TestCase
             'role' => UserRole::Admin,
             'username' => 'browser_approval_admin',
         ]);
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Research',
+            'summary' => null,
+            'instructions' => 'Research.',
+            'default_duration_minutes' => 45,
+            'requires_internet' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Research',
+            'planned_duration_minutes' => 45,
+            'started_at' => now(),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
 
         $requestResponse = $this->withHeaders($this->authHeaders($token))
             ->postJson(route('api.companion.browser.access-requests.store'), [
@@ -491,11 +607,14 @@ class CompanionApiTest extends TestCase
         $accessRequestId = $requestResponse->json('request.id');
 
         $this->actingAs($admin)
-            ->patch(route('admin.students.browser-access-requests.approve', [$student, $accessRequestId]))
+            ->patch(route('admin.students.browser-access-requests.approve', [$student, $accessRequestId]), [
+                'global' => true,
+            ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('browser_policy_rules', [
             'student_id' => $student->id,
+            'task_template_id' => null,
             'effect' => 'allow',
             'match_type' => 'domain_tree',
             'value' => 'khanacademy.org',

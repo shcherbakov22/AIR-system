@@ -2,6 +2,7 @@ const DEFAULT_POLICY = {
   mode: 'blacklist',
   default_unblock_scope: 'domain_tree',
   log_full_url: true,
+  active_task: null,
   rules: [],
   updated_at: null,
 };
@@ -72,6 +73,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 chrome.tabs.onActivated.addListener(() => {
   queueImmediateHeartbeat();
+  Promise.all([getPolicy(), getSettings()])
+    .then(([policy, settings]) => enforceOpenTabs(policy, settings.platformUrl))
+    .catch(() => {});
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -163,11 +167,7 @@ async function handleNavigation(tabId, url) {
     return;
   }
 
-  const blockedUrl = chrome.runtime.getURL(
-    `src/blocked.html?url=${encodeURIComponent(url)}&host=${encodeURIComponent(evaluation.host)}&domain=${encodeURIComponent(evaluation.registrableDomain)}&mode=${encodeURIComponent(policy.mode)}`,
-  );
-
-  await chrome.tabs.update(tabId, { url: blockedUrl });
+  await blockTab(tabId, url, evaluation, policy);
 }
 
 async function syncPolicy() {
@@ -181,6 +181,7 @@ async function syncPolicy() {
   const policy = payload.policy || DEFAULT_POLICY;
 
   await applyNetworkRules(policy, settings.platformUrl);
+  await enforceOpenTabs(policy, settings.platformUrl);
 
   await chrome.storage.local.set({
     policy,
@@ -210,6 +211,7 @@ async function heartbeatExtension() {
 
   if (policyChanged) {
     await applyNetworkRules(remotePolicy, settings.platformUrl);
+    await enforceOpenTabs(remotePolicy, settings.platformUrl);
     nextState.policy = remotePolicy;
     nextState.lastPolicySyncAt = heartbeatAt;
   }
@@ -229,6 +231,33 @@ async function fetchRemotePolicy(settings) {
   }
 
   return response.json();
+}
+
+async function enforceOpenTabs(policy, platformUrl = '') {
+  const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+
+  await Promise.all(tabs.map(async (tab) => {
+    if (!tab.id || !tab.url || isBlockedPage(tab.url) || isPlatformUrl(tab.url, platformUrl)) {
+      return;
+    }
+
+    const evaluation = evaluateUrl(policy, tab.url);
+
+    if (evaluation.allowed) {
+      return;
+    }
+
+    await logVisit(tab.url, tab.title || null, evaluation, { source: 'policy_enforcement' });
+    await blockTab(tab.id, tab.url, evaluation, policy).catch(() => {});
+  }));
+}
+
+async function blockTab(tabId, url, evaluation, policy) {
+  const blockedUrl = chrome.runtime.getURL(
+    `src/blocked.html?url=${encodeURIComponent(url)}&host=${encodeURIComponent(evaluation.host)}&domain=${encodeURIComponent(evaluation.registrableDomain)}&mode=${encodeURIComponent(policy?.mode || 'blacklist')}`,
+  );
+
+  await chrome.tabs.update(tabId, { url: blockedUrl });
 }
 
 async function applyNetworkRules(policy, platformUrl = '') {

@@ -124,7 +124,9 @@ class BrowserAccountabilityPolicyService
             'host' => $host,
             'registrable_domain' => $this->registrableDomain($host),
             'reason' => $reason !== null ? trim($reason) : null,
-            'status' => 'pending',
+            'status' => $activeTaskSession?->task_template_id ? 'pending' : 'denied',
+            'mentor_note' => $activeTaskSession?->task_template_id ? null : 'Automatically denied because no task was active when the request was sent.',
+            'decided_at' => $activeTaskSession?->task_template_id ? null : now(),
         ]);
     }
 
@@ -133,11 +135,22 @@ class BrowserAccountabilityPolicyService
         User $mentor,
         ?Carbon $expiresAt = null,
         ?string $mentorNote = null,
+        bool $global = false,
     ): BrowserPolicyRule {
+        if (! $global && ! $accessRequest->task_template_id) {
+            $this->denyRequest(
+                $accessRequest,
+                $mentor,
+                $mentorNote ?: 'Denied because no task was active when the request was sent.',
+            );
+
+            throw new \RuntimeException('Cannot approve a task-scoped browser request without a captured task.');
+        }
+
         $rule = BrowserPolicyRule::updateOrCreate(
             [
-                'student_id' => $accessRequest->task_template_id ? null : $accessRequest->student_id,
-                'task_template_id' => $accessRequest->task_template_id,
+                'student_id' => $global ? $accessRequest->student_id : null,
+                'task_template_id' => $global ? null : $accessRequest->task_template_id,
                 'effect' => 'allow',
                 'match_type' => 'domain_tree',
                 'value' => $accessRequest->registrable_domain,

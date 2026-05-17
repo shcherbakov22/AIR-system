@@ -77,6 +77,6 @@ class CompanionBrowserPolicyController extends Controller
                 'registrable_domain' => $accessRequest->registrable_domain,
                 'task_template_id' => $accessRequest->task_template_id,
             ],
-        ], 201);
+        ], $accessRequest->status === 'pending' ? 201 : 202);
     }
 }

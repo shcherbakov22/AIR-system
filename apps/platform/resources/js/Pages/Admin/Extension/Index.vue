@@ -137,6 +137,7 @@ const browserRuleForm = reactive({
     effect: 'allow',
     value: '',
 });
+const globalRequestApprovals = reactive<Record<number, boolean>>({});
 
 const updateBrowserMode = (mode: 'whitelist' | 'blacklist') => {
     if (!props.focusedStudent) {
@@ -166,8 +167,10 @@ const deleteBrowserRule = (destroyUrl: string) => {
     router.delete(destroyUrl, { preserveScroll: true });
 };
 
-const approveBrowserRequest = (approveUrl: string) => {
-    router.patch(approveUrl, {}, { preserveScroll: true });
+const approveBrowserRequest = (request: FocusedStudent['browser_accountability']['access_requests'][number]) => {
+    router.patch(request.approve_url, {
+        global: Boolean(globalRequestApprovals[request.id]),
+    }, { preserveScroll: true });
 };
 
 const denyBrowserRequest = (denyUrl: string) => {
@@ -350,10 +353,20 @@ watch(
                                                 <p class="font-semibold text-stone-950">{{ request.registrable_domain }} and subdomains</p>
                                                 <p class="mt-1 break-all text-xs text-stone-500">{{ request.display_url || request.requested_url }}</p>
                                                 <p v-if="request.reason" class="mt-2 text-sm text-stone-700">{{ request.reason }}</p>
-                                                <p v-if="request.task_title" class="mt-1 text-xs text-stone-500">{{ request.task_title }}</p>
+                                                <p class="mt-1 text-xs text-stone-500">
+                                                    {{ request.task_title ? `Task: ${request.task_title}` : 'No task captured' }}
+                                                </p>
                                             </div>
-                                            <div class="flex gap-2">
-                                                <button type="button" class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700" @click="approveBrowserRequest(request.approve_url)">Allow</button>
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <label class="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                                                    <input
+                                                        v-model="globalRequestApprovals[request.id]"
+                                                        type="checkbox"
+                                                        class="rounded border-stone-300 text-amber-700 focus:ring-amber-700"
+                                                    />
+                                                    Global
+                                                </label>
+                                                <button type="button" class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700" @click="approveBrowserRequest(request)">Allow</button>
                                                 <button type="button" class="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700" @click="denyBrowserRequest(request.deny_url)">Deny</button>
                                                 <button type="button" class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 transition hover:text-rose-700" @click="deleteBrowserRequest(request)">Delete</button>
                                             </div>
