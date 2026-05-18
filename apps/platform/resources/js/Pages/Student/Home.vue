@@ -551,17 +551,29 @@ const startAttentionTracking = async () => {
 
         if (!poseLandmarker) {
             const vision = await FilesetResolver.forVisionTasks('/mediapipe/tasks-vision/wasm');
-            poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            const options = {
                 baseOptions: {
                     modelAssetPath: '/mediapipe/models/pose_landmarker_lite.task',
-                    delegate: 'GPU',
+                    delegate: 'GPU' as const,
                 },
-                runningMode: 'VIDEO',
+                runningMode: 'VIDEO' as const,
                 numPoses: 1,
                 minPoseDetectionConfidence: 0.5,
                 minPosePresenceConfidence: 0.5,
                 minTrackingConfidence: 0.5,
-            });
+            };
+
+            try {
+                poseLandmarker = await PoseLandmarker.createFromOptions(vision, options);
+            } catch {
+                poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+                    ...options,
+                    baseOptions: {
+                        ...options.baseOptions,
+                        delegate: 'CPU',
+                    },
+                });
+            }
         }
 
         runBodyDetectionLoop();
