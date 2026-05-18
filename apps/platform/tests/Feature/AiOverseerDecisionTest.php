@@ -1053,7 +1053,7 @@ class AiOverseerDecisionTest extends TestCase
         Carbon::setTestNow();
     }
 
-    public function test_open_schedule_with_past_pending_block_does_not_create_skipped_task_violation_while_disabled(): void
+    public function test_open_schedule_with_past_pending_block_does_not_create_skipped_task_violation_before_activation_time(): void
     {
         Carbon::setTestNow('2026-05-05 09:00:00');
 

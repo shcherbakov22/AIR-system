@@ -20,8 +20,6 @@ class AutomaticObserveTheTimeViolationService
 
     private const SKIPPED_TASK_RULE_TITLE = 'Skipped scheduled task';
 
-    private const SKIPPED_SCHEDULE_VIOLATIONS_ENABLED = false;
-
     private const GRACE_MINUTES = 5;
 
     private const MAX_CREATION_DELAY_MINUTES = 2;
@@ -57,7 +55,7 @@ class AutomaticObserveTheTimeViolationService
             ->latest('started_at')
             ->first();
 
-        if (self::SKIPPED_SCHEDULE_VIOLATIONS_ENABLED && $startedScheduleRun) {
+        if ($startedScheduleRun && $this->skippedScheduleViolationsEnabled()) {
             if ($this->createSkippedScheduleBlockViolationIfNeeded($student, $ruleDefinition, $startedScheduleRun)) {
                 return;
             }
@@ -124,37 +122,7 @@ class AutomaticObserveTheTimeViolationService
         ScheduleRun $scheduleRun,
         CarbonInterface $completedAt,
     ): void {
-        if (! self::SKIPPED_SCHEDULE_VIOLATIONS_ENABLED) {
-            return;
-        }
-
-        $ruleDefinition = $this->observeTheTimeRule();
-
-        if (! $ruleDefinition) {
-            return;
-        }
-
-        $scheduleRun->loadMissing('blocks');
-
-        if ($this->hasSkippedScheduleViolationRecordForRun($scheduleRun)) {
-            return;
-        }
-
-        foreach ($scheduleRun->blocks as $block) {
-            if (in_array($block->status, ['completed', 'skipped'], true)) {
-                continue;
-            }
-
-            $skippedTaskRuleDefinition = $this->automaticRule(self::SKIPPED_TASK_RULE_TITLE, $ruleDefinition);
-
-            $this->createViolationOnce(
-                $student,
-                $skippedTaskRuleDefinition,
-                'observe-time:skipped-block:run:'.$scheduleRun->id.':block:'.$block->id,
-                $completedAt,
-                'Automatic violation for finishing the schedule with an uncompleted block: '.$block->task_title_snapshot.'.',
-            );
-        }
+        // Skipped schedule violations are evaluated only while the schedule is still active.
     }
 
     private function createSkippedScheduleBlockViolationIfNeeded(
@@ -218,6 +186,21 @@ class AutomaticObserveTheTimeViolationService
             ->setTime($hour, $minute)
             ->addMinutes(max(0, (int) $block->duration_minutes_snapshot))
             ->addMinutes(self::GRACE_MINUTES);
+    }
+
+    private function skippedScheduleViolationsEnabled(): bool
+    {
+        $enabledAt = config('services.automatic_violations.skipped_schedule_enabled_at');
+
+        if (! is_string($enabledAt) || trim($enabledAt) === '') {
+            return false;
+        }
+
+        try {
+            return now()->greaterThanOrEqualTo(Carbon::parse($enabledAt));
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public function clearDismissedViolationsForNewTask(Student $student): void

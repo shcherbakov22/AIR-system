@@ -76,4 +76,11 @@ return [
         'prompt_version' => env('AI_OVERSEER_PROMPT_VERSION', 'ai-overseer-v1'),
     ],
 
+    'automatic_violations' => [
+        'skipped_schedule_enabled_at' => env(
+            'SKIPPED_SCHEDULE_VIOLATIONS_ENABLED_AT',
+            '2026-05-18 23:59:00 Africa/Cairo',
+        ),
+    ],
+
 ];

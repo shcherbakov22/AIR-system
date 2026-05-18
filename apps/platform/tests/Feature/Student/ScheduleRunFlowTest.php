@@ -1346,7 +1346,7 @@ class ScheduleRunFlowTest extends TestCase
         Carbon::setTestNow();
     }
 
-    public function test_pending_schedule_block_past_its_window_does_not_create_skipped_violation_while_disabled(): void
+    public function test_pending_schedule_block_past_its_window_does_not_create_skipped_violation_before_activation_time(): void
     {
         Carbon::setTestNow('2026-03-08 09:00:00');
 
@@ -1404,6 +1404,71 @@ class ScheduleRunFlowTest extends TestCase
         $this->assertDatabaseMissing('violations', [
             'student_id' => $student->id,
             'rule_title_snapshot' => 'Skipped scheduled task',
+            'auto_generated_key' => 'observe-time:skipped-block:run:'.$scheduleRun->id.':block:'.$secondBlock->id,
+        ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_pending_schedule_block_past_its_window_creates_skipped_violation_after_activation_time(): void
+    {
+        Carbon::setTestNow('2026-05-18 09:00:00 Africa/Cairo');
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_skipped_block_enabled_student',
+        ]);
+        $mentor = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'mentor_skipped_block_enabled',
+        ]);
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+        $this->createObserveTheTimeRule($mentor);
+        $this->createSkippedScheduledTaskRule($mentor);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate));
+
+        $scheduleRun = ScheduleRun::query()
+            ->with('blocks')
+            ->where('student_id', $student->id)
+            ->sole();
+        $firstBlock = $scheduleRun->blocks->firstWhere('position', 1);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-run-blocks.start', [
+                'scheduleRun' => $scheduleRun,
+                'scheduleRunBlock' => $firstBlock,
+            ]));
+
+        $taskSession = TaskSession::query()
+            ->where('student_id', $student->id)
+            ->where('status', 'active')
+            ->sole();
+
+        Carbon::setTestNow('2026-05-18 09:40:00 Africa/Cairo');
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.stop', $taskSession));
+
+        Carbon::setTestNow('2026-05-18 23:59:00 Africa/Cairo');
+
+        $this->actingAs($studentUser)
+            ->get(route('student.home'))
+            ->assertOk();
+
+        $scheduleRun->refresh();
+        $this->assertSame('active', $scheduleRun->status);
+
+        $secondBlock = $scheduleRun->blocks()->where('position', 2)->firstOrFail();
+        $this->assertSame('pending', $secondBlock->status);
+
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Skipped scheduled task',
+            'status' => 'open',
             'auto_generated_key' => 'observe-time:skipped-block:run:'.$scheduleRun->id.':block:'.$secondBlock->id,
         ]);
 
