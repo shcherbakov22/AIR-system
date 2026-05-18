@@ -280,6 +280,8 @@ onBeforeUnmount(() => {
     if (liveTimerInterval !== null) {
         window.clearInterval(liveTimerInterval);
     }
+
+    stopAttentionTracking();
 });
 
 const activeTaskStartedAtMs = computed(() => parseTimestamp(props.activeTaskSession?.started_at ?? null));
@@ -365,6 +367,212 @@ const activeTaskEndsAtLabel = computed(() => {
     const remainingCurrentSegmentSeconds = Math.max(activeTaskPlannedSeconds.value - activeTaskElapsedBeforeCurrentSegment.value, 0);
     return formatClockTime(activeTaskStartedAtMs.value + remainingCurrentSegmentSeconds * 1000);
 });
+
+const BODY_MISSING_VIOLATION_SECONDS = 10;
+const BODY_DETECTION_INTERVAL_MS = 250;
+const BODY_MISSING_EVENT_REPEAT_MS = 30_000;
+const BODY_LANDMARK_CONFIDENCE = 0.35;
+const activeTaskSessionId = computed(() => props.activeTaskSession?.id ?? null);
+
+let attentionVideo: HTMLVideoElement | null = null;
+let attentionStream: MediaStream | null = null;
+let poseLandmarker: any = null;
+let attentionAnimationFrame: number | null = null;
+let attentionLastDetectionAt = 0;
+let bodyMissingStartedAt: number | null = null;
+let bodyMissingLastReportedAt: number | null = null;
+let bodyMissingEventToken: string | null = null;
+let attentionStartToken = 0;
+
+const stopAttentionTracking = () => {
+    attentionStartToken += 1;
+
+    if (attentionAnimationFrame !== null) {
+        window.cancelAnimationFrame(attentionAnimationFrame);
+        attentionAnimationFrame = null;
+    }
+
+    if (attentionStream) {
+        attentionStream.getTracks().forEach((track) => track.stop());
+        attentionStream = null;
+    }
+
+    if (attentionVideo) {
+        attentionVideo.srcObject = null;
+        attentionVideo = null;
+    }
+
+    bodyMissingStartedAt = null;
+    bodyMissingLastReportedAt = null;
+    bodyMissingEventToken = null;
+    attentionLastDetectionAt = 0;
+};
+
+const landmarkConfidence = (landmark: { visibility?: number; presence?: number } | undefined): number => {
+    if (!landmark) {
+        return 0;
+    }
+
+    return Math.min(landmark.visibility ?? 1, landmark.presence ?? 1);
+};
+
+const bodyPresenceScore = (landmarks: Array<{ visibility?: number; presence?: number }> | undefined): number => {
+    if (!landmarks || landmarks.length === 0) {
+        return 0;
+    }
+
+    const coreIndexes = [0, 11, 12, 23, 24];
+    const coreScores = coreIndexes.map((index) => landmarkConfidence(landmarks[index]));
+    const visibleCoreCount = coreScores.filter((score) => score >= BODY_LANDMARK_CONFIDENCE).length;
+    const visibleLandmarkCount = landmarks.filter((landmark) => landmarkConfidence(landmark) >= BODY_LANDMARK_CONFIDENCE).length;
+
+    if (visibleCoreCount >= 2 || visibleLandmarkCount >= 5) {
+        return Math.max(...coreScores, visibleLandmarkCount / Math.max(landmarks.length, 1));
+    }
+
+    return 0;
+};
+
+const postBodyMissingEvent = async (awaySeconds: number, bodyConfidence: number) => {
+    const taskSessionId = activeTaskSessionId.value;
+
+    if (!taskSessionId || !bodyMissingEventToken) {
+        return;
+    }
+
+    await fetch(route('student.attention.events.store'), {
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            event_type: 'body_missing',
+            occurred_at: new Date().toISOString(),
+            payload: {
+                reason: 'body_missing',
+                score: bodyConfidence,
+                body_confidence: bodyConfidence,
+                away_seconds: awaySeconds,
+                client_event_id: `body-missing-${taskSessionId}-${bodyMissingEventToken}`,
+            },
+        }),
+    });
+};
+
+const processBodyDetectionResult = (bodyPresent: boolean, bodyConfidence: number) => {
+    const now = Date.now();
+
+    if (bodyPresent) {
+        bodyMissingStartedAt = null;
+        bodyMissingLastReportedAt = null;
+        bodyMissingEventToken = null;
+        return;
+    }
+
+    bodyMissingStartedAt ??= now;
+    bodyMissingEventToken ??= String(Math.floor(bodyMissingStartedAt / 1000));
+
+    const awaySeconds = (now - bodyMissingStartedAt) / 1000;
+
+    if (
+        awaySeconds >= BODY_MISSING_VIOLATION_SECONDS &&
+        (bodyMissingLastReportedAt === null || now - bodyMissingLastReportedAt >= BODY_MISSING_EVENT_REPEAT_MS)
+    ) {
+        bodyMissingLastReportedAt = now;
+        void postBodyMissingEvent(awaySeconds, bodyConfidence);
+    }
+};
+
+const runBodyDetectionLoop = () => {
+    if (!attentionVideo || !poseLandmarker || activeTaskSessionId.value === null) {
+        return;
+    }
+
+    const now = performance.now();
+
+    if (now - attentionLastDetectionAt >= BODY_DETECTION_INTERVAL_MS && attentionVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        attentionLastDetectionAt = now;
+
+        try {
+            const result = poseLandmarker.detectForVideo(attentionVideo, now);
+            const score = bodyPresenceScore(result?.landmarks?.[0]);
+            processBodyDetectionResult(score > 0, score);
+        } catch {
+            processBodyDetectionResult(false, 0);
+        }
+    }
+
+    attentionAnimationFrame = window.requestAnimationFrame(runBodyDetectionLoop);
+};
+
+const startAttentionTracking = async () => {
+    const taskSessionId = activeTaskSessionId.value;
+
+    if (!taskSessionId || attentionStream) {
+        return;
+    }
+
+    const startToken = attentionStartToken;
+
+    try {
+        const [{ FilesetResolver, PoseLandmarker }, stream] = await Promise.all([
+            import('@mediapipe/tasks-vision'),
+            navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user',
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                },
+                audio: false,
+            }),
+        ]);
+
+        if (startToken !== attentionStartToken || activeTaskSessionId.value !== taskSessionId) {
+            stream.getTracks().forEach((track) => track.stop());
+            return;
+        }
+
+        attentionStream = stream;
+        attentionVideo = document.createElement('video');
+        attentionVideo.muted = true;
+        attentionVideo.playsInline = true;
+        attentionVideo.srcObject = stream;
+        await attentionVideo.play();
+
+        if (!poseLandmarker) {
+            const vision = await FilesetResolver.forVisionTasks('/mediapipe/tasks-vision/wasm');
+            poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: '/mediapipe/models/pose_landmarker_lite.task',
+                    delegate: 'GPU',
+                },
+                runningMode: 'VIDEO',
+                numPoses: 1,
+                minPoseDetectionConfidence: 0.5,
+                minPosePresenceConfidence: 0.5,
+                minTrackingConfidence: 0.5,
+            });
+        }
+
+        runBodyDetectionLoop();
+    } catch {
+        stopAttentionTracking();
+    }
+};
+
+watch(
+    activeTaskSessionId,
+    (taskSessionId) => {
+        stopAttentionTracking();
+
+        if (taskSessionId !== null && typeof navigator.mediaDevices?.getUserMedia === 'function') {
+            void startAttentionTracking();
+        }
+    },
+    { immediate: true },
+);
 
 const currentSummaryDetail = computed(() => {
     if (props.pausedTaskSession) {

@@ -19,6 +19,7 @@ class CompanionAttentionEventController extends Controller
             $device,
             $request->filled('occurred_at') ? $request->date('occurred_at') : now(),
             $request->input('payload', []),
+            $request->string('event_type')->toString(),
         );
 
         return response()->json($result);

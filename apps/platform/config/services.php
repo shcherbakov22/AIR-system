@@ -83,4 +83,8 @@ return [
         ),
     ],
 
+    'attention_tracking' => [
+        'body_missing_violation_seconds' => env('ATTENTION_BODY_MISSING_VIOLATION_SECONDS', 10),
+    ],
+
 ];

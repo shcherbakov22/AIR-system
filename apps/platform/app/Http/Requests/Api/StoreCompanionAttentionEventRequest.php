@@ -16,12 +16,13 @@ class StoreCompanionAttentionEventRequest extends CompanionDeviceRequest
     public function rules(): array
     {
         return [
-            'event_type' => ['required', 'string', 'in:look_away'],
+            'event_type' => ['required', 'string', 'in:look_away,body_missing'],
             'occurred_at' => ['nullable', 'date'],
             'payload' => ['nullable', 'array'],
             'payload.reason' => ['nullable', 'string', 'max:120'],
             'payload.score' => ['nullable', 'numeric'],
             'payload.away_seconds' => ['nullable', 'numeric', 'min:0'],
+            'payload.body_confidence' => ['nullable', 'numeric'],
         ];
     }
 }

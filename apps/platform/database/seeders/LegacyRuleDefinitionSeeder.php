@@ -55,6 +55,11 @@ class LegacyRuleDefinitionSeeder extends Seeder
                 'description' => 'Automatic violation preset: repeated attention loss during the current task.',
             ],
             [
+                'title' => 'Left camera view',
+                'default_penalty_units' => 0,
+                'description' => 'Automatic violation preset: student left the camera view during the current task.',
+            ],
+            [
                 'title' => 'No Russian',
                 'default_penalty_units' => 50,
                 'description' => 'Legacy imported violation preset: speaking Russian when that was disallowed.',

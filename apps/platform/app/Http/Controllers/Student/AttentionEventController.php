@@ -18,12 +18,13 @@ class AttentionEventController extends Controller
         abort_unless($student !== null, 403);
 
         $payload = $request->validate([
-            'event_type' => ['required', 'string', 'in:look_away'],
+            'event_type' => ['required', 'string', 'in:look_away,body_missing'],
             'occurred_at' => ['nullable', 'date'],
             'payload' => ['nullable', 'array'],
             'payload.reason' => ['nullable', 'string', 'max:120'],
             'payload.score' => ['nullable', 'numeric'],
             'payload.away_seconds' => ['nullable', 'numeric', 'min:0'],
+            'payload.body_confidence' => ['nullable', 'numeric'],
             'payload.client_event_id' => ['nullable', 'string', 'max:120'],
         ]);
 
@@ -42,6 +43,7 @@ class AttentionEventController extends Controller
             $student,
             $request->filled('occurred_at') ? $request->date('occurred_at') : now(),
             $payload['payload'] ?? [],
+            $payload['event_type'],
         );
 
         return response()->json($result);

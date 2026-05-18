@@ -1050,6 +1050,116 @@ class CompanionApiTest extends TestCase
         ]);
     }
 
+    public function test_body_missing_event_creates_attention_violation_after_threshold(): void
+    {
+        config(['services.attention_tracking.body_missing_violation_seconds' => 10]);
+
+        [$student, $studentUser] = $this->makeStudent('body_missing_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        StudentSetting::create([
+            'student_id' => $student->id,
+            'can_manage_own_schedule' => true,
+            'can_use_ad_hoc_timer' => true,
+            'look_away_event_threshold' => 20,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
+            'preferred_timezone' => 'UTC',
+        ]);
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'body_missing_admin',
+        ]);
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Left camera view',
+            'description' => 'Student left the camera view.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Focused Reading',
+            'summary' => null,
+            'instructions' => 'Stay visible.',
+            'default_duration_minutes' => 30,
+            'requires_internet' => false,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Focused Reading',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(4),
+            'duration_seconds' => 240,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.attention.events.store'), [
+                'event_type' => 'body_missing',
+                'payload' => [
+                    'reason' => 'body_missing',
+                    'score' => 0,
+                    'body_confidence' => 0,
+                    'away_seconds' => 9.9,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('triggered_violation', false)
+            ->assertJsonPath('reason', 'threshold_not_reached')
+            ->assertJsonPath('threshold_seconds', 10);
+
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'auto_generated_key' => 'body-missing:task-session:'.$taskSession->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.attention.events.store'), [
+                'event_type' => 'body_missing',
+                'payload' => [
+                    'reason' => 'body_missing',
+                    'score' => 0,
+                    'body_confidence' => 0,
+                    'away_seconds' => 10.2,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('triggered_violation', true)
+            ->assertJsonPath('reason', 'violation_created')
+            ->assertJsonPath('threshold_seconds', 10);
+
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Left camera view',
+            'auto_generated_key' => 'body-missing:task-session:'.$taskSession->id,
+        ]);
+
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $taskSession->id,
+            'status' => 'unfinished',
+        ]);
+
+        $this->assertDatabaseHas('student_settings', [
+            'student_id' => $student->id,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
+        ]);
+    }
+
     public function test_first_open_apps_snapshot_is_grandfathered_and_later_new_apps_require_review(): void
     {
         [$student, $studentUser] = $this->makeStudent('app_review_student', 'secret-pass');
@@ -1948,6 +2058,89 @@ class CompanionApiTest extends TestCase
             'status' => 'open',
             'rule_title_snapshot' => 'Look away',
             'auto_generated_key' => 'look-away:task-session:'.$taskSession->id,
+        ]);
+    }
+
+    public function test_authenticated_student_browser_session_can_post_body_missing_attention_event(): void
+    {
+        config(['services.attention_tracking.body_missing_violation_seconds' => 10]);
+
+        [$student, $studentUser] = $this->makeStudent('browser_body_missing_student', 'secret-pass');
+
+        StudentSetting::create([
+            'student_id' => $student->id,
+            'push_up_counter' => 0,
+            'look_away_event_count' => 0,
+            'look_away_event_threshold' => 2,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Browser Body Task',
+            'summary' => null,
+            'instructions' => 'Stay visible.',
+            'default_duration_minutes' => 30,
+            'requires_internet' => false,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Browser Body Task',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(2),
+            'duration_seconds' => 120,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Left camera view',
+            'description' => 'Issued when the student leaves the camera view during a task.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->postJson(route('student.attention.events.store'), [
+                'event_type' => 'body_missing',
+                'payload' => [
+                    'reason' => 'body_missing',
+                    'score' => 0,
+                    'body_confidence' => 0,
+                    'away_seconds' => 10.5,
+                    'client_event_id' => 'browser-body-missing-event-1',
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('triggered_violation', true)
+            ->assertJsonPath('reason', 'violation_created');
+
+        $this->actingAs($studentUser)
+            ->postJson(route('student.attention.events.store'), [
+                'event_type' => 'body_missing',
+                'payload' => [
+                    'reason' => 'body_missing',
+                    'score' => 0,
+                    'body_confidence' => 0,
+                    'away_seconds' => 12,
+                    'client_event_id' => 'browser-body-missing-event-1',
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('reason', 'duplicate_client_event');
+
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Left camera view',
+            'auto_generated_key' => 'body-missing:task-session:'.$taskSession->id,
         ]);
     }
 
