@@ -212,9 +212,17 @@ const hasUnreadAnnouncement = computed(() => props.communicationGate.unread_anno
 const stopTaskSessionForm = useForm({});
 const pauseOwnTimerForm = useForm({
     task_template_id: '',
+    duration_minutes: '',
 });
 const selectedPauseTaskTemplate = computed(
     () => pauseTaskTemplates.value.find((taskTemplate) => String(taskTemplate.id) === pauseOwnTimerForm.task_template_id) ?? null,
+);
+
+watch(
+    selectedPauseTaskTemplate,
+    (taskTemplate) => {
+        pauseOwnTimerForm.duration_minutes = taskTemplate ? String(taskTemplate.default_duration_minutes) : '';
+    },
 );
 
 const parseTimestamp = (value?: string | null): number | null => {
@@ -1100,7 +1108,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
 
                         <form
                             v-if="pauseOwnTimerFormOpen"
-                            class="mt-3 grid gap-2 md:grid-cols-[minmax(0,1.2fr)_auto_auto]"
+                            class="mt-3 grid gap-2 md:grid-cols-[minmax(0,1.2fr)_8rem_auto]"
                             @submit.prevent="pauseScheduleForOwnTimer"
                         >
                             <select
@@ -1120,13 +1128,16 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 </option>
                             </select>
 
-                            <div class="flex items-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm text-stone-700">
-                                {{
-                                    selectedPauseTaskTemplate
-                                        ? `${selectedPauseTaskTemplate.default_duration_minutes} min`
-                                        : '-'
-                                }}
-                            </div>
+                            <input
+                                v-model="pauseOwnTimerForm.duration_minutes"
+                                type="number"
+                                min="1"
+                                max="10000"
+                                step="1"
+                                inputmode="numeric"
+                                class="block w-full rounded-full border-stone-300 bg-white px-4 py-2 text-sm text-stone-950 shadow-sm focus:border-stone-950 focus:ring-stone-950"
+                                aria-label="Timer duration in minutes"
+                            >
 
                             <button
                                 type="submit"
@@ -1137,6 +1148,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                             </button>
 
                             <InputError class="md:col-span-3" :message="pauseOwnTimerForm.errors.task_template_id" />
+                            <InputError class="md:col-span-3" :message="pauseOwnTimerForm.errors.duration_minutes" />
                         </form>
 
                         <div v-if="canStartScheduleRun" class="mt-3 grid gap-2 sm:grid-cols-2">

@@ -202,6 +202,7 @@ class ScheduleRunController extends Controller
             $taskTemplate = TaskTemplate::query()
                 ->whereKey((int) $request->input('task_template_id'))
                 ->firstOrFail();
+            $durationMinutes = (int) ($request->input('duration_minutes') ?: $taskTemplate->default_duration_minutes);
 
             $ownedScheduleRun = ScheduleRun::query()
                 ->whereKey($scheduleRun->id)
@@ -276,7 +277,7 @@ class ScheduleRunController extends Controller
                 'task_summary_snapshot' => $taskTemplate->summary,
                 'task_instructions_snapshot' => $taskTemplate->instructions,
                 'assignment_notes_snapshot' => null,
-                'planned_duration_minutes' => $taskTemplate->default_duration_minutes,
+                'planned_duration_minutes' => $durationMinutes,
                 'duration_seconds' => 0,
                 'started_at' => now(),
                 'started_by_user_id' => $request->user()->id,

@@ -629,6 +629,7 @@ class ScheduleRunFlowTest extends TestCase
         $this->actingAs($studentUser)
             ->post(route('student.schedule-runs.pause', $scheduleRun), [
                 'task_template_id' => $breakTemplate->id,
+                'duration_minutes' => 7,
             ])
             ->assertRedirect(route('student.home', absolute: false))
             ->assertSessionHas('success', 'Schedule paused. Custom timer started.');
@@ -654,7 +655,7 @@ class ScheduleRunFlowTest extends TestCase
             'task_template_id' => $breakTemplate->id,
             'status' => 'active',
             'task_title_snapshot' => 'Break Timer',
-            'planned_duration_minutes' => 15,
+            'planned_duration_minutes' => 7,
             'duration_seconds' => 0,
         ]);
 

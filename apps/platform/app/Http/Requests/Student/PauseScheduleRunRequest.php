@@ -13,6 +13,9 @@ class PauseScheduleRunRequest extends FormRequest
             'task_template_id' => ($taskTemplateId = trim((string) $this->input('task_template_id'))) === ''
                 ? null
                 : (int) $taskTemplateId,
+            'duration_minutes' => ($durationMinutes = trim((string) $this->input('duration_minutes'))) === ''
+                ? null
+                : (int) $durationMinutes,
         ]);
     }
 
@@ -29,6 +32,7 @@ class PauseScheduleRunRequest extends FormRequest
                 'integer',
                 Rule::exists('task_templates', 'id'),
             ],
+            'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:10000'],
         ];
     }
 }
