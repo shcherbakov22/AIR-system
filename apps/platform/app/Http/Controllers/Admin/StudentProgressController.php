@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\Student;
@@ -15,6 +16,12 @@ use Inertia\Response;
 class StudentProgressController extends Controller
 {
     private const MIN_IDLE_GAP_SECONDS = 300;
+
+    /** @var array<int, int> */
+    protected array $lookAwayEventCountsByTaskSessionId = [];
+
+    /** @var array<int, array<int, array<string, mixed>>> */
+    protected array $lookAwayEventsByTaskSessionId = [];
 
     protected function actualDurationSeconds(TaskSession $taskSession): int
     {
@@ -61,6 +68,7 @@ class StudentProgressController extends Controller
             'ended_at_label' => $taskSession->ended_at?->format('d M, H:i'),
             'duration_seconds' => $actualDurationSeconds,
             'duration_label' => $this->formatDuration($actualDurationSeconds),
+            'look_away_event_count' => $this->lookAwayEventCount($taskSession),
         ];
     }
 
@@ -127,6 +135,8 @@ class StudentProgressController extends Controller
             'ended_at_label' => $taskSession->ended_at?->format('d M, H:i'),
             'was_in_schedule' => $taskSession->schedule_run_block_id !== null,
             'block_position' => $taskSession->scheduleRunBlock?->position,
+            'look_away_event_count' => $this->lookAwayEventCount($taskSession),
+            'look_away_events' => $this->lookAwayEvents($taskSession),
             'unfinished_url' => in_array($taskSession->status, ['active', 'completed'], true)
                 ? route('admin.task-sessions.unfinished', $taskSession)
                 : null,
@@ -163,8 +173,53 @@ class StudentProgressController extends Controller
             'ended_at_label' => $endedAtMoment->format('d M, H:i'),
             'was_in_schedule' => false,
             'block_position' => null,
+            'look_away_event_count' => 0,
+            'look_away_events' => [],
             'unfinished_url' => null,
         ];
+    }
+
+    protected function loadLookAwayEventCountsForStudent(int $studentId): void
+    {
+        $events = ActivityLog::query()
+            ->where('student_id', $studentId)
+            ->where('category', 'attention')
+            ->where('action', 'look_away_event')
+            ->where('subject_type', TaskSession::class)
+            ->whereNotNull('subject_id')
+            ->orderBy('occurred_at')
+            ->orderBy('id')
+            ->get();
+
+        $this->lookAwayEventCountsByTaskSessionId = $events
+            ->groupBy('subject_id')
+            ->map(fn (Collection $group) => $group->count())
+            ->all();
+
+        $this->lookAwayEventsByTaskSessionId = $events
+            ->groupBy('subject_id')
+            ->map(fn (Collection $group) => $group
+                ->map(fn (ActivityLog $event) => [
+                    'id' => $event->id,
+                    'occurred_at' => $event->occurred_at?->toIso8601String(),
+                    'occurred_at_label' => $event->occurred_at?->format('H:i:s'),
+                    'reason' => $event->metadata['reason'] ?? null,
+                    'score' => $event->metadata['score'] ?? null,
+                    'away_seconds' => $event->metadata['away_seconds'] ?? null,
+                ])
+                ->values()
+                ->all())
+            ->all();
+    }
+
+    protected function lookAwayEventCount(TaskSession $taskSession): int
+    {
+        return $this->lookAwayEventCountsByTaskSessionId[$taskSession->id] ?? 0;
+    }
+
+    protected function lookAwayEvents(TaskSession $taskSession): array
+    {
+        return $this->lookAwayEventsByTaskSessionId[$taskSession->id] ?? [];
     }
 
     protected function withIdleGaps(Collection $taskSequence): Collection
@@ -266,6 +321,8 @@ class StudentProgressController extends Controller
 
     public function show(Request $request, Student $student): Response
     {
+        $this->loadLookAwayEventCountsForStudent($student->id);
+
         $student->loadMissing([
             'user',
             'scheduleRuns' => fn ($query) => $query
@@ -329,6 +386,7 @@ class StudentProgressController extends Controller
                 $totalActualSeconds = $blocks->sum('actual_duration_seconds');
                 $totalPlannedMinutes = $blocks->sum('planned_duration_minutes');
                 $completedBlocks = $blocks->whereIn('status', ['completed', 'skipped'])->count();
+                $lookAwayEvents = $blocks->sum('look_away_event_count');
 
                 return [
                     'task_title' => $taskTitle,
@@ -338,6 +396,7 @@ class StudentProgressController extends Controller
                     'total_planned_duration_label' => $this->formatDuration($totalPlannedMinutes * 60),
                     'total_actual_duration_seconds' => $totalActualSeconds,
                     'total_actual_duration_label' => $this->formatDuration($totalActualSeconds),
+                    'look_away_event_count' => $lookAwayEvents,
                 ];
             })
             ->sortByDesc('total_actual_duration_seconds')

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ActivityLog;
 use App\Models\RuleDefinition;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
@@ -55,12 +56,6 @@ class AutomaticObserveTheTimeViolationService
             ->latest('started_at')
             ->first();
 
-        if ($startedScheduleRun && $this->skippedScheduleViolationsEnabled()) {
-            if ($this->createSkippedScheduleBlockViolationIfNeeded($student, $ruleDefinition, $startedScheduleRun)) {
-                return;
-            }
-        }
-
         $activeTaskSession = TaskSession::query()
             ->where('student_id', $student->id)
             ->where('status', 'active')
@@ -75,6 +70,12 @@ class AutomaticObserveTheTimeViolationService
             $this->createOverdueTaskViolationIfNeeded($student, $ruleDefinition, $activeTaskSession);
 
             return;
+        }
+
+        if ($startedScheduleRun && $this->skippedScheduleViolationsEnabled()) {
+            if ($this->createSkippedScheduleBlockViolationIfNeeded($student, $ruleDefinition, $startedScheduleRun)) {
+                return;
+            }
         }
 
         if ($startedScheduleRun) {
@@ -141,10 +142,6 @@ class AutomaticObserveTheTimeViolationService
             return true;
         }
 
-        if ($this->hasSkippedScheduleViolationRecordForRun($scheduleRun)) {
-            return true;
-        }
-
         foreach ($scheduleRun->blocks->sortBy('position') as $block) {
             if ($block->status !== 'pending') {
                 continue;
@@ -153,6 +150,18 @@ class AutomaticObserveTheTimeViolationService
             $violationAt = $this->scheduledBlockViolationAt($scheduleRun, $block);
 
             if (! $violationAt || now()->lt($violationAt)) {
+                continue;
+            }
+
+            if ($this->isStaleViolationThreshold($violationAt)) {
+                continue;
+            }
+
+            if ($this->hasSkippedScheduleViolationRecordForBlock($scheduleRun, $block)) {
+                continue;
+            }
+
+            if ($this->scheduledBlockViolationOccurredWhilePaused($scheduleRun, $violationAt)) {
                 continue;
             }
 
@@ -170,6 +179,31 @@ class AutomaticObserveTheTimeViolationService
         }
 
         return false;
+    }
+
+    private function scheduledBlockViolationOccurredWhilePaused(ScheduleRun $scheduleRun, CarbonInterface $violationAt): bool
+    {
+        $pause = ActivityLog::query()
+            ->where('category', 'schedules')
+            ->where('action', 'schedule_paused')
+            ->where('subject_type', ScheduleRun::class)
+            ->where('subject_id', $scheduleRun->id)
+            ->where('occurred_at', '<=', $violationAt)
+            ->latest('occurred_at')
+            ->first();
+
+        if (! $pause) {
+            return false;
+        }
+
+        return ActivityLog::query()
+            ->where('category', 'schedules')
+            ->where('action', 'schedule_resumed')
+            ->where('subject_type', ScheduleRun::class)
+            ->where('subject_id', $scheduleRun->id)
+            ->where('occurred_at', '>=', $violationAt)
+            ->where('occurred_at', '>=', $pause->occurred_at)
+            ->exists();
     }
 
     private function scheduledBlockViolationAt(ScheduleRun $scheduleRun, ScheduleRunBlock $block): ?CarbonInterface
@@ -270,6 +304,10 @@ class AutomaticObserveTheTimeViolationService
         CarbonInterface $endedAt,
         ?int $baseDurationSeconds = null,
     ): void {
+        if ($this->taskSessionSleepService->isSleepingSession($taskSession)) {
+            return;
+        }
+
         if ($this->hasOpenViolationForRule($student, $ruleDefinition)) {
             return;
         }
@@ -328,6 +366,10 @@ class AutomaticObserveTheTimeViolationService
             return;
         }
 
+        if ($this->isSystemCompletedTaskSession($taskSession)) {
+            return;
+        }
+
         $taskSession->loadMissing('taskTemplate');
 
         if ($taskSession->taskTemplate?->can_end_early) {
@@ -378,7 +420,16 @@ class AutomaticObserveTheTimeViolationService
         $title = strtolower((string) $taskSession->task_title_snapshot);
 
         return str_contains($title, 'eating')
-            || str_contains($title, 'cooking');
+            || str_contains($title, 'cooking')
+            || str_contains($title, 'drinking');
+    }
+
+    private function isSystemCompletedTaskSession(TaskSession $taskSession): bool
+    {
+        $notes = strtolower((string) $taskSession->completion_notes);
+
+        return str_starts_with($notes, 'automatically finished when resuming the schedule')
+            || str_starts_with($notes, 'marked unfinished for later continuation');
     }
 
     private function createIdleScheduleViolationIfNeeded(
@@ -572,16 +623,32 @@ class AutomaticObserveTheTimeViolationService
             ->exists();
     }
 
-    private function hasSkippedScheduleViolationRecordForRun(ScheduleRun $scheduleRun): bool
+    private function hasSkippedScheduleViolationRecordForBlock(ScheduleRun $scheduleRun, ScheduleRunBlock $block): bool
     {
-        $pattern = 'observe-time:skipped-block:run:'.$scheduleRun->id.':block:%';
+        $autoGeneratedKey = 'observe-time:skipped-block:run:'.$scheduleRun->id.':block:'.$block->id;
 
-        return Violation::query()
-            ->where('auto_generated_key', 'like', $pattern)
-            ->exists()
-            || DB::table('dismissed_automatic_violations')
-                ->where('auto_generated_key', 'like', $pattern)
-                ->exists();
+        if (Violation::query()
+            ->where('auto_generated_key', $autoGeneratedKey)
+            ->exists()) {
+            return true;
+        }
+
+        if (DB::table('dismissed_automatic_violations')
+            ->where('auto_generated_key', $autoGeneratedKey)
+            ->exists()) {
+            return true;
+        }
+
+        return ActivityLog::query()
+            ->where('category', 'violations')
+            ->where('action', 'violation_created')
+            ->where('description', 'like', '%'.self::SKIPPED_TASK_RULE_TITLE.'%')
+            ->get(['metadata'])
+            ->contains(function (ActivityLog $log) use ($autoGeneratedKey) {
+                $key = $log->metadata['auto_generated_key'] ?? null;
+
+                return $key === $autoGeneratedKey;
+            });
     }
 
     private function hasOvertimeObserveViolationRecordForTaskSession(int $taskSessionId): bool

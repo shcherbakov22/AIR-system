@@ -22,6 +22,10 @@ class PermitProtectedAppPoliciesCommand extends Command
             'searchhost.exe',
             'searchapp.exe',
             'dwm.exe',
+            'air_companion_service.exe',
+            'air_companion_tray.exe',
+            'air_companion_helper.exe',
+            'air_companion_updater.exe',
         ];
 
         $updated = StudentAppPolicy::query()

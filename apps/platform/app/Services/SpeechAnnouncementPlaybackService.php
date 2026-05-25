@@ -20,7 +20,23 @@ class SpeechAnnouncementPlaybackService
 
     public function setEnabled(bool $enabled): void
     {
+        if ($enabled) {
+            $this->clearPendingAnnouncements();
+        }
+
         AppSetting::putBoolean(self::ENABLED_SETTING_KEY, $enabled);
+    }
+
+    public function clearPendingAnnouncements(): int
+    {
+        return SpeechAnnouncement::query()
+            ->whereNull('spoken_at')
+            ->update([
+                'spoken_at' => now(),
+                'processing_started_at' => null,
+                'processing_host' => null,
+                'updated_at' => now(),
+            ]);
     }
 
     public function releaseExpiredClaims(int $staleAfterSeconds = 120): int

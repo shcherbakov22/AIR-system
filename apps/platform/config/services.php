@@ -50,7 +50,7 @@ return [
     'companion_updates' => [
         'enabled' => env('COMPANION_UPDATES_ENABLED', true),
         'channel' => env('COMPANION_UPDATES_CHANNEL', 'stable'),
-        'version' => env('COMPANION_UPDATES_VERSION', '0.1.23'),
+        'version' => env('COMPANION_UPDATES_VERSION', '0.1.26'),
         'windows_package_path' => env(
             'COMPANION_WINDOWS_UPDATE_PACKAGE_PATH',
             storage_path('app/companion-updates/air-companion-windows.zip')
@@ -63,6 +63,15 @@ return [
             'COMPANION_BROWSER_EXTENSION_BUNDLE_PATH',
             storage_path('app/companion-updates/air-look-extension.zip')
         ),
+        'browser_extension_crx_path' => env(
+            'COMPANION_BROWSER_EXTENSION_CRX_PATH',
+            storage_path('app/companion-updates/air-look-extension.crx')
+        ),
+        'browser_extension_update_manifest_path' => env(
+            'COMPANION_BROWSER_EXTENSION_UPDATE_MANIFEST_PATH',
+            storage_path('app/companion-updates/air-look-extension-updates.xml')
+        ),
+        'chrome_enterprise_enrollment_token' => env('CHROME_ENTERPRISE_ENROLLMENT_TOKEN'),
     ],
 
     'ai_overseer' => [

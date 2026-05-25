@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\UserRole;
+use App\Models\ActivityLog;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\Student;
@@ -122,6 +123,37 @@ class StudentProgressTest extends TestCase
             'stopped_by_user_id' => $studentUser->id,
         ]);
 
+        ActivityLog::create([
+            'occurred_at' => Carbon::parse('2026-03-12 08:10:00'),
+            'category' => 'attention',
+            'action' => 'look_away_event',
+            'student_id' => $student->id,
+            'subject_type' => TaskSession::class,
+            'subject_id' => $completedSession->id,
+            'description' => 'Looked away during task: Math',
+            'metadata' => ['task_title' => 'Math'],
+        ]);
+        ActivityLog::create([
+            'occurred_at' => Carbon::parse('2026-03-12 09:10:00'),
+            'category' => 'attention',
+            'action' => 'look_away_event',
+            'student_id' => $student->id,
+            'subject_type' => TaskSession::class,
+            'subject_id' => $activeSession->id,
+            'description' => 'Looked away during task: Reading',
+            'metadata' => ['task_title' => 'Reading'],
+        ]);
+        ActivityLog::create([
+            'occurred_at' => Carbon::parse('2026-03-12 09:11:00'),
+            'category' => 'attention',
+            'action' => 'look_away_event',
+            'student_id' => $student->id,
+            'subject_type' => TaskSession::class,
+            'subject_id' => $activeSession->id,
+            'description' => 'Looked away during task: Reading',
+            'metadata' => ['task_title' => 'Reading'],
+        ]);
+
         $this->actingAs($admin)
             ->get(route('admin.students.progress', $student))
             ->assertOk()
@@ -139,6 +171,8 @@ class StudentProgressTest extends TestCase
                 ->where('runs.0.task_sequence.0.kind', 'task')
                 ->where('runs.0.task_sequence.0.task_title', 'Math')
                 ->where('runs.0.task_sequence.0.actual_duration_seconds', 1800)
+                ->where('runs.0.task_sequence.0.look_away_event_count', 1)
+                ->where('runs.0.task_sequence.0.look_away_events.0.occurred_at_label', '08:10:00')
                 ->where('runs.0.task_sequence.0.unfinished_url', route('admin.task-sessions.unfinished', $completedSession))
                 ->where('runs.0.task_sequence.1.task_title', 'Reading')
                 ->where('runs.0.task_sequence.1.actual_duration_seconds', 900)
@@ -146,16 +180,21 @@ class StudentProgressTest extends TestCase
                 ->where('runs.0.task_sequence.1.unfinished_url', null)
                 ->where('runs.0.task_sequence.2.kind', 'idle_gap')
                 ->where('runs.0.task_sequence.2.actual_duration_seconds', 600)
+                ->where('runs.0.task_sequence.2.look_away_event_count', 0)
                 ->where('runs.0.task_sequence.3.task_title', 'Reading')
                 ->where('runs.0.task_sequence.3.actual_duration_seconds', 4500)
+                ->where('runs.0.task_sequence.3.look_away_event_count', 2)
+                ->where('runs.0.task_sequence.3.look_away_events.1.occurred_at_label', '09:11:00')
                 ->where('runs.0.task_sequence.3.was_in_schedule', true)
                 ->where('runs.0.task_sequence.3.unfinished_url', route('admin.task-sessions.unfinished', $activeSession))
                 ->where('runs.0.task_sequence.4.task_title', 'Custom timer')
                 ->where('runs.0.task_sequence.4.actual_duration_seconds', 600)
+                ->where('runs.0.task_sequence.4.look_away_event_count', 0)
                 ->where('runs.0.task_sequence.4.was_in_schedule', false)
                 ->where('runs.0.task_sequence.4.unfinished_url', route('admin.task-sessions.unfinished', $outsideScheduleSession))
                 ->where('task_summary.0.task_title', 'Reading')
                 ->where('task_summary.0.total_actual_duration_seconds', 5400)
+                ->where('task_summary.0.look_away_event_count', 2)
             );
 
         Carbon::setTestNow();

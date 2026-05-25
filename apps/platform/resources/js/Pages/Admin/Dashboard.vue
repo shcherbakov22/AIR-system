@@ -233,6 +233,7 @@ const assignmentImageByStudentId = ref<Record<number, File | null>>({});
 const assignmentImageDropActiveByStudentId = ref<Record<number, boolean>>({});
 const assignmentCreatePendingByStudentId = ref<Record<number, boolean>>({});
 const pushUpStationMenuOpen = ref(false);
+const copiedStudentChatMessageId = ref<number | null>(null);
 const violationSelectByStudentId = new Map<number, HTMLSelectElement>();
 const browserSpeechStorageKey = 'air-dashboard-browser-speech-enabled';
 const browserSpeechWatermarkStorageKey = 'air-dashboard-browser-speech-watermark';
@@ -1055,6 +1056,47 @@ const hasAnyAdminChatGate = computed(() =>
 const pendingAppNotifications = (student: DashboardStudent) =>
     student.app_control?.pending_review.slice(0, 3) ?? [];
 
+const CHAT_NOTIFICATION_PREVIEW_LIMIT = 500;
+
+const chatNotificationBody = (message: { body?: string | null }) =>
+    message.body || 'Attachment only message.';
+
+const chatNotificationPreview = (message: { body?: string | null }) => {
+    const body = chatNotificationBody(message);
+
+    return body.length > CHAT_NOTIFICATION_PREVIEW_LIMIT
+        ? `${body.slice(0, CHAT_NOTIFICATION_PREVIEW_LIMIT)}...`
+        : body;
+};
+
+const copyTextToClipboard = async (text: string) => {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+};
+
+const copyStudentChatNotification = async (message: { id: number; body?: string | null }) => {
+    await copyTextToClipboard(chatNotificationBody(message));
+    copiedStudentChatMessageId.value = message.id;
+    window.setTimeout(() => {
+        if (copiedStudentChatMessageId.value === message.id) {
+            copiedStudentChatMessageId.value = null;
+        }
+    }, 1500);
+};
+
 const markStudentChatNotificationRead = (student: DashboardStudent, readUrl?: string | null) => {
     if (!readUrl) {
         return;
@@ -1694,15 +1736,13 @@ const blockTooltip = (block: DashboardBlock): string => {
                         class="mt-1 rounded-[0.75rem] border border-rose-300 bg-rose-50 px-2 py-2"
                     >
                         <div class="space-y-2">
-                            <button
+                            <div
                                 v-for="message in student.communication_gate?.unread_student_chats ?? []"
                                 :key="message.id"
-                                type="button"
-                                class="block w-full rounded-[0.65rem] border border-rose-200 bg-white/70 px-2 py-2 text-left transition hover:border-rose-400 hover:bg-rose-100"
-                                @click="markStudentChatNotificationRead(student, message.read_url)"
+                                class="rounded-[0.65rem] border border-rose-200 bg-white/70 px-2 py-2"
                             >
-                                <p class="line-clamp-3 text-sm font-medium leading-5 text-rose-950">
-                                    {{ message.body || 'Attachment only message.' }}
+                                <p class="whitespace-pre-wrap break-words text-sm font-medium leading-5 text-rose-950">
+                                    {{ chatNotificationPreview(message) }}
                                 </p>
                                 <p class="mt-1 text-[10px] text-rose-700">
                                     {{ message.sender_name || student.display_name }}
@@ -1710,7 +1750,23 @@ const blockTooltip = (block: DashboardBlock): string => {
                                         · {{ message.created_at_label }}
                                     </span>
                                 </p>
-                            </button>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        class="rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-900 transition hover:bg-rose-200"
+                                        @click="copyStudentChatNotification(message)"
+                                    >
+                                        {{ copiedStudentChatMessageId === message.id ? 'Copied' : 'Copy' }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-full bg-rose-950 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-rose-900"
+                                        @click="markStudentChatNotificationRead(student, message.read_url)"
+                                    >
+                                        Mark read
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

@@ -148,10 +148,17 @@ async function main() {
 
     await waitForDb(env, `App\\Models\\BrowserPolicyRule::query()->where('task_template_id', ${seed.tennis_template_id})->where('value', 'coding.test')->exists()`, 10000, 'admin approval did not create tennis task rule');
 
-    await syncPolicyFromOptions(client, optionsSession);
-    const tennisAllowed = await navigateAndWait(client, `http://coding.test:${content.port}/tennis-approved`);
-    assert(tennisAllowed.href.includes('coding.test'), 'approved Tennis domain did not load');
-    assert(contentRequests.some((request) => request.host === `coding.test:${content.port}` && request.url === '/tennis-approved'), 'approved Tennis domain did not reach content server');
+    await evaluateOrThrow(client, {
+      expression: `
+        const retryButton = document.getElementById('retryButton');
+        if (!retryButton) {
+          throw new Error('Try again button not found');
+        }
+        retryButton.click();
+      `,
+    }, tennisBlocked.sessionId);
+    await waitForLocation(client, tennisBlocked.sessionId, `http://coding.test:${content.port}/tennis`, 10000);
+    assert(contentRequests.some((request) => request.host === `coding.test:${content.port}` && request.url === '/tennis'), 'approved Tennis domain did not reach content server after Try again');
 
     await switchActiveTask(env, seed.tennis_session_id, seed.coding_template_id, seed.student_id, seed.student_user_id);
     await syncPolicyFromOptions(client, optionsSession);

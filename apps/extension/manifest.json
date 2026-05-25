@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "AIR Browser Accountability",
   "description": "Accountability browsing policy, visit logging, and mentor access requests.",
-  "version": "0.1.1",
-  "permissions": ["alarms", "declarativeNetRequest", "storage", "tabs", "webNavigation"],
+  "version": "0.1.10",
+  "permissions": ["alarms", "declarativeNetRequest", "offscreen", "storage", "tabs", "videoCapture", "webNavigation"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background.js"
@@ -16,12 +16,27 @@
     }
   ],
   "options_page": "src/options.html",
+  "storage": {
+    "managed_schema": "src/managed-schema.json"
+  },
   "action": {
-    "default_title": "AIR Browser Accountability"
+    "default_title": "AIR Browser Accountability",
+    "default_popup": "src/popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/blocked.html"],
+      "resources": [
+        "src/blocked.html",
+        "src/vendor/mp/*",
+        "src/vendor/mp/wasm/*",
+        "src/models/*",
+        "src/offscreen.html",
+        "src/offscreen.js",
+        "src/offscreen-config.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

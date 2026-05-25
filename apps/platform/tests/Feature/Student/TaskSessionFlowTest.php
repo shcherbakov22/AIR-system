@@ -12,6 +12,7 @@ use App\Models\TaskAssignment;
 use App\Models\TaskSession;
 use App\Models\TaskTemplate;
 use App\Models\User;
+use App\Models\Violation;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -563,6 +564,68 @@ class TaskSessionFlowTest extends TestCase
             'student_id' => $student->id,
             'rule_title_snapshot' => 'Task completed too quickly',
             'auto_generated_key' => 'observe-time:too-short:session:'.$resumedTaskSession->id,
+        ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_marking_task_unfinished_removes_existing_too_short_violation(): void
+    {
+        Carbon::setTestNow('2026-03-07 11:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_unfinished_existing_violation',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_unfinished_existing_violation',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Unfinished Existing Violation',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $tooShortRule = $this->createTaskCompletedTooQuicklyRule($admin);
+        $taskAssignment = $this->createAssignedTask($admin, $student);
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'duration_seconds' => 8,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:59:52'),
+            'ended_at' => CarbonImmutable::parse('2026-03-07 11:00:00'),
+            'started_by_user_id' => $studentUser->id,
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+        Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $tooShortRule->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Task completed too quickly',
+            'penalty_units' => 10,
+            'occurred_at' => now(),
+            'auto_generated_key' => 'observe-time:too-short:session:'.$taskSession->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->patch(route('student.task-sessions.unfinished', $taskSession))
+            ->assertRedirect(route('student.home', absolute: false));
+
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Task completed too quickly',
+            'auto_generated_key' => 'observe-time:too-short:session:'.$taskSession->id,
         ]);
 
         Carbon::setTestNow();

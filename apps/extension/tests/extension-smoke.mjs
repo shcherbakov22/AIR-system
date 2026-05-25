@@ -32,6 +32,8 @@ main().catch((error) => {
 });
 
 async function main() {
+  assertManifestHasPopup();
+
   const backend = await listen((req, res) => {
     collectJson(req).then((body) => {
       if (req.url === '/api/companion/browser/policy' && req.method === 'GET') {
@@ -83,6 +85,8 @@ async function main() {
     '--headless=new',
     '--no-sandbox',
     '--disable-gpu',
+    '--use-fake-device-for-media-stream',
+    '--use-fake-ui-for-media-stream',
     '--remote-debugging-port=0',
     `--user-data-dir=${userDataDir}`,
     `--disable-extensions-except=${extensionDir}`,
@@ -118,6 +122,45 @@ async function main() {
     awaitPromise: true,
   }, optionsSession);
 
+  const popupSession = await openExtensionPage(client, `chrome-extension://${extensionId}/src/popup.html`);
+  await waitFor(async () => {
+    const result = await evaluateOrThrow(client, {
+      expression: `({
+        start: document.getElementById('startbg')?.textContent,
+        recalibrate: document.getElementById('recalibrate')?.textContent,
+        status: document.getElementById('status')?.textContent,
+      })`,
+      returnByValue: true,
+    }, popupSession);
+    const value = result.result.value;
+
+    return value.start === 'Start background detection'
+      && value.recalibrate === 'Recalibrate baseline'
+      && String(value.status || '').includes('Server:');
+  }, 5000, 'popup did not show the attention tracking interface');
+
+  await evaluateOrThrow(client, {
+    expression: `document.getElementById('startbg').click()`,
+  }, popupSession);
+  await waitFor(async () => {
+    const result = await evaluateOrThrow(client, {
+      expression: `document.getElementById('status')?.textContent || ''`,
+      returnByValue: true,
+    }, popupSession);
+
+    return /Starting|Calibrating|Looking|face|Camera/.test(result.result.value || '');
+  }, 10000, 'attention popup start button did not update tracker status');
+  await waitFor(async () => {
+    const result = await evaluateOrThrow(client, {
+      expression: `chrome.storage.local.get(['last_state']).then((stored) => stored.last_state || null)`,
+      awaitPromise: true,
+      returnByValue: true,
+    }, popupSession);
+    const state = result.result.value;
+
+    return state?.mode && state.mode !== 'starting' && state.mode !== 'error';
+  }, 30000, 'attention tracker did not reach a non-error runtime state');
+
   await navigateAndWait(client, `http://allowed.test:${content.port}/allowed`);
   await waitFor(
     () => visits.some((visit) => visit.url.includes('allowed.test') && visit.meta?.decision === 'allowed'),
@@ -129,7 +172,7 @@ async function main() {
   const blockedPage = await navigateAndWait(client, `http://blocked.test:${content.port}/blocked`);
   assert(blockedPage.href.includes(`chrome-extension://${extensionId}/src/blocked.html`), `blocked navigation did not land on extension page: ${blockedPage.href}`);
   await waitFor(
-    () => visits.some((visit) => visit.url.includes('blocked.test') && visit.meta?.decision === 'blocked'),
+    () => visits.some((visit) => visit.url.includes('blocked.test') && visit.meta?.decision === 'blocked' && visit.meta?.source === 'explicit_navigation'),
     5000,
     'blocked visit was not logged',
   );
@@ -148,12 +191,22 @@ async function main() {
 
   console.log('extension smoke test passed');
   } finally {
-    chromium.kill('SIGTERM');
-    await new Promise((resolveExit) => chromium.once('exit', resolveExit));
+    terminateProcess(chromium);
     backend.server.close();
     content.server.close();
-    await rm(userDataDir, { recursive: true, force: true });
+    await rmRetry(userDataDir);
   }
+}
+
+function assertManifestHasPopup() {
+  const manifest = JSON.parse(readFileSync(join(extensionDir, 'manifest.json'), 'utf8'));
+
+  assert(manifest.action?.default_popup === 'src/popup.html', 'manifest does not define the toolbar popup');
+  assert(manifest.version === '0.1.10', 'manifest version was not bumped');
+  assert(manifest.permissions?.includes('offscreen'), 'manifest does not allow offscreen attention detection');
+  assert(manifest.permissions?.includes('videoCapture'), 'manifest does not request extension camera capture permission');
+  assert(manifest.storage?.managed_schema === 'src/managed-schema.json', 'manifest does not declare managed storage schema');
+  assert(readFileSync(join(extensionDir, 'src/managed-schema.json'), 'utf8').includes('deviceToken'), 'managed schema does not include device token');
 }
 
 function assertAuth(req) {
@@ -163,6 +216,35 @@ function assertAuth(req) {
 function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
+  }
+}
+
+function terminateProcess(process) {
+  if (process.exitCode !== null || process.signalCode !== null) {
+    return;
+  }
+
+  process.kill('SIGTERM');
+  const timer = setTimeout(() => {
+    if (process.exitCode === null && process.signalCode === null) {
+      process.kill('SIGKILL');
+    }
+  }, 1000);
+  timer.unref();
+}
+
+async function rmRetry(path) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    try {
+      await rm(path, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (attempt === 9) {
+        throw error;
+      }
+
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 200));
+    }
   }
 }
 

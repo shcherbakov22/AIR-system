@@ -37,7 +37,6 @@ class DevicePolicyService
         $activeScheduleRun = $student->activeOrPausedScheduleRun;
         $communicationGate = $this->communicationGateService->payload($student);
         $openViolations = $student->violations->where('status', 'open')->values();
-        $staleViolationDeadline = now()->subMinutes(10);
         $browserExtensionMissing = $this->browserExtensionMissingForStudent($student);
 
         $internetPolicy = $this->internetPolicy($device);
@@ -85,10 +84,7 @@ class DevicePolicyService
                 'items' => $violationItems->all(),
             ],
             'violation_app_enforcement' => [
-                'kill_gui_apps' => $browserExtensionMissing || $openViolations->contains(
-                    fn ($violation) => $violation->created_at instanceof Carbon
-                        && $violation->created_at->lessThanOrEqualTo($staleViolationDeadline)
-                ),
+                'kill_gui_apps' => $browserExtensionMissing || $openViolations->isNotEmpty(),
                 'browser_reopen_grace_seconds' => $browserExtensionMissing ? 0 : 60,
             ],
             'communication_gate' => $communicationGate,
@@ -154,7 +150,9 @@ class DevicePolicyService
             return false;
         }
 
-        if ($latestBrowserObservedAt->greaterThan(now()->subSeconds(self::BROWSER_EXTENSION_WAKE_GRACE_SECONDS))) {
+        $browserOpenObservedAt = $this->oldestRecentlyObservedBrowserAt($student) ?? $latestBrowserObservedAt;
+
+        if ($browserOpenObservedAt->greaterThan(now()->subSeconds(self::BROWSER_EXTENSION_WAKE_GRACE_SECONDS))) {
             return false;
         }
 
@@ -204,26 +202,40 @@ class DevicePolicyService
 
     protected function latestRecentlyObservedBrowserAt(Student $student): ?Carbon
     {
-        $latestOpenApps = DeviceActivityEvent::query()
+        return $this->recentBrowserActivityQuery($student)
+            ->latest('observed_at')
+            ->latest('id')
+            ->get()
+            ->first(fn (DeviceActivityEvent $event) => $this->eventHasBrowserApp($event))
+            ?->observed_at;
+    }
+
+    protected function oldestRecentlyObservedBrowserAt(Student $student): ?Carbon
+    {
+        return $this->recentBrowserActivityQuery($student)
+            ->oldest('observed_at')
+            ->oldest('id')
+            ->get()
+            ->first(fn (DeviceActivityEvent $event) => $this->eventHasBrowserApp($event))
+            ?->observed_at;
+    }
+
+    protected function recentBrowserActivityQuery(Student $student)
+    {
+        return DeviceActivityEvent::query()
             ->where('event_type', 'open_apps')
             ->where('observed_at', '>=', now()->subMinutes(self::BROWSER_ACTIVITY_FRESH_AFTER_MINUTES))
             ->whereHas('studentDevice', fn ($query) => $query
                 ->where('student_id', $student->id)
                 ->where('platform', '!=', 'chrome_extension')
                 ->whereNull('revoked_at')
-            )
-            ->latest('observed_at')
-            ->latest('id')
-            ->first();
+            );
+    }
 
-        if (! $latestOpenApps) {
-            return null;
-        }
-
-        $hasBrowser = collect($this->normalizeOpenApps($latestOpenApps->payload['apps'] ?? []))
+    protected function eventHasBrowserApp(DeviceActivityEvent $event): bool
+    {
+        return collect($this->normalizeOpenApps($event->payload['apps'] ?? []))
             ->contains(fn (array $app) => $this->isBrowserAppName((string) ($app['app_name'] ?? '')));
-
-        return $hasBrowser ? $latestOpenApps->observed_at : null;
     }
 
     protected function isBrowserAppName(string $appName): bool

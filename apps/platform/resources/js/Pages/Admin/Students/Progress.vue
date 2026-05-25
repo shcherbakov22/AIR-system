@@ -13,6 +13,25 @@ const markTaskSessionUnfinished = (unfinishedUrl?: string | null) => {
     });
 };
 
+type LookAwayEvent = {
+    id: number;
+    occurred_at?: string | null;
+    occurred_at_label?: string | null;
+    reason?: string | null;
+    score?: number | string | null;
+    away_seconds?: number | string | null;
+};
+
+const lookAwayEventLabel = (event: LookAwayEvent) => {
+    const details = [
+        event.away_seconds !== null && event.away_seconds !== undefined ? `${event.away_seconds}s` : null,
+        event.reason,
+        event.score !== null && event.score !== undefined ? `score ${event.score}` : null,
+    ].filter(Boolean);
+
+    return [event.occurred_at_label ?? 'Time unknown', details.join(' · ')].filter(Boolean).join(' · ');
+};
+
 defineProps<{
     serverNow: string;
     student: {
@@ -45,6 +64,7 @@ defineProps<{
         total_planned_duration_label: string;
         total_actual_duration_seconds: number;
         total_actual_duration_label: string;
+        look_away_event_count: number;
     }>;
     runs: Array<{
         id: number;
@@ -76,6 +96,8 @@ defineProps<{
             ended_at_label?: string | null;
             was_in_schedule: boolean;
             block_position?: number | null;
+            look_away_event_count: number;
+            look_away_events: LookAwayEvent[];
             unfinished_url?: string | null;
         }>;
     }>;
@@ -179,12 +201,13 @@ defineProps<{
             </div>
 
             <div v-else-if="filters.mode === 'summary'" class="mt-6 overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-sm">
-                <div class="grid grid-cols-[minmax(0,1.5fr)_8rem_8rem_8rem_8rem] gap-3 bg-stone-100 px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                <div class="grid grid-cols-[minmax(0,1.5fr)_8rem_8rem_8rem_8rem_8rem] gap-3 bg-stone-100 px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
                     <span>Task</span>
                     <span>Blocks</span>
                     <span>Done</span>
                     <span>Planned</span>
                     <span>Actual</span>
+                    <span>Looked away</span>
                 </div>
 
                 <div v-if="task_summary.length === 0" class="px-5 py-6 text-sm text-stone-500">
@@ -195,13 +218,14 @@ defineProps<{
                     <div
                         v-for="task in task_summary"
                         :key="task.task_title"
-                        class="grid grid-cols-[minmax(0,1.5fr)_8rem_8rem_8rem_8rem] gap-3 px-5 py-4 text-sm text-stone-700"
+                        class="grid grid-cols-[minmax(0,1.5fr)_8rem_8rem_8rem_8rem_8rem] gap-3 px-5 py-4 text-sm text-stone-700"
                     >
                         <span class="font-medium text-stone-950">{{ task.task_title }}</span>
                         <span>{{ task.blocks }}</span>
                         <span>{{ task.completed_blocks }}</span>
                         <span>{{ task.total_planned_duration_label }}</span>
                         <span class="font-medium text-stone-950">{{ task.total_actual_duration_label }}</span>
+                        <span class="font-medium text-stone-950">{{ task.look_away_event_count }}</span>
                     </div>
                 </div>
             </div>
@@ -277,7 +301,7 @@ defineProps<{
                     </div>
 
                     <div class="mt-5 overflow-hidden rounded-[1.5rem] border border-stone-200">
-                        <div class="hidden bg-stone-100 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 lg:grid lg:grid-cols-[5rem_minmax(0,1.6fr)_8rem_8rem_8rem_8rem_8rem] lg:gap-3">
+                        <div class="hidden bg-stone-100 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 lg:grid lg:grid-cols-[5rem_minmax(0,1.6fr)_8rem_8rem_8rem_8rem_8rem_8rem] lg:gap-3">
                             <span>#</span>
                             <span>Task</span>
                             <span>Source</span>
@@ -285,6 +309,7 @@ defineProps<{
                             <span>Ended</span>
                             <span>Planned</span>
                             <span>Actual</span>
+                            <span>Looked away</span>
                         </div>
 
                         <div class="divide-y divide-stone-200">
@@ -298,7 +323,7 @@ defineProps<{
                                         ? 'bg-stone-950 text-white hover:bg-stone-900'
                                         : ''"
                             >
-                                <div class="grid gap-2 lg:grid-cols-[5rem_minmax(0,1.6fr)_8rem_8rem_8rem_8rem_8rem] lg:items-center lg:gap-3">
+                                <div class="grid gap-2 lg:grid-cols-[5rem_minmax(0,1.6fr)_8rem_8rem_8rem_8rem_8rem_8rem] lg:items-center lg:gap-3">
                                     <div class="text-sm font-semibold" :class="task.kind === 'idle_gap'
                                         ? 'text-stone-700'
                                         : task.status === 'paused' || task.status === 'unfinished'
@@ -368,6 +393,12 @@ defineProps<{
                                     >
                                         {{ task.actual_duration_label }}
                                     </div>
+                                    <div
+                                        class="hidden text-sm font-medium lg:block"
+                                        :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-white' : 'text-stone-950'"
+                                    >
+                                        {{ task.kind === 'idle_gap' ? '-' : task.look_away_event_count }}
+                                    </div>
                                 </div>
 
                                 <div class="mt-3 flex flex-wrap gap-4 text-sm" :class="task.kind === 'idle_gap'
@@ -382,6 +413,9 @@ defineProps<{
                                     <span v-else :class="task.delta_seconds > 0 ? 'text-rose-700' : 'text-emerald-700'">
                                         Delta {{ task.delta_label }}
                                     </span>
+                                    <span v-if="task.kind !== 'idle_gap'">
+                                        Looked away {{ task.look_away_event_count }}
+                                    </span>
                                     <button
                                         v-if="task.unfinished_url"
                                         type="button"
@@ -391,6 +425,21 @@ defineProps<{
                                     >
                                         Mark unfinished
                                     </button>
+                                </div>
+
+                                <div
+                                    v-if="task.kind !== 'idle_gap' && task.look_away_events.length > 0"
+                                    class="mt-3 flex flex-wrap gap-2 text-xs"
+                                    :class="task.status === 'paused' || task.status === 'unfinished' ? 'text-stone-100' : 'text-stone-600'"
+                                >
+                                    <span
+                                        v-for="event in task.look_away_events"
+                                        :key="event.id"
+                                        class="rounded-full px-2.5 py-1"
+                                        :class="task.status === 'paused' || task.status === 'unfinished' ? 'bg-white/15' : 'bg-stone-100'"
+                                    >
+                                        {{ lookAwayEventLabel(event) }}
+                                    </span>
                                 </div>
                             </div>
                         </div>

@@ -1,11 +1,17 @@
 const params = new URLSearchParams(location.search);
 const requestedUrl = params.get('url') || '';
 const parsedUrl = parseUrl(requestedUrl);
+const mode = params.get('mode') || '';
 const host = params.get('host') || parsedUrl?.hostname || '';
 const domain = params.get('domain') || registrableDomainForHost(host);
+const displayHost = host || displayNameForUrl(parsedUrl);
+const displayScope = domain || displayHost;
+const isDomainScoped = Boolean(domain && host && mode !== 'restricted');
 
-document.getElementById('host').textContent = host;
-document.getElementById('scope').textContent = `${domain} and subdomains`;
+document.getElementById('host').textContent = displayHost || 'Restricted URL';
+document.getElementById('scope').textContent = displayScope
+  ? `${displayScope}${isDomainScoped ? ' and subdomains' : ''}`
+  : 'This URL';
 
 refreshPolicyAndRedirectIfAllowed(false);
 
@@ -27,7 +33,7 @@ document.getElementById('requestButton').addEventListener('click', async () => {
   });
 
   if (response?.ok) {
-    status.textContent = `Request sent for ${domain} and subdomains.`;
+    status.textContent = `Request sent for ${displayScope || 'this URL'}.`;
   } else {
     status.textContent = response?.error || 'Request failed.';
     button.disabled = false;
@@ -42,30 +48,53 @@ function parseUrl(value) {
   }
 }
 
+function displayNameForUrl(url) {
+  const scheme = url?.protocol?.replace(/:$/, '') || '';
+
+  if (scheme === 'file') {
+    return 'Local file';
+  }
+
+  return scheme ? `${scheme} URL` : '';
+}
+
 async function refreshPolicyAndRedirectIfAllowed(showStatus) {
   if (!requestedUrl) {
     return;
   }
 
   const status = document.getElementById('status');
+  const retryButton = document.getElementById('retryButton');
+
   if (showStatus) {
+    retryButton.disabled = true;
     status.textContent = 'Checking policy...';
   }
 
-  const response = await chrome.runtime.sendMessage({
-    type: 'evaluate_url_after_sync',
-    url: requestedUrl,
-  });
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'evaluate_url_after_sync',
+      url: requestedUrl,
+    });
 
-  if (response?.ok && response.evaluation?.allowed) {
-    location.href = requestedUrl;
-    return;
-  }
+    if (response?.ok && response.evaluation?.allowed) {
+      location.href = requestedUrl;
+      return;
+    }
 
-  if (showStatus) {
-    status.textContent = response?.ok
-      ? 'Still blocked by the current policy.'
-      : response?.error || 'Policy refresh failed.';
+    if (showStatus) {
+      status.textContent = response?.ok
+        ? 'Still blocked by the current policy.'
+        : response?.error || 'Policy refresh failed.';
+    }
+  } catch (error) {
+    if (showStatus) {
+      status.textContent = error?.message || 'Policy refresh failed.';
+    }
+  } finally {
+    if (showStatus) {
+      retryButton.disabled = false;
+    }
   }
 }
 

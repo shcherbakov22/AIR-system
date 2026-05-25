@@ -99,6 +99,11 @@ class AiOverseerDecisionTest extends TestCase
         return $this->createAutomaticRule($admin, 'Skipped scheduled task');
     }
 
+    private function createLeftCameraViewRule(User $admin): RuleDefinition
+    {
+        return $this->createAutomaticRule($admin, 'Left camera view');
+    }
+
     private function createAutomaticRule(User $admin, string $title): RuleDefinition
     {
         return RuleDefinition::create([
@@ -496,6 +501,74 @@ class AiOverseerDecisionTest extends TestCase
         ]);
     }
 
+    public function test_left_camera_view_unblock_explanation_is_prompted_as_low_risk_and_can_auto_waive(): void
+    {
+        config(['services.ai_overseer.api_key' => 'test-key']);
+
+        Http::fake(function ($request) {
+            $payload = $request->data();
+            $systemPrompt = (string) data_get($payload, 'messages.0.content', '');
+
+            $this->assertStringContainsString('request a website unblock', $systemPrompt);
+            $this->assertStringContainsString('prefer remove_violation', $systemPrompt);
+
+            return Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                'decision' => 'remove_violation',
+                                'confidence' => 82,
+                                'requires_mentor' => false,
+                                'reason' => 'The student briefly left camera view to ask the mentor to unblock IXL for the Math task, and no logs contradict that explanation.',
+                                'student_message' => 'I removed that violation.',
+                                'mentor_summary' => 'AI waived a low-risk left-camera violation because the student gave a plausible unblock-related reason.',
+                            ]),
+                        ],
+                    ],
+                ],
+            ]);
+        });
+
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $student = $this->createStudent();
+        $rule = $this->createLeftCameraViewRule($admin);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $rule->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Left camera view',
+            'penalty_units' => 10,
+            'occurred_at' => now(),
+            'notes' => 'Student left camera view for 10 seconds during Math.',
+            'reported_by_user_id' => null,
+            'auto_generated_key' => 'body-missing:task-session:123',
+        ]);
+
+        $this->actingAs($student->user)
+            ->post(route('student.ai-overseer-decisions.store'), [
+                'request_type' => 'remove_violation',
+                'violation_id' => $violation->id,
+                'student_reason' => 'I had to leave to ask the mentor to unblock IXL for math.',
+            ])
+            ->assertRedirect(route('student.ai-overseer-decisions.index', absolute: false))
+            ->assertSessionHas('success', 'I removed that violation.');
+
+        $this->assertDatabaseHas('violations', [
+            'id' => $violation->id,
+            'status' => 'waived',
+        ]);
+        $this->assertDatabaseHas('ai_overseer_decisions', [
+            'student_id' => $student->id,
+            'violation_id' => $violation->id,
+            'request_type' => 'remove_violation',
+            'status' => 'approved',
+            'confidence' => 82,
+            'action_taken' => 'automatic_violation_waived',
+        ]);
+    }
+
     public function test_admin_can_review_escalated_ai_overseer_decision(): void
     {
         $admin = User::factory()->create(['role' => UserRole::Admin]);
@@ -829,6 +902,78 @@ class AiOverseerDecisionTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_automatically_finished_custom_timer_does_not_create_too_short_violation(): void
+    {
+        Carbon::setTestNow('2026-05-05 09:00:00');
+
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $student = $this->createStudent();
+        $this->createObserveTheTimeRule($admin);
+        $tooShortRule = $this->createTaskCompletedTooQuicklyRule($admin);
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => null,
+            'task_template_id' => null,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 60,
+            'duration_seconds' => 540,
+            'started_at' => now(),
+            'ended_at' => now()->copy()->addMinutes(9),
+            'completion_notes' => 'Automatically finished when resuming the schedule.',
+            'started_by_user_id' => $student->user_id,
+            'stopped_by_user_id' => $student->user_id,
+        ]);
+
+        Carbon::setTestNow('2026-05-05 09:09:00');
+
+        $this->app
+            ->make(AutomaticObserveTheTimeViolationService::class)
+            ->evaluateStoppedTaskSession($student, $taskSession, now(), 540, 0);
+
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'rule_definition_id' => $tooShortRule->id,
+            'rule_title_snapshot' => 'Task completed too quickly',
+            'auto_generated_key' => 'observe-time:too-short:session:'.$taskSession->id,
+        ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_stopped_sleeping_session_does_not_create_overtime_violation(): void
+    {
+        Carbon::setTestNow('2026-05-05 09:00:00');
+
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $student = $this->createStudent();
+        $this->createObserveTheTimeRule($admin);
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => null,
+            'task_template_id' => null,
+            'status' => 'completed',
+            'task_title_snapshot' => 'Sleeping',
+            'planned_duration_minutes' => 900,
+            'duration_seconds' => 167927,
+            'started_at' => now()->copy()->subHours(46),
+            'ended_at' => now(),
+            'started_by_user_id' => $student->user_id,
+            'stopped_by_user_id' => $student->user_id,
+        ]);
+
+        $this->app
+            ->make(AutomaticObserveTheTimeViolationService::class)
+            ->evaluateStoppedTaskSession($student, $taskSession, now(), 167927, 0);
+
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Observe the time',
+        ]);
+
+        Carbon::setTestNow();
+    }
+
     public function test_task_completed_at_thirty_five_percent_does_not_create_too_short_violation(): void
     {
         Carbon::setTestNow('2026-05-05 09:00:00');
@@ -966,7 +1111,7 @@ class AiOverseerDecisionTest extends TestCase
         Carbon::setTestNow();
     }
 
-    public function test_eating_and_cooking_tasks_are_exempt_from_too_short_violation(): void
+    public function test_eating_cooking_and_drinking_tasks_are_exempt_from_too_short_violation(): void
     {
         Carbon::setTestNow('2026-05-05 09:00:00');
 
@@ -988,6 +1133,13 @@ class AiOverseerDecisionTest extends TestCase
             ->patch(route('student.task-sessions.stop', $cookingSession))
             ->assertRedirect(route('student.home', absolute: false));
 
+        Carbon::setTestNow('2026-05-05 11:00:00');
+        $drinkingSession = $this->createActiveTaskSession($student, 'Drinking water', 40);
+        Carbon::setTestNow('2026-05-05 11:02:00');
+        $this->actingAs($student->user)
+            ->patch(route('student.task-sessions.stop', $drinkingSession))
+            ->assertRedirect(route('student.home', absolute: false));
+
         $this->assertDatabaseMissing('violations', [
             'student_id' => $student->id,
             'rule_definition_id' => $tooShortRule->id,
@@ -997,6 +1149,11 @@ class AiOverseerDecisionTest extends TestCase
             'student_id' => $student->id,
             'rule_definition_id' => $tooShortRule->id,
             'auto_generated_key' => 'observe-time:too-short:session:'.$cookingSession->id,
+        ]);
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'rule_definition_id' => $tooShortRule->id,
+            'auto_generated_key' => 'observe-time:too-short:session:'.$drinkingSession->id,
         ]);
 
         Carbon::setTestNow();

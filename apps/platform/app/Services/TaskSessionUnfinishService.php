@@ -7,10 +7,15 @@ use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\StudentSetting;
 use App\Models\TaskSession;
+use App\Models\Violation;
 use Illuminate\Support\Facades\DB;
 
 class TaskSessionUnfinishService
 {
+    public function __construct(
+        private readonly StudentPushUpCounterService $pushUpCounterService,
+    ) {}
+
     public function completeActiveTaskForStudent(Student $student, ?int $actorUserId = null): ?TaskSession
     {
         return DB::transaction(function () use ($student, $actorUserId) {
@@ -224,6 +229,7 @@ class TaskSessionUnfinishService
                 ]);
             }
 
+            $this->deleteTooShortViolationForTaskSession($lockedTaskSession);
             $this->resetLookAwayCountForStudentId($lockedTaskSession->student_id);
 
             return [
@@ -242,5 +248,26 @@ class TaskSessionUnfinishService
                 'look_away_event_count' => 0,
                 'look_away_task_session_id' => null,
             ]);
+    }
+
+    private function deleteTooShortViolationForTaskSession(TaskSession $taskSession): void
+    {
+        $violation = Violation::query()
+            ->where('student_id', $taskSession->student_id)
+            ->where('status', 'open')
+            ->where('rule_title_snapshot', 'Task completed too quickly')
+            ->where('auto_generated_key', 'observe-time:too-short:session:'.$taskSession->id)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $violation) {
+            return;
+        }
+
+        $violation->delete();
+
+        if ($student = $taskSession->student()->first()) {
+            $this->pushUpCounterService->decrement($student);
+        }
     }
 }

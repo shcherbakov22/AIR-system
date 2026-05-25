@@ -25,6 +25,7 @@ class AiOverseerService
         'Observe the time',
         'Skipped scheduled task',
         'Task completed too quickly',
+        'Left camera view',
     ];
 
     /**
@@ -367,6 +368,11 @@ class AiOverseerService
                         'role' => 'system',
                         'content' => implode("\n", [
                             'You are a school schedule and violation overseer.',
+                            'Be fair and moderately lenient for low-risk automatic violations.',
+                            'Accept plausible student explanations when the logs do not directly contradict them.',
+                            'Do not require perfect evidence for harmless schedule/timing mistakes.',
+                            'For Left camera view violations, briefly leaving to ask a mentor/parent for help, request a website unblock, handle a technical issue, or solve normal school logistics is a plausible explanation.',
+                            'For plausible low-risk Left camera view explanations with no direct contradiction in logs, prefer remove_violation with sufficient confidence over requesting mentor corroboration.',
                             'Return only valid compact JSON.',
                             'Never invent facts. If evidence is weak or risk is high, escalate_to_mentor.',
                         ]),
@@ -440,6 +446,8 @@ class AiOverseerService
                             'You are a school schedule and violation overseer.',
                             'This is a conversation, not a final decision.',
                             'Explain reasoning, ask for missing facts, and tell the student what evidence matters.',
+                            'For Left camera view violations, treat briefly leaving to ask a mentor/parent for help, request a website unblock, handle a technical issue, or solve normal school logistics as a plausible explanation when logs do not contradict it.',
+                            'Do not tell the student that mentor corroboration is necessary for a plausible low-risk Left camera view explanation unless there is a direct contradiction or high-risk context.',
                             'Do not approve skips or remove violations unless the request intent is decide.',
                             'Return only valid compact JSON.',
                         ]),

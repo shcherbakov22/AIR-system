@@ -79,6 +79,16 @@ class LegacyRuleDefinitionSeeder extends Seeder
                 'default_penalty_units' => 50,
                 'description' => 'Automatic violation preset: task was marked complete too early for the planned duration.',
             ],
+            [
+                'title' => 'Blocked program opened',
+                'default_penalty_units' => 50,
+                'description' => 'Automatic violation preset: student opened a program blocked by the current app policy.',
+            ],
+            [
+                'title' => 'Blocked website opened',
+                'default_penalty_units' => 50,
+                'description' => 'Automatic violation preset: student opened a website blocked by the current browser policy.',
+            ],
         ];
     }
 

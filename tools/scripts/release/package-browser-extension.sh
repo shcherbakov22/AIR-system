@@ -14,7 +14,7 @@ trap cleanup EXIT
 mkdir -p "$(dirname "$output_path")"
 cp "$extension_dir/manifest.json" "$staging_dir/manifest.json"
 mkdir -p "$staging_dir/src"
-cp "$extension_dir"/src/* "$staging_dir/src/"
+cp -R "$extension_dir"/src/. "$staging_dir/src/"
 
 if command -v bsdtar >/dev/null 2>&1; then
   (cd "$staging_dir" && bsdtar -a -cf "$output_path" manifest.json src)

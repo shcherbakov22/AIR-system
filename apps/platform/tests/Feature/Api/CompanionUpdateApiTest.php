@@ -52,6 +52,23 @@ class CompanionUpdateApiTest extends TestCase
             ->assertDownload('air-companion-windows.zip');
     }
 
+    public function test_companion_archive_download_alias_serves_windows_package(): void
+    {
+        $directory = storage_path('framework/testing/companion-archive-download');
+        @mkdir($directory, 0777, true);
+        $packagePath = $directory.'/air-companion-windows.zip';
+        file_put_contents($packagePath, 'fake-zip-bytes');
+
+        config()->set('services.companion_updates.enabled', true);
+        config()->set('services.companion_updates.windows_package_path', $packagePath);
+
+        $this->get(route('companion.archive.download'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/zip')
+            ->assertHeader('X-AIR-Companion-SHA256', hash_file('sha256', $packagePath))
+            ->assertDownload('air-companion-windows.zip');
+    }
+
     public function test_companion_update_download_exposes_retry_safe_metadata_headers(): void
     {
         $directory = storage_path('framework/testing/companion-updates-download-metadata');
@@ -108,6 +125,39 @@ class CompanionUpdateApiTest extends TestCase
             ->assertHeader('Content-Type', 'application/zip')
             ->assertHeader('X-AIR-Companion-SHA256', hash_file('sha256', $bundlePath))
             ->assertDownload('air-look-extension.zip');
+    }
+
+    public function test_browser_extension_crx_download_serves_signed_extension(): void
+    {
+        $directory = storage_path('framework/testing/browser-extension-crx-download');
+        @mkdir($directory, 0777, true);
+        $bundlePath = $directory.'/air-look-extension.crx';
+        file_put_contents($bundlePath, 'fake-extension-crx-bytes');
+
+        config()->set('services.companion_updates.enabled', true);
+        config()->set('services.companion_updates.browser_extension_crx_path', $bundlePath);
+
+        $this->get(route('companion.browser-extension.crx'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/x-chrome-extension')
+            ->assertHeader('X-AIR-Companion-SHA256', hash_file('sha256', $bundlePath))
+            ->assertDownload('air-look-extension.crx');
+    }
+
+    public function test_browser_extension_update_manifest_serves_xml(): void
+    {
+        $directory = storage_path('framework/testing/browser-extension-update-manifest');
+        @mkdir($directory, 0777, true);
+        $manifestPath = $directory.'/air-look-extension-updates.xml';
+        file_put_contents($manifestPath, '<?xml version="1.0"?><gupdate protocol="2.0"></gupdate>');
+
+        config()->set('services.companion_updates.enabled', true);
+        config()->set('services.companion_updates.browser_extension_update_manifest_path', $manifestPath);
+
+        $this->get(route('companion.browser-extension.update-manifest'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/xml; charset=UTF-8')
+            ->assertSee('<gupdate protocol="2.0"></gupdate>', false);
     }
 
     public function test_companion_update_manifest_returns_not_found_when_package_is_missing(): void

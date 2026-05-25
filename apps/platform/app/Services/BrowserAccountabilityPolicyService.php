@@ -37,6 +37,10 @@ class BrowserAccountabilityPolicyService
         'org.uk',
     ];
 
+    public function __construct(
+        private readonly BlockedResourceViolationService $blockedResourceViolationService,
+    ) {}
+
     public function policyForDevice(StudentDevice $device): array
     {
         $student = $device->student()->firstOrFail();
@@ -96,7 +100,7 @@ class BrowserAccountabilityPolicyService
         $student = $device->student()->firstOrFail();
         $evaluation = $this->evaluate($student, $url, $device);
 
-        return BrowserVisitLog::create([
+        $visit = BrowserVisitLog::create([
             'student_id' => $student->id,
             'student_device_id' => $device->id,
             'matched_rule_id' => $evaluation['matched_rule']?->id,
@@ -109,6 +113,12 @@ class BrowserAccountabilityPolicyService
             'meta' => $meta,
             'visited_at' => now(),
         ]);
+
+        if ($visit->decision === 'blocked') {
+            $this->blockedResourceViolationService->recordBlockedWebsiteVisit($visit);
+        }
+
+        return $visit;
     }
 
     public function createAccessRequest(StudentDevice $device, string $url, ?string $reason = null): BrowserAccessRequest

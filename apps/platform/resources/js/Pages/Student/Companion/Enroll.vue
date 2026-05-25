@@ -5,7 +5,9 @@ import { onBeforeUnmount, ref } from 'vue';
 
 const props = defineProps<{
     installer_download_url: string;
+    repair_script_url: string;
     browser_extension_download_url: string;
+    browser_extension_enterprise_script_url: string;
     bootstrap_script_url: string;
     root_ca_url: string;
     base_url: string;
@@ -103,11 +105,23 @@ const configureBrowserExtension = async () => {
                         Download installer bundle
                     </a>
                     <a
+                        :href="repair_script_url"
+                        class="inline-flex rounded-full border border-rose-700 bg-rose-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-rose-800"
+                    >
+                        Download repair script
+                    </a>
+                    <a
                         :href="browser_extension_download_url"
                         download="air-look-extension.zip"
                         class="inline-flex rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                     >
                         Download blocklist browser extension
+                    </a>
+                    <a
+                        :href="browser_extension_enterprise_script_url"
+                        class="inline-flex rounded-full border border-indigo-700 bg-indigo-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-indigo-800"
+                    >
+                        Download managed extension script
                     </a>
                     <button
                         type="button"

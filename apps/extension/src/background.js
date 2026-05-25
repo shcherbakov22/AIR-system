@@ -10,10 +10,23 @@ const DEFAULT_POLICY = {
 const POLICY_REFRESH_ALARM = 'policy_refresh';
 const EXTENSION_HEARTBEAT_ALARM = 'extension_heartbeat';
 const EXTENSION_HEARTBEAT_IMMEDIATE_ALARM = 'extension_heartbeat_immediate';
+const ATTENTION_RETRY_ALARM = 'attention_retry_uploads';
+const ATTENTION_WATCHDOG_ALARM = 'attention_watchdog';
 const POLICY_REFRESH_MINUTES = 5;
 const EXTENSION_HEARTBEAT_MINUTES = 1;
 const POLICY_REFRESH_MAX_AGE_MS = POLICY_REFRESH_MINUTES * 60 * 1000;
 const IMMEDIATE_HEARTBEAT_DELAY_MS = 15_000;
+const ATTENTION_RETRY_PERIOD_MINUTES = 0.5;
+const ATTENTION_WATCHDOG_PERIOD_MINUTES = 0.5;
+const ATTENTION_OFFSCREEN_STALE_MS = 20 * 1000;
+const ATTENTION_EVENT_QUEUE_KEY = 'attention_event_queue';
+const ATTENTION_UPLOAD_STATE_KEY = 'attention_upload_state';
+const ATTENTION_MAX_QUEUE_LENGTH = 200;
+const ATTENTION_MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000;
+const ATTENTION_DEFAULT_SERVER_ORIGIN = 'https://192.168.11.228';
+const ATTENTION_ALLOWED_SERVER_ORIGINS = new Set([ATTENTION_DEFAULT_SERVER_ORIGIN]);
+const RESTRICTED_NON_WEB_SCHEMES = new Set(['file:', 'ftp:', 'data:', 'blob:', 'filesystem:']);
+const BROWSER_INTERNAL_SCHEMES = new Set(['about:', 'chrome:', 'chrome-extension:', 'devtools:', 'edge:', 'vivaldi:']);
 
 const MULTI_LABEL_PUBLIC_SUFFIXES = new Set([
   'ac.uk',
@@ -34,6 +47,7 @@ const MULTI_LABEL_PUBLIC_SUFFIXES = new Set([
 
 const recentVisits = new Map();
 let networkRuleUpdate = Promise.resolve();
+let flushingAttentionQueue = false;
 
 chrome.runtime.onInstalled.addListener(() => {
   initializeBackground();
@@ -51,6 +65,16 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
   if (alarm.name === EXTENSION_HEARTBEAT_ALARM || alarm.name === EXTENSION_HEARTBEAT_IMMEDIATE_ALARM) {
     heartbeatExtension().catch(() => {});
+    return;
+  }
+
+  if (alarm.name === ATTENTION_RETRY_ALARM) {
+    flushQueuedAttentionEvents().catch(() => {});
+    return;
+  }
+
+  if (alarm.name === ATTENTION_WATCHDOG_ALARM) {
+    checkAttentionOffscreenWatchdog().catch(() => {});
   }
 });
 
@@ -68,11 +92,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 
   queueImmediateHeartbeat();
+  syncAttentionServerOriginFromTab(tab).catch(() => {});
   await logVisit(tab.url, tab.title || null);
 });
 
-chrome.tabs.onActivated.addListener(() => {
+chrome.tabs.onActivated.addListener((activeInfo) => {
   queueImmediateHeartbeat();
+  chrome.tabs.get(activeInfo.tabId)
+    .then((tab) => syncAttentionServerOriginFromTab(tab))
+    .catch(() => {});
   Promise.all([getPolicy(), getSettings()])
     .then(([policy, settings]) => enforceOpenTabs(policy, settings.platformUrl))
     .catch(() => {});
@@ -115,6 +143,41 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'get_status') {
+    extensionStatus()
+      .then((status) => sendResponse({ ok: true, status }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+
+    return true;
+  }
+
+  if (message?.type === 'START_BG') {
+    bootstrapAttentionDetection().catch(() => {});
+    return false;
+  }
+
+  if (message?.type === 'RECALIBRATE') {
+    ensureAttentionOffscreen()
+      .then(() => chrome.runtime.sendMessage({ type: 'RECALIBRATE_OFFSCREEN' }))
+      .catch(() => {});
+    return false;
+  }
+
+  if (message?.type === 'LOOK_STATE') {
+    chrome.storage.local.set({
+      last_state: message,
+      last_look_state_received_at: Date.now(),
+    });
+    return false;
+  }
+
+  if (message?.type === 'LOOK_AWAY_EVENT') {
+    queueLookAwayEvent(message)
+      .then(() => flushQueuedAttentionEvents())
+      .catch(() => {});
+    return false;
+  }
+
   return false;
 });
 
@@ -125,6 +188,7 @@ function initializeBackground() {
   scheduleExtensionHeartbeatAlarm();
   queueImmediateHeartbeat();
   syncPolicy().catch(() => {});
+  bootstrapAttentionDetection().catch(() => {});
 }
 
 function schedulePolicyRefreshAlarm() {
@@ -141,6 +205,15 @@ function scheduleExtensionHeartbeatAlarm() {
   });
 }
 
+async function ensureAttentionAlarms() {
+  await chrome.alarms.create(ATTENTION_RETRY_ALARM, {
+    periodInMinutes: ATTENTION_RETRY_PERIOD_MINUTES,
+  });
+  await chrome.alarms.create(ATTENTION_WATCHDOG_ALARM, {
+    periodInMinutes: ATTENTION_WATCHDOG_PERIOD_MINUTES,
+  });
+}
+
 function queueImmediateHeartbeat() {
   chrome.alarms.create(EXTENSION_HEARTBEAT_IMMEDIATE_ALARM, {
     when: Date.now() + IMMEDIATE_HEARTBEAT_DELAY_MS,
@@ -148,20 +221,32 @@ function queueImmediateHeartbeat() {
 }
 
 async function handleNavigation(tabId, url) {
-  if (!isHttpUrl(url) || isBlockedPage(url)) {
+  const settings = await getSettings();
+
+  if (shouldIgnoreUrl(url, settings.platformUrl)) {
     return;
   }
 
-  const settings = await getSettings();
+  if (isRestrictedNonWebUrl(url)) {
+    const evaluation = restrictedUrlEvaluation(url);
+    const restrictedUrl = restrictedUrlReference(url);
 
-  if (isPlatformUrl(url, settings.platformUrl)) {
+    await logVisit(restrictedUrl, null, evaluation, {
+      source: 'explicit_navigation',
+      restricted_scheme: schemeFromUrl(url),
+    });
+    await blockTab(tabId, restrictedUrl, evaluation, { mode: 'restricted' });
+    return;
+  }
+
+  if (!isHttpUrl(url)) {
     return;
   }
 
   const policy = await getPolicy();
   const evaluation = evaluateUrl(policy, url);
 
-  await logVisit(url, null, evaluation);
+  await logVisit(url, null, evaluation, { source: 'explicit_navigation' });
 
   if (evaluation.allowed) {
     return;
@@ -234,10 +319,26 @@ async function fetchRemotePolicy(settings) {
 }
 
 async function enforceOpenTabs(policy, platformUrl = '') {
-  const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+  const tabs = await chrome.tabs.query({});
 
   await Promise.all(tabs.map(async (tab) => {
-    if (!tab.id || !tab.url || isBlockedPage(tab.url) || isPlatformUrl(tab.url, platformUrl)) {
+    if (!tab.id || shouldIgnoreUrl(tab.url, platformUrl)) {
+      return;
+    }
+
+    if (isRestrictedNonWebUrl(tab.url)) {
+      const evaluation = restrictedUrlEvaluation(tab.url);
+      const restrictedUrl = restrictedUrlReference(tab.url);
+
+      await logVisit(restrictedUrl, tab.title || null, evaluation, {
+        source: 'policy_enforcement',
+        restricted_scheme: schemeFromUrl(tab.url),
+      });
+      await blockTab(tab.id, restrictedUrl, evaluation, { mode: 'restricted' }).catch(() => {});
+      return;
+    }
+
+    if (!isHttpUrl(tab.url)) {
       return;
     }
 
@@ -261,7 +362,9 @@ async function blockTab(tabId, url, evaluation, policy) {
 }
 
 async function applyNetworkRules(policy, platformUrl = '') {
-  networkRuleUpdate = networkRuleUpdate.then(() => applyNetworkRulesNow(policy, platformUrl));
+  networkRuleUpdate = networkRuleUpdate
+    .catch(() => {})
+    .then(() => applyNetworkRulesNow(policy, platformUrl));
 
   return networkRuleUpdate;
 }
@@ -369,7 +472,11 @@ async function getPolicy() {
 }
 
 async function logVisit(url, pageTitle, knownEvaluation = null, extraMeta = {}) {
-  if (!isHttpUrl(url) || isBlockedPage(url)) {
+  if (!url || isBlockedPage(url) || isBrowserInternalUrl(url)) {
+    return;
+  }
+
+  if (!isHttpUrl(url) && !isRestrictedNonWebUrl(url)) {
     return;
   }
 
@@ -393,7 +500,9 @@ async function logVisit(url, pageTitle, knownEvaluation = null, extraMeta = {}) 
   }
 
   const policy = knownEvaluation ? null : await getPolicy();
-  const evaluation = knownEvaluation || evaluateUrl(policy, url);
+  const evaluation = knownEvaluation || (
+    isRestrictedNonWebUrl(url) ? restrictedUrlEvaluation(url) : evaluateUrl(policy, url)
+  );
 
   await fetch(`${settings.platformUrl}/api/companion/browser/visits`, {
     method: 'POST',
@@ -443,13 +552,321 @@ async function requestAccess(url, reason) {
 }
 
 async function getSettings() {
-  const stored = await chrome.storage.local.get(['platformUrl', 'deviceToken']);
-  const platformUrl = String(stored.platformUrl || 'https://192.168.11.228').replace(/\/+$/, '');
+  const [managed, stored] = await Promise.all([
+    readManagedSettings(),
+    chrome.storage.local.get(['platformUrl', 'deviceToken']),
+  ]);
+  const platformUrl = String(managed.platformUrl || stored.platformUrl || 'https://192.168.11.228').replace(/\/+$/, '');
 
   return {
     platformUrl,
-    deviceToken: stored.deviceToken || '',
+    deviceToken: managed.deviceToken || stored.deviceToken || '',
   };
+}
+
+async function readManagedSettings() {
+  if (!chrome.storage.managed?.get) {
+    return {};
+  }
+
+  try {
+    const managed = await chrome.storage.managed.get(['platformUrl', 'deviceToken']);
+
+    return {
+      platformUrl: typeof managed.platformUrl === 'string' ? managed.platformUrl.trim() : '',
+      deviceToken: typeof managed.deviceToken === 'string' ? managed.deviceToken.trim() : '',
+    };
+  } catch (_error) {
+    return {};
+  }
+}
+
+async function extensionStatus() {
+  const [settings, stored, tabs] = await Promise.all([
+    getSettings(),
+    chrome.storage.local.get(['policy', 'lastPolicySyncAt', 'lastExtensionHeartbeatAt']),
+    chrome.tabs.query({ active: true, currentWindow: true }),
+  ]);
+  const policy = stored.policy || DEFAULT_POLICY;
+  const activeTabUrl = tabs[0]?.url || '';
+  const evaluation = shouldIgnoreUrl(activeTabUrl, settings.platformUrl)
+    ? null
+    : (isRestrictedNonWebUrl(activeTabUrl)
+        ? restrictedUrlEvaluation(activeTabUrl)
+        : (isHttpUrl(activeTabUrl) ? evaluateUrl(policy, activeTabUrl) : null));
+
+  return {
+    configured: Boolean(settings.platformUrl && settings.deviceToken),
+    platformUrl: settings.platformUrl,
+    currentSite: activeTabUrl ? displayHostForUrl(activeTabUrl) : '',
+    currentSiteAllowed: evaluation ? evaluation.allowed : null,
+    policyMode: policy.mode === 'whitelist' ? 'whitelist' : 'blacklist',
+    activeTask: policy.active_task?.title || policy.active_task?.name || null,
+    lastPolicySyncAt: stored.lastPolicySyncAt || null,
+    lastExtensionHeartbeatAt: stored.lastExtensionHeartbeatAt || null,
+  };
+}
+
+function attentionOriginFromUrl(rawUrl) {
+  if (!rawUrl || rawUrl.startsWith('chrome://') || rawUrl.startsWith('vivaldi://') || rawUrl.startsWith('chrome-extension://')) {
+    return null;
+  }
+
+  try {
+    const origin = new URL(rawUrl).origin;
+    return ATTENTION_ALLOWED_SERVER_ORIGINS.has(origin) ? origin : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function ensureAttentionServerOrigin() {
+  const stored = await chrome.storage.local.get(['server_origin', 'platformUrl']);
+  const existingOrigin = stored.server_origin || stored.platformUrl;
+
+  if (ATTENTION_ALLOWED_SERVER_ORIGINS.has(existingOrigin)) {
+    await chrome.storage.local.set({ server_origin: existingOrigin });
+    return existingOrigin;
+  }
+
+  await chrome.storage.local.set({ server_origin: ATTENTION_DEFAULT_SERVER_ORIGIN });
+  return ATTENTION_DEFAULT_SERVER_ORIGIN;
+}
+
+async function syncAttentionServerOriginFromTab(tab) {
+  const origin = attentionOriginFromUrl(tab?.url || '');
+
+  if (!origin) {
+    return null;
+  }
+
+  const stored = await chrome.storage.local.get(['server_origin']);
+
+  if (stored.server_origin !== origin) {
+    await chrome.storage.local.set({ server_origin: origin });
+  }
+
+  return origin;
+}
+
+async function syncAttentionServerOriginFromActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+
+  return (await syncAttentionServerOriginFromTab(tab)) || ensureAttentionServerOrigin();
+}
+
+async function ensureAttentionOffscreen() {
+  const hasDocument = chrome.offscreen?.hasDocument ? await chrome.offscreen.hasDocument() : false;
+
+  if (hasDocument) {
+    return;
+  }
+
+  await chrome.offscreen.createDocument({
+    url: 'src/offscreen.html',
+    reasons: ['USER_MEDIA'],
+    justification: 'Run webcam look detection locally',
+  });
+}
+
+async function restartAttentionOffscreen(reason) {
+  try {
+    if (chrome.offscreen?.hasDocument && await chrome.offscreen.hasDocument()) {
+      await chrome.offscreen.closeDocument();
+    }
+  } catch (_error) {
+    // A failed close should not prevent a fresh startup attempt.
+  }
+
+  await chrome.storage.local.set({
+    last_state: {
+      status: `Restarting attention tracker${reason ? `: ${reason}` : ''}`,
+      mode: 'starting',
+      isLooking: true,
+      faceVisible: false,
+      baselineReady: false,
+      eyeTrackingReady: false,
+      score: null,
+      headScore: null,
+      eyeScore: null,
+      leftEyeScore: null,
+      rightEyeScore: null,
+      awaySeconds: 0,
+      awayEventsLocal: 0,
+    },
+  });
+  await ensureAttentionOffscreen();
+}
+
+async function bootstrapAttentionDetection() {
+  await chrome.storage.local.set({
+    last_state: {
+      status: 'Starting detection...',
+      mode: 'starting',
+      isLooking: true,
+      faceVisible: false,
+      baselineReady: false,
+      eyeTrackingReady: false,
+      score: null,
+      headScore: null,
+      eyeScore: null,
+      leftEyeScore: null,
+      rightEyeScore: null,
+      awaySeconds: 0,
+      awayEventsLocal: 0,
+    },
+  });
+  await syncAttentionServerOriginFromActiveTab().catch(() => ensureAttentionServerOrigin());
+  await ensureAttentionAlarms();
+  await ensureAttentionOffscreen();
+}
+
+function buildLookAwayEvent(message) {
+  return {
+    id: message.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    createdAt: Date.now(),
+    attempts: message.attempts || 0,
+    event_type: 'look_away',
+    occurred_at: message.occurredAt || new Date().toISOString(),
+    payload: {
+      score: message.score ?? null,
+      away_seconds: message.awaySeconds ?? null,
+      reason: message.reason ?? 'look_away',
+    },
+  };
+}
+
+async function updateAttentionUploadState(patch) {
+  await chrome.storage.local.set({
+    [ATTENTION_UPLOAD_STATE_KEY]: {
+      updatedAt: Date.now(),
+      ...patch,
+    },
+  });
+}
+
+async function readAttentionQueue() {
+  const stored = await chrome.storage.local.get([ATTENTION_EVENT_QUEUE_KEY]);
+
+  return Array.isArray(stored[ATTENTION_EVENT_QUEUE_KEY]) ? stored[ATTENTION_EVENT_QUEUE_KEY] : [];
+}
+
+async function writeAttentionQueue(queue) {
+  const now = Date.now();
+  const kept = queue
+    .filter((event) => event?.createdAt && (now - event.createdAt) <= ATTENTION_MAX_EVENT_AGE_MS)
+    .slice(-ATTENTION_MAX_QUEUE_LENGTH);
+
+  await chrome.storage.local.set({ [ATTENTION_EVENT_QUEUE_KEY]: kept });
+  return kept;
+}
+
+async function queueLookAwayEvent(message) {
+  const queue = await readAttentionQueue();
+  queue.push(buildLookAwayEvent(message));
+  const kept = await writeAttentionQueue(queue);
+
+  await updateAttentionUploadState({
+    status: 'queued',
+    pending: kept.length,
+    lastError: null,
+  });
+}
+
+async function postLookAwayEvent(event) {
+  const stored = await chrome.storage.local.get(['server_origin']);
+
+  if (!ATTENTION_ALLOWED_SERVER_ORIGINS.has(stored.server_origin)) {
+    await ensureAttentionServerOrigin();
+    throw new Error('Missing AIR server origin');
+  }
+
+  const response = await fetch(`${stored.server_origin}/student/attention/events`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      event_type: event.event_type,
+      occurred_at: event.occurred_at,
+      payload: {
+        ...event.payload,
+        client_event_id: event.id,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+
+    if ([401, 403, 419].includes(response.status)) {
+      await updateAttentionUploadState({
+        status: 'auth_error',
+        pending: (await readAttentionQueue()).length,
+        lastError: `Login expired or unauthorized (${response.status})`,
+      });
+    }
+
+    throw new Error(`Attention event upload failed (${response.status}): ${body}`);
+  }
+}
+
+async function flushQueuedAttentionEvents() {
+  if (flushingAttentionQueue) {
+    return;
+  }
+
+  flushingAttentionQueue = true;
+
+  try {
+    let queue = await writeAttentionQueue(await readAttentionQueue());
+
+    if (queue.length === 0) {
+      await updateAttentionUploadState({ status: 'idle', pending: 0, lastError: null });
+      return;
+    }
+
+    const remaining = [];
+
+    for (const event of queue) {
+      try {
+        await postLookAwayEvent(event);
+      } catch (error) {
+        remaining.push({
+          ...event,
+          attempts: (event.attempts || 0) + 1,
+          lastError: error?.message || String(error),
+        });
+        remaining.push(...queue.slice(queue.indexOf(event) + 1));
+        break;
+      }
+    }
+
+    queue = await writeAttentionQueue(remaining);
+    await updateAttentionUploadState({
+      status: queue.length ? 'retrying' : 'idle',
+      pending: queue.length,
+      lastError: queue[0]?.lastError || null,
+    });
+  } finally {
+    flushingAttentionQueue = false;
+  }
+}
+
+async function checkAttentionOffscreenWatchdog() {
+  const stored = await chrome.storage.local.get(['last_look_state_received_at']);
+  const lastSeen = Number(stored.last_look_state_received_at || 0);
+
+  if (!lastSeen) {
+    await restartAttentionOffscreen('watchdog missing state');
+    return;
+  }
+
+  if (Date.now() - lastSeen > ATTENTION_OFFSCREEN_STALE_MS) {
+    await restartAttentionOffscreen('watchdog stale');
+  }
 }
 
 function authHeaders(deviceToken) {
@@ -515,6 +932,24 @@ function isHttpUrl(url) {
   return /^https?:\/\//i.test(url);
 }
 
+function schemeFromUrl(url) {
+  try {
+    return new URL(url).protocol.toLowerCase();
+  } catch (_error) {
+    return '';
+  }
+}
+
+function isBrowserInternalUrl(url) {
+  const scheme = schemeFromUrl(url);
+
+  return !scheme || BROWSER_INTERNAL_SCHEMES.has(scheme);
+}
+
+function isRestrictedNonWebUrl(url) {
+  return RESTRICTED_NON_WEB_SCHEMES.has(schemeFromUrl(url));
+}
+
 function isPlatformUrl(url, platformUrl) {
   const platformHost = hostFromUrl(platformUrl);
 
@@ -523,4 +958,49 @@ function isPlatformUrl(url, platformUrl) {
 
 function isBlockedPage(url) {
   return url.startsWith(chrome.runtime.getURL('src/blocked.html'));
+}
+
+function shouldIgnoreUrl(url, platformUrl = '') {
+  return !url || isBlockedPage(url) || isPlatformUrl(url, platformUrl) || isBrowserInternalUrl(url);
+}
+
+function displayHostForUrl(url) {
+  const host = hostFromUrl(url);
+
+  if (host) {
+    return host;
+  }
+
+  const scheme = schemeFromUrl(url).replace(/:$/, '');
+
+  if (scheme === 'file') {
+    return 'local file';
+  }
+
+  return scheme ? `${scheme} URL` : '';
+}
+
+function restrictedUrlEvaluation(url) {
+  const displayHost = displayHostForUrl(url) || 'restricted URL';
+
+  return {
+    allowed: false,
+    host: displayHost,
+    registrableDomain: displayHost,
+    matchedRuleId: null,
+  };
+}
+
+function restrictedUrlReference(url) {
+  const scheme = schemeFromUrl(url);
+
+  if (scheme === 'data:') {
+    return 'data:';
+  }
+
+  if (String(url).length > 2000) {
+    return scheme || 'restricted:';
+  }
+
+  return url;
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Enums\UserRole;
+use App\Models\ActivityLog;
 use App\Models\BrowserVisitLog;
 use App\Models\BrowserPolicyRule;
 use App\Models\DeviceEnrollmentToken;
@@ -194,6 +195,7 @@ class CompanionApiTest extends TestCase
             ->postJson(route('api.companion.browser.visits.store'), [
                 'url' => 'https://music.youtube.com/watch?v=123',
                 'page_title' => 'Music',
+                'meta' => ['source' => 'explicit_navigation'],
             ])
             ->assertOk()
             ->assertJsonPath('visit.decision', 'blocked')
@@ -344,6 +346,138 @@ class CompanionApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('visit.decision', 'allowed');
+    }
+
+    public function test_blocked_browser_visit_creates_violation_for_active_task_rule(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_block_violation_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $codingTemplate = TaskTemplate::create([
+            'title' => 'Coding',
+            'summary' => null,
+            'instructions' => 'Build the project.',
+            'default_duration_minutes' => 45,
+            'requires_internet' => true,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $codingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 45,
+            'started_at' => now()->subMinutes(5),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        BrowserPolicyRule::create([
+            'student_id' => null,
+            'task_template_id' => $codingTemplate->id,
+            'effect' => 'block',
+            'match_type' => 'domain_tree',
+            'value' => 'youtube.com',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => 'https://music.youtube.com/watch?v=123',
+                'page_title' => 'Music',
+                'meta' => ['source' => 'explicit_navigation'],
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'blocked');
+
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Blocked website opened',
+        ]);
+
+        $violation = Violation::query()
+            ->where('student_id', $student->id)
+            ->where('rule_title_snapshot', 'Blocked website opened')
+            ->sole();
+
+        $this->assertStringContainsString('youtube.com', (string) $violation->notes);
+        $this->assertStringContainsString('Coding', (string) $violation->notes);
+        $this->assertDatabaseHas('activity_logs', [
+            'category' => 'websites',
+            'action' => 'blocked_website_violation',
+            'student_id' => $student->id,
+            'subject_type' => Violation::class,
+            'subject_id' => $violation->id,
+            'description' => 'Blocked website violation: youtube.com',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => 'https://www.youtube.com/shorts/abc',
+                'page_title' => 'Shorts',
+                'meta' => ['source' => 'explicit_navigation'],
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'blocked');
+
+        $this->assertSame(1, Violation::query()
+            ->where('student_id', $student->id)
+            ->where('rule_title_snapshot', 'Blocked website opened')
+            ->where('status', 'open')
+            ->count());
+    }
+
+    public function test_blocked_browser_visit_from_policy_enforcement_does_not_create_violation(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_block_enforced_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $codingTemplate = TaskTemplate::create([
+            'title' => 'Coding',
+            'summary' => null,
+            'instructions' => 'Build the project.',
+            'default_duration_minutes' => 45,
+            'requires_internet' => true,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $codingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 45,
+            'started_at' => now()->subMinutes(5),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        BrowserPolicyRule::create([
+            'student_id' => null,
+            'task_template_id' => $codingTemplate->id,
+            'effect' => 'block',
+            'match_type' => 'domain_tree',
+            'value' => 'youtube.com',
+        ]);
+
+        foreach (['policy_enforcement', 'content_script', 'chrome_extension'] as $source) {
+            $this->withHeaders($this->authHeaders($token))
+                ->postJson(route('api.companion.browser.visits.store'), [
+                    'url' => 'https://music.youtube.com/watch?v='.$source,
+                    'page_title' => 'Music',
+                    'meta' => ['source' => $source],
+                ])
+                ->assertOk()
+                ->assertJsonPath('visit.decision', 'blocked');
+        }
+
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Blocked website opened',
+        ]);
     }
 
     public function test_browser_access_approval_adds_domain_to_active_task_template(): void
@@ -627,7 +761,7 @@ class CompanionApiTest extends TestCase
         ]);
     }
 
-    public function test_policy_enables_gui_kill_only_for_violations_older_than_ten_minutes(): void
+    public function test_policy_enables_gui_kill_for_any_open_violation_immediately(): void
     {
         [$student, $studentUser] = $this->makeStudent('stale_violation_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -646,18 +780,6 @@ class CompanionApiTest extends TestCase
             ->getJson(route('api.companion.policy.show'));
 
         $recentResponse
-            ->assertOk()
-            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false)
-            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
-
-        Violation::query()->whereKey($violation->id)->update([
-            'created_at' => now()->subMinutes(10),
-        ]);
-
-        $staleResponse = $this->withHeaders($this->authHeaders($device->issueToken()))
-            ->getJson(route('api.companion.policy.show'));
-
-        $staleResponse
             ->assertOk()
             ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true)
             ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
@@ -820,7 +942,7 @@ class CompanionApiTest extends TestCase
         ]);
     }
 
-    public function test_device_attention_events_create_look_away_violation_at_student_threshold_and_reset_on_task_end(): void
+    public function test_device_attention_events_record_look_away_events_without_creating_violation(): void
     {
         [$student, $studentUser] = $this->makeStudent('look_away_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -835,7 +957,7 @@ class CompanionApiTest extends TestCase
             'preferred_timezone' => 'UTC',
         ]);
 
-        $ruleDefinition = RuleDefinition::create([
+        RuleDefinition::create([
             'title' => 'Look away',
             'description' => 'Automatic attention-loss violation.',
             'scope' => 'global',
@@ -846,7 +968,7 @@ class CompanionApiTest extends TestCase
         ]);
 
         $taskTemplate = TaskTemplate::create([
-            'title' => 'Focus Work',
+            'title' => 'Coding',
             'summary' => null,
             'instructions' => 'Stay on task.',
             'default_duration_minutes' => 30,
@@ -859,7 +981,7 @@ class CompanionApiTest extends TestCase
             'student_id' => $student->id,
             'task_template_id' => $taskTemplate->id,
             'status' => 'active',
-            'task_title_snapshot' => 'Focus Work',
+            'task_title_snapshot' => 'Coding',
             'planned_duration_minutes' => 30,
             'started_at' => now()->subMinutes(2),
             'duration_seconds' => 0,
@@ -878,13 +1000,21 @@ class CompanionApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('accepted', true)
             ->assertJsonPath('triggered_violation', false)
-            ->assertJsonPath('count', 1)
-            ->assertJsonPath('threshold', 2);
+            ->assertJsonPath('count', 0)
+            ->assertJsonPath('threshold', 2)
+            ->assertJsonPath('reason', 'look_away_recorded');
 
         $this->assertDatabaseHas('student_settings', [
             'student_id' => $student->id,
-            'look_away_event_count' => 1,
-            'look_away_task_session_id' => $activeTaskSession->id,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'student_id' => $student->id,
+            'category' => 'attention',
+            'action' => 'look_away_event',
+            'subject_type' => TaskSession::class,
+            'subject_id' => $activeTaskSession->id,
         ]);
 
         $this->withHeaders($this->authHeaders($token))
@@ -898,20 +1028,25 @@ class CompanionApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('accepted', true)
-            ->assertJsonPath('triggered_violation', true)
+            ->assertJsonPath('triggered_violation', false)
             ->assertJsonPath('count', 0)
-            ->assertJsonPath('threshold', 2);
+            ->assertJsonPath('threshold', 2)
+            ->assertJsonPath('reason', 'look_away_recorded');
 
-        $this->assertDatabaseHas('violations', [
+        $this->assertDatabaseMissing('violations', [
             'student_id' => $student->id,
-            'rule_definition_id' => $ruleDefinition->id,
-            'status' => 'open',
-            'rule_title_snapshot' => 'Look away',
             'auto_generated_key' => 'look-away:task-session:'.$activeTaskSession->id,
         ]);
+        $this->assertSame(2, ActivityLog::query()
+            ->where('student_id', $student->id)
+            ->where('category', 'attention')
+            ->where('action', 'look_away_event')
+            ->where('subject_type', TaskSession::class)
+            ->where('subject_id', $activeTaskSession->id)
+            ->count());
 
         $activeTaskSession->refresh();
-        $this->assertSame('unfinished', $activeTaskSession->status);
+        $this->assertSame('active', $activeTaskSession->status);
 
         $this->assertDatabaseHas('student_settings', [
             'student_id' => $student->id,
@@ -931,7 +1066,7 @@ class CompanionApiTest extends TestCase
         ]);
 
         $student->setting()->update([
-            'look_away_event_count' => 1,
+            'look_away_event_count' => 0,
             'look_away_task_session_id' => $manualTaskSession->id,
         ]);
 
@@ -946,7 +1081,7 @@ class CompanionApiTest extends TestCase
         ]);
     }
 
-    public function test_look_away_events_increment_per_student_and_create_violation_at_threshold(): void
+    public function test_look_away_events_are_recorded_per_student_and_do_not_finish_tasks(): void
     {
         [$student, $studentUser] = $this->makeStudent('lookaway_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -967,7 +1102,7 @@ class CompanionApiTest extends TestCase
             'username' => 'lookaway_admin',
         ]);
 
-        $ruleDefinition = RuleDefinition::create([
+        RuleDefinition::create([
             'title' => 'Look away',
             'description' => 'Repeated attention loss.',
             'scope' => 'global',
@@ -978,7 +1113,7 @@ class CompanionApiTest extends TestCase
         ]);
 
         $taskTemplate = TaskTemplate::create([
-            'title' => 'Reading',
+            'title' => 'Math',
             'summary' => null,
             'instructions' => 'Read carefully.',
             'default_duration_minutes' => 30,
@@ -990,7 +1125,7 @@ class CompanionApiTest extends TestCase
             'student_id' => $student->id,
             'task_template_id' => $taskTemplate->id,
             'status' => 'active',
-            'task_title_snapshot' => 'Reading',
+            'task_title_snapshot' => 'Math',
             'planned_duration_minutes' => 30,
             'started_at' => now()->subMinutes(3),
             'duration_seconds' => 180,
@@ -1008,13 +1143,14 @@ class CompanionApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('triggered_violation', false)
-            ->assertJsonPath('count', 1)
-            ->assertJsonPath('threshold', 2);
+            ->assertJsonPath('count', 0)
+            ->assertJsonPath('threshold', 2)
+            ->assertJsonPath('reason', 'look_away_recorded');
 
         $this->assertDatabaseHas('student_settings', [
             'student_id' => $student->id,
-            'look_away_event_count' => 1,
-            'look_away_task_session_id' => $taskSession->id,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
         ]);
 
         $this->withHeaders($this->authHeaders($token))
@@ -1027,21 +1163,26 @@ class CompanionApiTest extends TestCase
                 ],
             ])
             ->assertOk()
-            ->assertJsonPath('triggered_violation', true)
-            ->assertJsonPath('count', 0);
+            ->assertJsonPath('triggered_violation', false)
+            ->assertJsonPath('count', 0)
+            ->assertJsonPath('reason', 'look_away_recorded');
 
-        $this->assertDatabaseHas('violations', [
+        $this->assertDatabaseMissing('violations', [
             'student_id' => $student->id,
-            'rule_definition_id' => $ruleDefinition->id,
-            'status' => 'open',
-            'rule_title_snapshot' => 'Look away',
             'auto_generated_key' => 'look-away:task-session:'.$taskSession->id,
         ]);
 
         $this->assertDatabaseHas('task_sessions', [
             'id' => $taskSession->id,
-            'status' => 'unfinished',
+            'status' => 'active',
         ]);
+        $this->assertSame(2, ActivityLog::query()
+            ->where('student_id', $student->id)
+            ->where('category', 'attention')
+            ->where('action', 'look_away_event')
+            ->where('subject_type', TaskSession::class)
+            ->where('subject_id', $taskSession->id)
+            ->count());
 
         $this->assertDatabaseHas('student_settings', [
             'student_id' => $student->id,
@@ -1084,7 +1225,7 @@ class CompanionApiTest extends TestCase
         ]);
 
         $taskTemplate = TaskTemplate::create([
-            'title' => 'Focused Reading',
+            'title' => 'History',
             'summary' => null,
             'instructions' => 'Stay visible.',
             'default_duration_minutes' => 30,
@@ -1096,7 +1237,7 @@ class CompanionApiTest extends TestCase
             'student_id' => $student->id,
             'task_template_id' => $taskTemplate->id,
             'status' => 'active',
-            'task_title_snapshot' => 'Focused Reading',
+            'task_title_snapshot' => 'History',
             'planned_duration_minutes' => 30,
             'started_at' => now()->subMinutes(4),
             'duration_seconds' => 240,
@@ -1153,6 +1294,120 @@ class CompanionApiTest extends TestCase
             'status' => 'unfinished',
         ]);
 
+        $this->assertDatabaseHas('student_settings', [
+            'student_id' => $student->id,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
+        ]);
+    }
+
+    public function test_body_missing_violations_are_ignored_for_untracked_tasks_while_look_away_is_logged(): void
+    {
+        config(['services.attention_tracking.body_missing_violation_seconds' => 10]);
+
+        [$student, $studentUser] = $this->makeStudent('untracked_attention_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        StudentSetting::create([
+            'student_id' => $student->id,
+            'can_manage_own_schedule' => true,
+            'can_use_ad_hoc_timer' => true,
+            'look_away_event_threshold' => 1,
+            'look_away_event_count' => 0,
+            'look_away_task_session_id' => null,
+            'preferred_timezone' => 'UTC',
+        ]);
+
+        RuleDefinition::create([
+            'title' => 'Look away',
+            'description' => 'Repeated attention loss.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        RuleDefinition::create([
+            'title' => 'Left camera view',
+            'description' => 'Student left the camera view.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Reading',
+            'summary' => null,
+            'instructions' => 'Read.',
+            'default_duration_minutes' => 30,
+            'requires_internet' => false,
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $taskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $taskTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Reading',
+            'planned_duration_minutes' => 30,
+            'started_at' => now()->subMinutes(3),
+            'duration_seconds' => 180,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.attention.events.store'), [
+                'event_type' => 'look_away',
+                'payload' => [
+                    'reason' => 'look_away',
+                    'score' => 4,
+                    'away_seconds' => 3,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('triggered_violation', false)
+            ->assertJsonPath('count', 0)
+            ->assertJsonPath('reason', 'look_away_recorded');
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.attention.events.store'), [
+                'event_type' => 'body_missing',
+                'payload' => [
+                    'reason' => 'body_missing',
+                    'score' => 0,
+                    'body_confidence' => 0,
+                    'away_seconds' => 20,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('triggered_violation', false)
+            ->assertJsonPath('reason', 'task_not_attention_tracked');
+
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'auto_generated_key' => 'look-away:task-session:'.$taskSession->id,
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'student_id' => $student->id,
+            'category' => 'attention',
+            'action' => 'look_away_event',
+            'subject_type' => TaskSession::class,
+            'subject_id' => $taskSession->id,
+        ]);
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'auto_generated_key' => 'body-missing:task-session:'.$taskSession->id,
+        ]);
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $taskSession->id,
+            'status' => 'active',
+        ]);
         $this->assertDatabaseHas('student_settings', [
             'student_id' => $student->id,
             'look_away_event_count' => 0,
@@ -1224,6 +1479,11 @@ class CompanionApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('policy.app_control.mode', 'review')
             ->assertJsonPath('policy.app_control.blocked_processes', ['Steam.exe']);
+
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Blocked program opened',
+        ]);
     }
 
     public function test_open_app_review_is_scoped_to_active_task_template(): void
@@ -1319,6 +1579,88 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.app_control.blocked_processes', ['Blender.exe']);
     }
 
+    public function test_blocked_open_app_creates_violation_for_active_task_policy(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('blocked_app_violation_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'blocked_app_violation_admin',
+        ]);
+        $codingTemplate = TaskTemplate::create([
+            'title' => 'Coding',
+            'summary' => null,
+            'instructions' => 'Build.',
+            'default_duration_minutes' => 45,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $codingTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Coding',
+            'planned_duration_minutes' => 45,
+            'started_at' => now()->subMinutes(5),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $device->forceFill(['meta' => ['app_policy_initialized_at' => now()->subHour()->toAtomString()]])->save();
+        $student->appPolicies()->create([
+            'task_template_id' => $codingTemplate->id,
+            'app_key' => 'steam.exe',
+            'app_name' => 'Steam.exe',
+            'status' => 'blocked',
+            'first_seen_at' => now()->subHour(),
+            'last_seen_at' => now()->subHour(),
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'open_apps',
+                'payload' => ['apps' => [['app_name' => 'Steam.exe']]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $student->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Blocked program opened',
+        ]);
+
+        $violation = Violation::query()
+            ->where('student_id', $student->id)
+            ->where('rule_title_snapshot', 'Blocked program opened')
+            ->sole();
+
+        $this->assertStringContainsString('Steam.exe', (string) $violation->notes);
+        $this->assertStringContainsString('Coding', (string) $violation->notes);
+        $this->assertDatabaseHas('activity_logs', [
+            'category' => 'apps',
+            'action' => 'blocked_program_violation',
+            'student_id' => $student->id,
+            'subject_type' => Violation::class,
+            'subject_id' => $violation->id,
+            'description' => 'Blocked program violation: Steam.exe',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'open_apps',
+                'payload' => ['apps' => [['app_name' => 'Steam.exe']]],
+            ])
+            ->assertOk();
+
+        $this->assertSame(1, Violation::query()
+            ->where('student_id', $student->id)
+            ->where('rule_title_snapshot', 'Blocked program opened')
+            ->where('status', 'open')
+            ->count());
+    }
+
     public function test_app_policy_can_be_promoted_to_global_permission(): void
     {
         [$student, $studentUser] = $this->makeStudent('global_app_scope_student', 'secret-pass');
@@ -1401,7 +1743,7 @@ class CompanionApiTest extends TestCase
         $this->assertDatabaseHas('student_app_policies', [
             'student_id' => $student->id,
             'app_key' => 'code.exe',
-            'app_name' => 'Visual Studio Code',
+            'app_name' => 'Code.exe',
             'status' => 'permitted',
         ]);
 
@@ -1444,7 +1786,87 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.app_control.blocked_processes.0', 'Game.exe');
     }
 
-    public function test_protected_shell_apps_except_task_manager_are_never_emitted_as_blocked_processes(): void
+    public function test_installed_apps_seen_after_initialization_require_review_by_executable_name(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('installed_apps_after_init_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $device->forceFill(['meta' => ['app_policy_initialized_at' => now()->subHour()->toAtomString()]])->save();
+        $token = $device->issueToken();
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'installed_apps',
+                'payload' => [
+                    'apps' => [
+                        [
+                            'app_name' => 'C:\\Users\\Dima\\Downloads\\ZoomInstaller.exe,0',
+                            'display_name' => 'Zoom',
+                            'display_version' => '6.0.0',
+                            'publisher' => 'Zoom',
+                            'install_location' => 'C:\\Users\\Dima\\Downloads',
+                            'source' => 'registry_uninstall',
+                        ],
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $this->assertDatabaseHas('student_device_installed_apps', [
+            'student_device_id' => $device->id,
+            'app_key' => 'zoominstaller.exe',
+            'display_name' => 'Zoom',
+        ]);
+
+        $this->assertDatabaseHas('student_app_policies', [
+            'student_id' => $student->id,
+            'task_template_id' => null,
+            'app_key' => 'zoominstaller.exe',
+            'app_name' => 'ZoomInstaller.exe',
+            'status' => 'pending_review',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.app_control.blocked_processes', ['ZoomInstaller.exe']);
+    }
+
+    public function test_app_enforcement_failures_are_logged_without_student_violation(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('app_enforcement_log_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'app_enforcement',
+                'payload' => [
+                    'failures' => [
+                        [
+                            'app_name' => 'ZoomInstaller.exe',
+                            'reason' => 'terminate_failed',
+                        ],
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'student_id' => $student->id,
+            'category' => 'apps',
+            'action' => 'app_enforcement_failed',
+            'description' => 'App enforcement failed for 1 process(es).',
+        ]);
+
+        $this->assertDatabaseMissing('violations', [
+            'student_id' => $student->id,
+            'rule_title_snapshot' => 'Blocked program opened',
+        ]);
+    }
+
+    public function test_protected_shell_and_companion_apps_except_task_manager_are_never_emitted_as_blocked_processes(): void
     {
         [$student, $studentUser] = $this->makeStudent('protected_apps_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -1461,6 +1883,22 @@ class CompanionApiTest extends TestCase
         $student->appPolicies()->create([
             'app_key' => 'rundll32.exe',
             'app_name' => 'rundll32.exe',
+            'status' => 'blocked',
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+
+        $student->appPolicies()->create([
+            'app_key' => 'air_companion_tray.exe',
+            'app_name' => 'air_companion_tray.exe',
+            'status' => 'pending_review',
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+
+        $student->appPolicies()->create([
+            'app_key' => 'air_companion_service.exe',
+            'app_name' => 'air_companion_service.exe',
             'status' => 'blocked',
             'first_seen_at' => now(),
             'last_seen_at' => now(),
@@ -1519,6 +1957,15 @@ class CompanionApiTest extends TestCase
                 ],
             ],
             'observed_at' => now()->subSeconds(61),
+        ]);
+        $device->activityEvents()->create([
+            'event_type' => 'open_apps',
+            'payload' => [
+                'apps' => [
+                    ['app_name' => 'chrome.exe', 'window_title' => 'IXL refreshed'],
+                ],
+            ],
+            'observed_at' => now(),
         ]);
 
         $this->withHeaders($this->authHeaders($token))
@@ -1836,10 +2283,6 @@ class CompanionApiTest extends TestCase
             'last_seen_ip' => '192.168.11.52',
         ]);
 
-        Violation::query()->where('student_id', $student->id)->update([
-            'created_at' => now()->subMinutes(10),
-        ]);
-
         $device->activityEvents()->create([
             'event_type' => 'open_apps',
             'payload' => [
@@ -1977,7 +2420,7 @@ class CompanionApiTest extends TestCase
         ]);
 
         $taskTemplate = TaskTemplate::create([
-            'title' => 'Browser Attention Task',
+            'title' => 'Tests',
             'summary' => null,
             'instructions' => 'Stay focused.',
             'default_duration_minutes' => 30,
@@ -1989,14 +2432,14 @@ class CompanionApiTest extends TestCase
             'student_id' => $student->id,
             'task_template_id' => $taskTemplate->id,
             'status' => 'active',
-            'task_title_snapshot' => 'Browser Attention Task',
+            'task_title_snapshot' => 'Tests',
             'planned_duration_minutes' => 30,
             'started_at' => now()->subMinutes(2),
             'duration_seconds' => 120,
             'started_by_user_id' => $studentUser->id,
         ]);
 
-        $ruleDefinition = RuleDefinition::create([
+        RuleDefinition::create([
             'title' => 'Look away',
             'description' => 'Issued when the student repeatedly looks away during a task.',
             'scope' => 'global',
@@ -2019,7 +2462,8 @@ class CompanionApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('accepted', true)
             ->assertJsonPath('triggered_violation', false)
-            ->assertJsonPath('count', 1);
+            ->assertJsonPath('count', 0)
+            ->assertJsonPath('reason', 'look_away_recorded');
 
         $this->actingAs($studentUser)
             ->postJson(route('student.attention.events.store'), [
@@ -2035,7 +2479,7 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('accepted', true)
             ->assertJsonPath('reason', 'duplicate_client_event');
 
-        $this->assertSame(1, $student->setting()->first()->look_away_event_count);
+        $this->assertSame(0, $student->setting()->first()->look_away_event_count);
 
         $this->actingAs($studentUser)
             ->postJson(route('student.attention.events.store'), [
@@ -2049,16 +2493,21 @@ class CompanionApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('accepted', true)
-            ->assertJsonPath('triggered_violation', true)
-            ->assertJsonPath('count', 0);
+            ->assertJsonPath('triggered_violation', false)
+            ->assertJsonPath('count', 0)
+            ->assertJsonPath('reason', 'look_away_recorded');
 
-        $this->assertDatabaseHas('violations', [
+        $this->assertDatabaseMissing('violations', [
             'student_id' => $student->id,
-            'rule_definition_id' => $ruleDefinition->id,
-            'status' => 'open',
-            'rule_title_snapshot' => 'Look away',
             'auto_generated_key' => 'look-away:task-session:'.$taskSession->id,
         ]);
+        $this->assertSame(2, ActivityLog::query()
+            ->where('student_id', $student->id)
+            ->where('category', 'attention')
+            ->where('action', 'look_away_event')
+            ->where('subject_type', TaskSession::class)
+            ->where('subject_id', $taskSession->id)
+            ->count());
     }
 
     public function test_authenticated_student_browser_session_can_post_body_missing_attention_event(): void
@@ -2075,7 +2524,7 @@ class CompanionApiTest extends TestCase
         ]);
 
         $taskTemplate = TaskTemplate::create([
-            'title' => 'Browser Body Task',
+            'title' => 'Coding',
             'summary' => null,
             'instructions' => 'Stay visible.',
             'default_duration_minutes' => 30,
@@ -2087,7 +2536,7 @@ class CompanionApiTest extends TestCase
             'student_id' => $student->id,
             'task_template_id' => $taskTemplate->id,
             'status' => 'active',
-            'task_title_snapshot' => 'Browser Body Task',
+            'task_title_snapshot' => 'Coding',
             'planned_duration_minutes' => 30,
             'started_at' => now()->subMinutes(2),
             'duration_seconds' => 120,

@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "platformUrl": {
+      "type": "string"
+    },
+    "deviceToken": {
+      "type": "string"
+    }
+  }
+}

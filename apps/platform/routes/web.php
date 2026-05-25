@@ -71,8 +71,14 @@ Route::get($companionRootCertificateRoute, CompanionRootCertificateController::c
     ->name('companion.root-ca');
 Route::get('/companion/downloads/windows/installer', [CompanionUpdateController::class, 'installerBundle'])
     ->name('companion.installer.download');
+Route::get('/companion/downloads/windows', [CompanionUpdateController::class, 'download'])
+    ->name('companion.archive.download');
 Route::get('/companion/downloads/chrome/extension', [CompanionUpdateController::class, 'browserExtensionBundle'])
     ->name('companion.browser-extension.download');
+Route::get('/companion/downloads/chrome/extension.crx', [CompanionUpdateController::class, 'browserExtensionCrx'])
+    ->name('companion.browser-extension.crx');
+Route::get('/companion/downloads/chrome/extension-updates.xml', [CompanionUpdateController::class, 'browserExtensionUpdateManifest'])
+    ->name('companion.browser-extension.update-manifest');
 Route::get('/companion/browser-login/{token}', CompanionBrowserLoginController::class)
     ->name('companion.browser-login.consume');
 
@@ -201,6 +207,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/companion/enroll', [StudentCompanionEnrollmentController::class, 'show'])->name('companion.enroll');
         Route::post('/companion/enroll/browser-extension-token', [StudentCompanionEnrollmentController::class, 'browserExtensionToken'])->name('companion.enroll.browser-extension-token');
         Route::get('/companion/enroll/bootstrap.ps1', [StudentCompanionEnrollmentController::class, 'bootstrapScript'])->name('companion.enroll.bootstrap');
+        Route::get('/companion/enroll/repair-permissions.ps1', [StudentCompanionEnrollmentController::class, 'repairPermissionsScript'])->name('companion.enroll.repair-permissions');
+        Route::get('/companion/enroll/install-browser-extension-enterprise-policy.ps1', [StudentCompanionEnrollmentController::class, 'browserExtensionEnterpriseInstallScript'])->name('companion.enroll.browser-extension-enterprise-install');
         Route::post('/attention/events', [StudentAttentionEventController::class, 'store'])
             ->withoutMiddleware([VerifyCsrfToken::class])
             ->name('attention.events.store');

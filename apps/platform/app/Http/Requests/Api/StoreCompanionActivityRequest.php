@@ -20,7 +20,7 @@ class StoreCompanionActivityRequest extends CompanionDeviceRequest
     public function rules(): array
     {
         return [
-            'event_type' => ['required', Rule::in(['focused_app', 'open_apps', 'installed_apps'])],
+            'event_type' => ['required', Rule::in(['focused_app', 'open_apps', 'installed_apps', 'app_enforcement'])],
             'app_name' => ['nullable', 'string', 'max:190'],
             'window_title' => ['nullable', 'string', 'max:255'],
             'browser_domain' => ['nullable', 'string', 'max:255'],

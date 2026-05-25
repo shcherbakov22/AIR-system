@@ -162,6 +162,41 @@ class SpeechAnnouncementTest extends TestCase
         $this->assertSame('0', AppSetting::getValue('server_speech_enabled'));
     }
 
+    public function test_enabling_server_speech_clears_pending_announcements_first(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+        AppSetting::putBoolean('server_speech_enabled', false);
+
+        $pending = SpeechAnnouncement::create([
+            'kind' => 'violation',
+            'message' => 'Old pending item.',
+        ]);
+        $claimed = SpeechAnnouncement::create([
+            'kind' => 'task_finished',
+            'message' => 'Old claimed item.',
+            'processing_started_at' => now()->subMinute(),
+            'processing_host' => 'old-host',
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.speech-announcements.state.update'), [
+                'enabled' => true,
+            ])
+            ->assertOk()
+            ->assertJson([
+                'enabled' => true,
+                'pending_count' => 0,
+            ]);
+
+        $this->assertSame('1', AppSetting::getValue('server_speech_enabled'));
+        $this->assertNotNull($pending->fresh()->spoken_at);
+        $this->assertNotNull($claimed->fresh()->spoken_at);
+        $this->assertNull($claimed->fresh()->processing_started_at);
+        $this->assertNull($claimed->fresh()->processing_host);
+    }
+
     public function test_speech_worker_leaves_announcements_pending_when_server_speech_is_disabled(): void
     {
         Process::fake();

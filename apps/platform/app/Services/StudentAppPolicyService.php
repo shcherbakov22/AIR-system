@@ -3,10 +3,13 @@
 namespace App\Services;
 
 use App\Models\Student;
+use App\Models\DeviceActivityEvent;
 use App\Models\StudentAppPolicy;
 use App\Models\StudentDevice;
+use App\Models\TaskSession;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class StudentAppPolicyService
@@ -23,13 +26,18 @@ class StudentAppPolicyService
         'searchhost.exe',
         'searchapp.exe',
         'dwm.exe',
+        'air_companion_service.exe',
+        'air_companion_tray.exe',
+        'air_companion_helper.exe',
+        'air_companion_updater.exe',
     ];
 
-    public function syncOpenApps(StudentDevice $device, array $apps): void
+    public function __construct(
+        private readonly BlockedResourceViolationService $blockedResourceViolationService,
+    ) {}
+
+    public function syncOpenApps(StudentDevice $device, array $apps, ?DeviceActivityEvent $event = null): void
     {
-        $student = $device->student;
-        $now = now();
-        $activeTaskTemplateId = $this->activeTaskTemplateId($student);
         $normalizedApps = collect($apps)
             ->map(fn ($app) => $this->normalizeOpenApp($app))
             ->filter()
@@ -39,47 +47,65 @@ class StudentAppPolicyService
             return;
         }
 
-        $initialized = (bool) data_get($device->meta ?? [], 'app_policy_initialized_at');
-        $existingPolicies = $student->appPolicies()
-            ->whereIn('app_key', $normalizedApps->pluck('app_key')->all())
-            ->get()
-            ->groupBy('app_key');
+        DB::transaction(function () use ($device, $event, $normalizedApps) {
+            $device = StudentDevice::query()->whereKey($device->id)->lockForUpdate()->firstOrFail();
+            $student = $device->student()->firstOrFail();
+            $now = now();
+            $activeTaskTemplateId = $this->activeTaskTemplateId($student);
+            $activeTaskSession = $this->activeTaskSession($student);
+            $initialized = (bool) data_get($device->meta ?? [], 'app_policy_initialized_at');
+            $existingPolicies = $student->appPolicies()
+                ->whereIn('app_key', $normalizedApps->pluck('app_key')->all())
+                ->lockForUpdate()
+                ->get()
+                ->groupBy('app_key');
 
-        foreach ($normalizedApps as $app) {
-            /** @var StudentAppPolicy|null $policy */
-            $policy = $this->policyForOpenAppScope($existingPolicies->get($app['app_key'], collect()), $activeTaskTemplateId);
-            if ($policy !== null) {
-                $policy->forceFill([
+            foreach ($normalizedApps as $app) {
+                /** @var StudentAppPolicy|null $policy */
+                $policy = $this->policyForOpenAppScope($existingPolicies->get($app['app_key'], collect()), $activeTaskTemplateId);
+                if ($policy !== null) {
+                    $policy->forceFill([
+                        'app_name' => $app['app_name'],
+                        'last_seen_at' => $now,
+                        'status' => $this->isProtectedAppKey($app['app_key']) ? self::STATUS_PERMITTED : $policy->status,
+                        'grace_deadline_at' => $this->isProtectedAppKey($app['app_key']) ? null : $policy->grace_deadline_at,
+                    ])->save();
+
+                    if ($policy->status === self::STATUS_BLOCKED && ! $this->isProtectedAppKey($app['app_key'])) {
+                        $this->blockedResourceViolationService->recordBlockedProgramOpened(
+                            $device,
+                            $policy,
+                            $app,
+                            $event,
+                            $activeTaskSession,
+                        );
+                    }
+
+                    continue;
+                }
+
+                $policy = $student->appPolicies()->create([
+                    'task_template_id' => $this->isProtectedAppKey($app['app_key']) ? null : $activeTaskTemplateId,
+                    'app_key' => $app['app_key'],
                     'app_name' => $app['app_name'],
+                    'status' => $this->defaultStatusForAppKey($app['app_key'], $initialized),
+                    'first_seen_at' => $now,
                     'last_seen_at' => $now,
-                    'status' => $this->isProtectedAppKey($app['app_key']) ? self::STATUS_PERMITTED : $policy->status,
-                    'grace_deadline_at' => $this->isProtectedAppKey($app['app_key']) ? null : $policy->grace_deadline_at,
-                ])->save();
-                continue;
+                    'grace_deadline_at' => $this->defaultGraceDeadlineForAppKey($app['app_key'], $initialized, $now),
+                ]);
+                $existingPolicies->put($app['app_key'], $existingPolicies->get($app['app_key'], collect())->push($policy));
             }
 
-            $student->appPolicies()->create([
-                'task_template_id' => $this->isProtectedAppKey($app['app_key']) ? null : $activeTaskTemplateId,
-                'app_key' => $app['app_key'],
-                'app_name' => $app['app_name'],
-                'status' => $this->defaultStatusForAppKey($app['app_key'], $initialized),
-                'first_seen_at' => $now,
-                'last_seen_at' => $now,
-                'grace_deadline_at' => $this->defaultGraceDeadlineForAppKey($app['app_key'], $initialized, $now),
-            ]);
-        }
-
-        if (! $initialized) {
-            $meta = $device->meta ?? [];
-            $meta['app_policy_initialized_at'] = $now->toAtomString();
-            $device->forceFill(['meta' => $meta])->save();
-        }
+            if (! $initialized) {
+                $meta = $device->meta ?? [];
+                $meta['app_policy_initialized_at'] = $now->toAtomString();
+                $device->forceFill(['meta' => $meta])->save();
+            }
+        });
     }
 
     public function syncInstalledApps(StudentDevice $device, array $apps): void
     {
-        $now = now();
-        $student = $device->student;
         $normalizedApps = collect($apps)
             ->map(fn ($app) => $this->normalizeInstalledApp($app))
             ->filter()
@@ -89,38 +115,53 @@ class StudentAppPolicyService
             return;
         }
 
-        $existingPolicies = $student->appPolicies()
-            ->whereIn('app_key', $normalizedApps->pluck('app_key')->all())
-            ->get()
-            ->keyBy('app_key');
+        DB::transaction(function () use ($device, $normalizedApps) {
+            $device = StudentDevice::query()->whereKey($device->id)->lockForUpdate()->firstOrFail();
+            $student = $device->student()->firstOrFail();
+            $now = now();
+            $initialized = (bool) data_get($device->meta ?? [], 'app_policy_initialized_at');
+            $existingPolicies = $student->appPolicies()
+                ->whereIn('app_key', $normalizedApps->pluck('app_key')->all())
+                ->whereNull('task_template_id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('app_key');
 
-        foreach ($normalizedApps as $app) {
-            $device->installedApps()->updateOrCreate(
-                ['app_key' => $app['app_key']],
-                [
-                    'display_name' => $app['display_name'],
-                    'display_version' => $app['display_version'],
-                    'publisher' => $app['publisher'],
-                    'install_location' => $app['install_location'],
-                    'first_seen_at' => $device->installedApps()->where('app_key', $app['app_key'])->value('first_seen_at') ?? $now,
+            foreach ($normalizedApps as $app) {
+                $device->installedApps()->updateOrCreate(
+                    ['app_key' => $app['app_key']],
+                    [
+                        'display_name' => $app['display_name'],
+                        'display_version' => $app['display_version'],
+                        'publisher' => $app['publisher'],
+                        'install_location' => $app['install_location'],
+                        'first_seen_at' => $device->installedApps()->where('app_key', $app['app_key'])->value('first_seen_at') ?? $now,
+                        'last_seen_at' => $now,
+                        'meta' => $app['meta'],
+                    ],
+                );
+
+                if ($existingPolicies->has($app['app_key'])) {
+                    continue;
+                }
+
+                $policy = $student->appPolicies()->create([
+                    'app_key' => $app['app_key'],
+                    'app_name' => $app['app_name'],
+                    'status' => $this->defaultStatusForAppKey($app['app_key'], $initialized),
+                    'first_seen_at' => $now,
                     'last_seen_at' => $now,
-                    'meta' => $app['meta'],
-                ],
-            );
-
-            if ($existingPolicies->has($app['app_key'])) {
-                continue;
+                    'grace_deadline_at' => $this->defaultGraceDeadlineForAppKey($app['app_key'], $initialized, $now),
+                ]);
+                $existingPolicies->put($app['app_key'], $policy);
             }
 
-            $student->appPolicies()->create([
-                'app_key' => $app['app_key'],
-                'app_name' => $app['display_name'],
-                'status' => self::STATUS_PERMITTED,
-                'first_seen_at' => $now,
-                'last_seen_at' => $now,
-                'grace_deadline_at' => null,
-            ]);
-        }
+            if (! $initialized) {
+                $meta = $device->meta ?? [];
+                $meta['app_policy_initialized_at'] = $now->toAtomString();
+                $device->forceFill(['meta' => $meta])->save();
+            }
+        });
     }
 
     public function appControlPolicy(StudentDevice $device): array
@@ -260,11 +301,16 @@ class StudentAppPolicyService
 
     protected function activeTaskTemplateId(Student $student): ?int
     {
+        return $this->activeTaskSession($student)?->task_template_id;
+    }
+
+    protected function activeTaskSession(Student $student): ?TaskSession
+    {
         return $student->taskSessions()
             ->where('status', 'active')
             ->latest('started_at')
             ->latest('id')
-            ->value('task_template_id');
+            ->first();
     }
 
     protected function normalizeOpenApp(mixed $app): ?array
@@ -296,9 +342,11 @@ class StudentAppPolicyService
         }
 
         $candidateKey = trim((string) ($app['app_name'] ?? $displayName));
+        $appName = $this->executableName($candidateKey) ?? $candidateKey;
 
         return [
-            'app_key' => $this->appKey($candidateKey),
+            'app_key' => $this->appKey($appName),
+            'app_name' => $appName,
             'display_name' => $displayName,
             'display_version' => $this->nullableString($app['display_version'] ?? null),
             'publisher' => $this->nullableString($app['publisher'] ?? null),
@@ -318,6 +366,15 @@ class StudentAppPolicyService
     protected function appKey(string $appName): string
     {
         return Str::lower(trim($appName));
+    }
+
+    protected function executableName(string $value): ?string
+    {
+        if (preg_match('/[^\\s,;"\']+\\.exe/i', $value, $matches)) {
+            return basename(str_replace('\\', '/', $matches[0]));
+        }
+
+        return null;
     }
 
     protected function isProtectedAppKey(string $appKey): bool

@@ -267,6 +267,39 @@ const syncLiveNow = () => {
     liveNowMs.value = serverNowMs.value + (Date.now() - clientBaselineMs.value);
 };
 
+let liveTimerRefreshInFlight = false;
+let lastLiveTimerRefreshAt = 0;
+
+const refreshLiveTimerFromServer = () => {
+    syncLiveNow();
+
+    const now = Date.now();
+    if (liveTimerRefreshInFlight || now - lastLiveTimerRefreshAt < 2000) {
+        return;
+    }
+
+    liveTimerRefreshInFlight = true;
+    lastLiveTimerRefreshAt = now;
+
+    router.reload({
+        only: ['serverNow', 'activeTaskSession', 'activeScheduleRun', 'pausedTaskSession', 'scheduleFinishWindow'],
+        onFinish: () => {
+            liveTimerRefreshInFlight = false;
+            syncLiveNow();
+        },
+    });
+};
+
+const handleVisibilityChange = () => {
+    if (!document.hidden) {
+        refreshLiveTimerFromServer();
+    }
+};
+
+const handleTimerWake = () => {
+    refreshLiveTimerFromServer();
+};
+
 watch(
     () => props.serverNow,
     (serverNow) => {
@@ -282,12 +315,19 @@ let liveTimerInterval: number | null = null;
 onMounted(() => {
     syncLiveNow();
     liveTimerInterval = window.setInterval(syncLiveNow, 1000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleTimerWake);
+    window.addEventListener('pageshow', handleTimerWake);
 });
 
 onBeforeUnmount(() => {
     if (liveTimerInterval !== null) {
         window.clearInterval(liveTimerInterval);
     }
+
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('focus', handleTimerWake);
+    window.removeEventListener('pageshow', handleTimerWake);
 
     stopAttentionTracking();
 });
