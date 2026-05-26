@@ -6,11 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\BrowserAccessRequest;
 use App\Models\BrowserPolicyRule;
 use App\Models\BrowserVisitLog;
-use App\Models\DeviceAttentionCalibrationSession;
 use App\Models\Student;
 use App\Models\StudentDevice;
 use App\Models\TaskTemplate;
-use App\Models\Violation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -56,9 +54,6 @@ class ExtensionController extends Controller
                 'devices as active_device_count' => fn (Builder $query) => $query->whereNull('revoked_at'),
                 'browserAccessRequests as pending_access_request_count' => fn (Builder $query) => $query->where('status', 'pending'),
                 'browserVisitLogs as visit_count_today' => fn (Builder $query) => $query->where('visited_at', '>=', now()->startOfDay()),
-                'violations as open_look_away_count' => fn (Builder $query) => $query
-                    ->where('status', 'open')
-                    ->where('auto_generated_key', 'like', 'look-away:%'),
             ])
             ->orderBy('display_name')
             ->get();
@@ -69,14 +64,8 @@ class ExtensionController extends Controller
             $focusedPayload = $this->focusedStudentPayload(
                 $focusedStudent->load([
                     'user',
-                    'setting',
                     'devices' => fn ($query) => $query
                         ->whereNull('revoked_at')
-                        ->with(['attentionCalibrationSessions' => fn ($sessionQuery) => $sessionQuery
-                            ->latest('started_at')
-                            ->latest('id')
-                            ->limit(3),
-                        ])
                         ->latest('last_seen_at')
                         ->latest('id'),
                     'browserPolicyRules' => fn ($query) => $query->latest('created_at')->latest('id'),
@@ -89,10 +78,6 @@ class ExtensionController extends Controller
                         ->latest('visited_at')
                         ->latest('id')
                         ->limit(80),
-                    'violations' => fn ($query) => $query
-                        ->where('auto_generated_key', 'like', 'look-away:%')
-                        ->latest('occurred_at')
-                        ->limit(20),
                 ])
             );
         }
@@ -121,7 +106,6 @@ class ExtensionController extends Controller
             'last_seen_at_label' => $latestDevice?->last_seen_at?->format('d M, H:i') ?? 'Never',
             'pending_access_request_count' => (int) ($student->pending_access_request_count ?? 0),
             'visit_count_today' => (int) ($student->visit_count_today ?? 0),
-            'open_look_away_count' => (int) ($student->open_look_away_count ?? 0),
             'extension_url' => route('admin.extension.show', $student),
         ];
     }
@@ -191,38 +175,9 @@ class ExtensionController extends Controller
                     'last_seen_at_label' => $device->last_seen_at?->format('d M, H:i') ?? 'Never',
                     'last_seen_ip' => $device->last_seen_ip,
                     'last_policy_hash' => $device->last_policy_hash,
-                    'attention_calibrations' => $device->attentionCalibrationSessions
-                        ->map(fn (DeviceAttentionCalibrationSession $session) => [
-                            'id' => $session->id,
-                            'provider' => $session->provider,
-                            'status' => $session->status,
-                            'sample_count' => $session->sample_count,
-                            'started_at_label' => $session->started_at?->format('d M, H:i'),
-                            'completed_at_label' => $session->completed_at?->format('d M, H:i'),
-                            'model_ready_at_label' => $session->model_ready_at?->format('d M, H:i'),
-                            'model_version' => $session->model_version,
-                        ])
-                        ->values()
-                        ->all(),
                 ])
                 ->values()
                 ->all(),
-            'attention' => [
-                'look_away_event_threshold' => (int) ($student->setting?->look_away_event_threshold ?? 3),
-                'look_away_event_count' => (int) ($student->setting?->look_away_event_count ?? 0),
-                'look_away_task_session_id' => $student->setting?->look_away_task_session_id,
-                'violations' => $student->violations
-                    ->map(fn (Violation $violation) => [
-                        'id' => $violation->id,
-                        'status' => $violation->status,
-                        'rule_title' => $violation->rule_title_snapshot,
-                        'penalty_units' => $violation->penalty_units,
-                        'occurred_at_label' => $violation->occurred_at?->format('d M, H:i'),
-                        'notes' => $violation->notes,
-                    ])
-                    ->values()
-                    ->all(),
-            ],
         ];
     }
 

@@ -6,13 +6,11 @@ use App\Enums\UserRole;
 use App\Models\BrowserAccessRequest;
 use App\Models\BrowserPolicyRule;
 use App\Models\BrowserVisitLog;
-use App\Models\DeviceAttentionCalibrationSession;
 use App\Models\Student;
 use App\Models\StudentDevice;
 use App\Models\StudentSetting;
 use App\Models\TaskTemplate;
 use App\Models\User;
-use App\Models\Violation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -41,9 +39,6 @@ class ExtensionInterfaceTest extends TestCase
             'student_id' => $student->id,
             'can_manage_own_schedule' => true,
             'can_use_ad_hoc_timer' => true,
-            'look_away_event_threshold' => 2,
-            'look_away_event_count' => 1,
-            'look_away_task_session_id' => null,
         ]);
         $device = StudentDevice::create([
             'student_id' => $student->id,
@@ -79,23 +74,6 @@ class ExtensionInterfaceTest extends TestCase
             'page_title' => 'Laravel Docs',
             'visited_at' => now(),
         ]);
-        DeviceAttentionCalibrationSession::create([
-            'student_device_id' => $device->id,
-            'session_uuid' => 'attention-session-1',
-            'provider' => 'browser',
-            'status' => 'model_ready',
-            'sample_count' => 12,
-            'started_at' => now()->subMinutes(5),
-            'model_ready_at' => now(),
-        ]);
-        Violation::create([
-            'student_id' => $student->id,
-            'status' => 'open',
-            'rule_title_snapshot' => 'Repeated attention loss',
-            'penalty_units' => 5,
-            'occurred_at' => now(),
-            'auto_generated_key' => 'look-away:task-session:99',
-        ]);
         $taskTemplate = TaskTemplate::create([
             'title' => 'Coding',
             'summary' => null,
@@ -129,9 +107,6 @@ class ExtensionInterfaceTest extends TestCase
                 ->where('focusedStudent.browser_accountability.recent_visits.0.decision', 'blocked')
                 ->where('focusedStudent.browser_accountability.recent_visits.0.display_url', 'laravel.com/docs?page=2')
                 ->where('focusedStudent.browser_accountability.recent_visits.0.destroy_url', route('admin.students.browser-history.logs.destroy', [$student, $visit]))
-                ->where('focusedStudent.attention.look_away_event_threshold', 2)
-                ->where('focusedStudent.attention.violations.0.rule_title', 'Repeated attention loss')
-                ->where('focusedStudent.devices.0.attention_calibrations.0.status', 'model_ready')
                 ->where('task_allowlists.0.title', 'Coding')
                 ->where('task_allowlists.0.domains.0.value', 'github.com')
                 ->where('extension_download_url', route('companion.browser-extension.download'))

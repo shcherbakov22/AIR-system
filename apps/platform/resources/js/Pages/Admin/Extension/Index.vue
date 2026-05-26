@@ -14,7 +14,6 @@ type StudentSummary = {
     last_seen_at_label: string;
     pending_access_request_count: number;
     visit_count_today: number;
-    open_look_away_count: number;
     extension_url: string;
 };
 
@@ -88,30 +87,7 @@ type FocusedStudent = {
         last_seen_at_label: string;
         last_seen_ip?: string | null;
         last_policy_hash?: string | null;
-        attention_calibrations: Array<{
-            id: number;
-            provider: string;
-            status: string;
-            sample_count: number;
-            started_at_label?: string | null;
-            completed_at_label?: string | null;
-            model_ready_at_label?: string | null;
-            model_version?: string | null;
-        }>;
     }>;
-    attention: {
-        look_away_event_threshold: number;
-        look_away_event_count: number;
-        look_away_task_session_id?: number | null;
-        violations: Array<{
-            id: number;
-            status: string;
-            rule_title: string;
-            penalty_units: number;
-            occurred_at_label?: string | null;
-            notes?: string | null;
-        }>;
-    };
 };
 
 const props = defineProps<{
@@ -213,8 +189,6 @@ const deleteBrowserHistoryLog = (visit: FocusedStudent['browser_accountability']
     router.delete(visit.destroy_url, { preserveScroll: true });
 };
 
-const pretty = (value?: string | null) => (value || 'unknown').replaceAll('_', ' ');
-
 watch(
     () => props.focusedStudent?.id,
     () => {
@@ -269,7 +243,7 @@ watch(
                                 {{ student.browser_mode }}
                             </span>
                         </div>
-                        <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs text-stone-600">
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-center text-xs text-stone-600">
                             <div class="rounded-xl bg-stone-100 px-2 py-2">
                                 <p class="font-semibold text-stone-950">{{ student.pending_access_request_count }}</p>
                                 <p>Requests</p>
@@ -277,10 +251,6 @@ watch(
                             <div class="rounded-xl bg-stone-100 px-2 py-2">
                                 <p class="font-semibold text-stone-950">{{ student.visit_count_today }}</p>
                                 <p>Visits</p>
-                            </div>
-                            <div class="rounded-xl bg-stone-100 px-2 py-2">
-                                <p class="font-semibold text-stone-950">{{ student.open_look_away_count }}</p>
-                                <p>Look away</p>
                             </div>
                         </div>
                         <p class="mt-3 text-xs text-stone-500">{{ student.device_count }} device{{ student.device_count === 1 ? '' : 's' }} · {{ student.last_seen_at_label }}</p>
@@ -381,56 +351,6 @@ watch(
                                         </div>
                                     </li>
                                     <li v-if="pendingRequests.length === 0" class="text-sm text-stone-500">No pending requests.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section class="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
-                        <p class="text-xs uppercase tracking-[0.22em] text-stone-500">Attention tracking</p>
-                        <div class="mt-4 grid gap-3 md:grid-cols-3">
-                            <div class="rounded-[1.25rem] bg-stone-100 p-4">
-                                <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Threshold</p>
-                                <p class="mt-2 text-2xl font-semibold text-stone-950">{{ props.focusedStudent.attention.look_away_event_threshold }}</p>
-                            </div>
-                            <div class="rounded-[1.25rem] bg-stone-100 p-4">
-                                <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Current count</p>
-                                <p class="mt-2 text-2xl font-semibold text-stone-950">{{ props.focusedStudent.attention.look_away_event_count }}</p>
-                            </div>
-                            <div class="rounded-[1.25rem] bg-stone-100 p-4">
-                                <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Task session</p>
-                                <p class="mt-2 text-2xl font-semibold text-stone-950">{{ props.focusedStudent.attention.look_away_task_session_id ?? 'None' }}</p>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 grid gap-4 xl:grid-cols-2">
-                            <div class="rounded-[1.25rem] bg-stone-100 p-4">
-                                <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Look away violations</p>
-                                <ul class="mt-3 space-y-2 text-sm text-stone-700">
-                                    <li v-for="violation in props.focusedStudent.attention.violations" :key="violation.id" class="rounded-xl bg-white px-3 py-2 ring-1 ring-stone-200">
-                                        <div class="flex flex-wrap items-center justify-between gap-3">
-                                            <p class="font-semibold text-stone-950">{{ violation.rule_title }}</p>
-                                            <span class="text-xs uppercase tracking-[0.16em]" :class="violation.status === 'open' ? 'text-rose-700' : 'text-stone-500'">{{ violation.status }}</span>
-                                        </div>
-                                        <p class="mt-1 text-xs text-stone-500">{{ violation.penalty_units }} push-ups · {{ violation.occurred_at_label ?? 'Unknown time' }}</p>
-                                    </li>
-                                    <li v-if="props.focusedStudent.attention.violations.length === 0" class="text-sm text-stone-500">No look away violations yet.</li>
-                                </ul>
-                            </div>
-
-                            <div class="rounded-[1.25rem] bg-stone-100 p-4">
-                                <p class="text-xs uppercase tracking-[0.2em] text-stone-500">Calibration</p>
-                                <ul class="mt-3 space-y-2 text-sm text-stone-700">
-                                    <li v-for="device in props.focusedStudent.devices" :key="device.id" class="rounded-xl bg-white px-3 py-2 ring-1 ring-stone-200">
-                                        <p class="font-semibold text-stone-950">{{ device.label }}</p>
-                                        <div class="mt-2 space-y-1">
-                                            <p v-for="session in device.attention_calibrations" :key="session.id" class="text-xs text-stone-600">
-                                                {{ pretty(session.provider) }} · {{ pretty(session.status) }} · {{ session.sample_count }} samples<span v-if="session.model_ready_at_label"> · ready {{ session.model_ready_at_label }}</span>
-                                            </p>
-                                            <p v-if="device.attention_calibrations.length === 0" class="text-xs text-stone-500">No calibration sessions yet.</p>
-                                        </div>
-                                    </li>
-                                    <li v-if="props.focusedStudent.devices.length === 0" class="text-sm text-stone-500">No enrolled devices.</li>
                                 </ul>
                             </div>
                         </div>
@@ -554,7 +474,7 @@ watch(
 
                 <div v-else class="rounded-[2rem] bg-white px-6 py-12 text-center shadow-sm ring-1 ring-stone-200">
                     <p class="text-sm uppercase tracking-[0.3em] text-stone-500">Select a student</p>
-                    <p class="mt-4 text-sm text-stone-600">Choose a student to see extension configuration, browsing history, and attention data.</p>
+                    <p class="mt-4 text-sm text-stone-600">Choose a student to see extension configuration and browsing history.</p>
                 </div>
             </div>
 
