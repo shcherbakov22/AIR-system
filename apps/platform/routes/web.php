@@ -116,6 +116,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/logs', [AdminActivityLogController::class, 'index'])->name('logs.index');
         Route::delete('/logs/category', [AdminActivityLogController::class, 'destroyCategory'])->name('logs.destroy-category');
         Route::get('/extension', [AdminExtensionController::class, 'index'])->name('extension.index');
+        Route::delete('/extension/task-allowlists/{browserPolicyRule}', [AdminExtensionController::class, 'destroyTaskAllowlistRule'])->name('extension.task-allowlists.destroy');
         Route::get('/students/{student}/extension', [AdminExtensionController::class, 'show'])->name('extension.show');
         Route::get('/announcements', [AdminAnnouncementController::class, 'index'])->name('announcements.index');
         Route::post('/announcements', [AdminAnnouncementController::class, 'store'])->name('announcements.store');

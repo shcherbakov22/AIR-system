@@ -12,6 +12,7 @@ use App\Models\StudentDevice;
 use App\Models\TaskTemplate;
 use App\Models\Violation;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,6 +26,23 @@ class ExtensionController extends Controller
     public function show(Student $student): Response
     {
         return $this->render($student);
+    }
+
+    public function destroyTaskAllowlistRule(BrowserPolicyRule $browserPolicyRule): RedirectResponse
+    {
+        abort_unless(
+            $browserPolicyRule->student_id === null
+                && $browserPolicyRule->task_template_id !== null
+                && $browserPolicyRule->effect === 'allow',
+            404,
+        );
+
+        $value = $browserPolicyRule->value;
+        $taskTitle = $browserPolicyRule->taskTemplate?->title ?? 'task';
+
+        $browserPolicyRule->delete();
+
+        return back()->with('success', "Reset {$value} for {$taskTitle}. Students can request approval again.");
     }
 
     protected function render(?Student $focusedStudent = null): Response
@@ -304,7 +322,11 @@ class ExtensionController extends Controller
                 'id' => $taskTemplate->id,
                 'title' => $taskTemplate->title,
                 'domains' => $taskTemplate->browserPolicyRules
-                    ->pluck('value')
+                    ->map(fn (BrowserPolicyRule $rule) => [
+                        'id' => $rule->id,
+                        'value' => $rule->value,
+                        'destroy_url' => route('admin.extension.task-allowlists.destroy', $rule),
+                    ])
                     ->values()
                     ->all(),
             ])

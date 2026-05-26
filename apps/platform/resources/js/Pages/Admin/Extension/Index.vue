@@ -122,7 +122,11 @@ const props = defineProps<{
     task_allowlists: Array<{
         id: number;
         title: string;
-        domains: string[];
+        domains: Array<{
+            id: number;
+            value: string;
+            destroy_url: string;
+        }>;
     }>;
 }>();
 
@@ -165,6 +169,14 @@ const saveBrowserRule = () => {
 
 const deleteBrowserRule = (destroyUrl: string) => {
     router.delete(destroyUrl, { preserveScroll: true });
+};
+
+const resetTaskAllowlistDomain = (domain: { value: string; destroy_url: string }, taskTitle: string) => {
+    if (!window.confirm(`Reset ${domain.value} for ${taskTitle}? Students will be blocked and can request approval again.`)) {
+        return;
+    }
+
+    router.delete(domain.destroy_url, { preserveScroll: true });
 };
 
 const approveBrowserRequest = (request: FocusedStudent['browser_accountability']['access_requests'][number]) => {
@@ -556,8 +568,20 @@ watch(
                     <div v-for="task in props.task_allowlists" :key="task.id" class="rounded-[1.25rem] bg-stone-100 p-4">
                         <p class="font-semibold text-stone-950">{{ task.title }}</p>
                         <div class="mt-3 flex flex-wrap gap-2">
-                            <span v-for="domain in task.domains" :key="domain" class="rounded-full bg-white px-3 py-1 text-xs text-stone-700 ring-1 ring-stone-200">
-                                {{ domain }}
+                            <span
+                                v-for="domain in task.domains"
+                                :key="domain.id"
+                                class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs text-stone-700 ring-1 ring-stone-200"
+                            >
+                                <span>{{ domain.value }}</span>
+                                <button
+                                    type="button"
+                                    class="font-semibold uppercase tracking-[0.14em] text-rose-700 transition hover:text-rose-900"
+                                    :aria-label="`Reset ${domain.value} for ${task.title}`"
+                                    @click="resetTaskAllowlistDomain(domain, task.title)"
+                                >
+                                    Delete
+                                </button>
                             </span>
                         </div>
                     </div>

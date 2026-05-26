@@ -133,9 +133,75 @@ class ExtensionInterfaceTest extends TestCase
                 ->where('focusedStudent.attention.violations.0.rule_title', 'Repeated attention loss')
                 ->where('focusedStudent.devices.0.attention_calibrations.0.status', 'model_ready')
                 ->where('task_allowlists.0.title', 'Coding')
-                ->where('task_allowlists.0.domains.0', 'github.com')
+                ->where('task_allowlists.0.domains.0.value', 'github.com')
                 ->where('extension_download_url', route('companion.browser-extension.download'))
             );
+    }
+
+    public function test_admin_can_reset_a_per_task_browser_allowlist_rule(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_extension_reset_task_allowlist',
+        ]);
+
+        $taskTemplate = TaskTemplate::create([
+            'title' => 'Coding',
+            'summary' => null,
+            'instructions' => null,
+            'default_duration_minutes' => 30,
+            'requires_internet' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $rule = BrowserPolicyRule::create([
+            'task_template_id' => $taskTemplate->id,
+            'effect' => 'allow',
+            'match_type' => 'domain_tree',
+            'value' => 'github.com',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'extension_reset_student',
+        ]);
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Extension Reset Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+        $studentRule = BrowserPolicyRule::create([
+            'student_id' => $student->id,
+            'effect' => 'allow',
+            'match_type' => 'domain_tree',
+            'value' => 'student-only.test',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.extension.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Extension/Index')
+                ->where('task_allowlists.0.domains.0.destroy_url', route('admin.extension.task-allowlists.destroy', $rule))
+            );
+
+        $this->actingAs($admin)
+            ->delete(route('admin.extension.task-allowlists.destroy', $rule))
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Reset github.com for Coding. Students can request approval again.');
+
+        $this->assertDatabaseMissing('browser_policy_rules', [
+            'id' => $rule->id,
+        ]);
+        $this->assertDatabaseHas('browser_policy_rules', [
+            'id' => $studentRule->id,
+            'value' => 'student-only.test',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.extension.task-allowlists.destroy', $studentRule))
+            ->assertNotFound();
     }
 
     public function test_admin_can_clear_browser_history_for_a_student(): void
