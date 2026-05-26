@@ -9,6 +9,7 @@ const extensionDir = resolve(new URL('..', import.meta.url).pathname);
 const contentRequests = [];
 const visits = [];
 const accessRequests = [];
+const activityEvents = [];
 
 const browserPolicy = {
   mode: 'blacklist',
@@ -68,6 +69,19 @@ async function main() {
         });
       }
 
+      if (req.url === '/api/companion/activity' && req.method === 'POST') {
+        assertAuth(req);
+        activityEvents.push(body);
+        return sendJson(res, 200, {
+          accepted: true,
+          event: {
+            id: activityEvents.length,
+            event_type: body?.event_type || 'unknown',
+            observed_at: new Date().toISOString(),
+          },
+        });
+      }
+
       sendJson(res, 404, { error: 'not_found' });
     }).catch((error) => {
       sendJson(res, 500, { error: error.message });
@@ -121,6 +135,11 @@ async function main() {
     })`,
     awaitPromise: true,
   }, optionsSession);
+  await waitFor(
+    () => activityEvents.some((event) => event.event_type === 'extension_status' && event.payload?.status === 'policy_sync_ok' && event.payload?.version === '0.1.11'),
+    5000,
+    'extension status activity was not posted after policy sync',
+  );
 
   const popupSession = await openExtensionPage(client, `chrome-extension://${extensionId}/src/popup.html`);
   await waitFor(async () => {
@@ -202,7 +221,7 @@ function assertManifestHasPopup() {
   const manifest = JSON.parse(readFileSync(join(extensionDir, 'manifest.json'), 'utf8'));
 
   assert(manifest.action?.default_popup === 'src/popup.html', 'manifest does not define the toolbar popup');
-  assert(manifest.version === '0.1.10', 'manifest version was not bumped');
+  assert(manifest.version === '0.1.11', 'manifest version was not bumped');
   assert(manifest.permissions?.includes('offscreen'), 'manifest does not allow offscreen attention detection');
   assert(manifest.permissions?.includes('videoCapture'), 'manifest does not request extension camera capture permission');
   assert(manifest.storage?.managed_schema === 'src/managed-schema.json', 'manifest does not declare managed storage schema');

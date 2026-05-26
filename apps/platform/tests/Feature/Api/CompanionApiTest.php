@@ -2593,6 +2593,103 @@ class CompanionApiTest extends TestCase
         ]);
     }
 
+    public function test_companion_activity_diagnostics_are_written_to_admin_logs(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('client_logging_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'app_close_attempt',
+                'app_name' => 'ZoomInstaller.exe',
+                'payload' => [
+                    'status' => 'closed',
+                    'reason' => 'blocked_program_for_task',
+                    'pid' => 4242,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'update_check',
+                'payload' => [
+                    'status' => 'available',
+                    'current_version' => '0.1.20',
+                    'latest_version' => '0.1.26',
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'extension_status',
+                'payload' => [
+                    'status' => 'policy_sync_failed',
+                    'configured' => true,
+                    'version' => '0.1.11',
+                    'error' => 'Policy sync failed with 403',
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.activity.store'), [
+                'event_type' => 'app_enforcement',
+                'payload' => [
+                    'reason' => 'open_violation',
+                    'closed' => [
+                        ['app_name' => 'Discord.exe', 'pid' => 123],
+                    ],
+                    'failures' => [
+                        ['app_name' => 'ZoomInstaller.exe', 'reason' => 'access_denied'],
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'student_id' => $student->id,
+            'category' => 'apps',
+            'action' => 'app_closed',
+            'description' => 'Closed app: ZoomInstaller.exe (blocked_program_for_task).',
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'student_id' => $student->id,
+            'category' => 'updates',
+            'action' => 'companion_update_check',
+            'description' => 'Companion update check: available (0.1.20 -> 0.1.26).',
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'student_id' => $student->id,
+            'category' => 'extensions',
+            'action' => 'extension_status',
+            'description' => 'Browser extension status: policy_sync_failed configured v0.1.11.',
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'student_id' => $student->id,
+            'category' => 'apps',
+            'action' => 'app_enforcement_closed',
+            'description' => 'App enforcement closed 1 process(es): open_violation.',
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'student_id' => $student->id,
+            'category' => 'apps',
+            'action' => 'app_enforcement_failed',
+            'description' => 'App enforcement failed for 1 process(es): open_violation.',
+        ]);
+
+        $this->assertSame(5, ActivityLog::query()
+            ->where('student_id', $student->id)
+            ->whereIn('category', ['apps', 'updates', 'extensions'])
+            ->count());
+    }
+
     private function makeStudent(string $username, string $password): array
     {
         $studentUser = User::factory()->create([

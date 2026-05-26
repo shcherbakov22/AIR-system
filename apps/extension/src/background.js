@@ -21,6 +21,8 @@ const ATTENTION_WATCHDOG_PERIOD_MINUTES = 0.5;
 const ATTENTION_OFFSCREEN_STALE_MS = 20 * 1000;
 const ATTENTION_EVENT_QUEUE_KEY = 'attention_event_queue';
 const ATTENTION_UPLOAD_STATE_KEY = 'attention_upload_state';
+const EXTENSION_STATUS_REPORT_KEY = 'last_extension_status_report_key';
+const EXTENSION_STATUS_REPORT_AT_KEY = 'last_extension_status_report_at';
 const ATTENTION_MAX_QUEUE_LENGTH = 200;
 const ATTENTION_MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000;
 const ATTENTION_DEFAULT_SERVER_ORIGIN = 'https://192.168.11.228';
@@ -49,22 +51,29 @@ const recentVisits = new Map();
 let networkRuleUpdate = Promise.resolve();
 let flushingAttentionQueue = false;
 
-chrome.runtime.onInstalled.addListener(() => {
-  initializeBackground();
+chrome.runtime.onInstalled.addListener((details) => {
+  initializeBackground(`installed:${details.reason || 'unknown'}`, {
+    install_reason: details.reason || null,
+    previous_version: details.previousVersion || null,
+  });
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  initializeBackground();
+  initializeBackground('browser_startup');
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === POLICY_REFRESH_ALARM) {
-    syncPolicy().catch(() => {});
+    syncPolicy().catch((error) => {
+      reportExtensionStatus('policy_sync_failed', { error: error.message }).catch(() => {});
+    });
     return;
   }
 
   if (alarm.name === EXTENSION_HEARTBEAT_ALARM || alarm.name === EXTENSION_HEARTBEAT_IMMEDIATE_ALARM) {
-    heartbeatExtension().catch(() => {});
+    heartbeatExtension().catch((error) => {
+      reportExtensionStatus('heartbeat_failed', { error: error.message }).catch(() => {});
+    });
     return;
   }
 
@@ -118,7 +127,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'sync_policy') {
     syncPolicy()
       .then((policy) => sendResponse({ ok: true, policy }))
-      .catch((error) => sendResponse({ ok: false, error: error.message }));
+      .catch((error) => {
+        reportExtensionStatus('policy_sync_failed', { error: error.message }).catch(() => {});
+        sendResponse({ ok: false, error: error.message });
+      });
 
     return true;
   }
@@ -138,7 +150,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         policy,
         evaluation: evaluateUrl(policy, String(message.url || '')),
       }))
-      .catch((error) => sendResponse({ ok: false, error: error.message }));
+      .catch((error) => {
+        reportExtensionStatus('policy_sync_failed', { error: error.message }).catch(() => {});
+        sendResponse({ ok: false, error: error.message });
+      });
 
     return true;
   }
@@ -181,13 +196,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return false;
 });
 
-initializeBackground();
+initializeBackground('service_worker_start');
 
-function initializeBackground() {
+function initializeBackground(reason = 'startup', extraStatus = {}) {
   schedulePolicyRefreshAlarm();
   scheduleExtensionHeartbeatAlarm();
   queueImmediateHeartbeat();
-  syncPolicy().catch(() => {});
+  syncPolicy().catch((error) => {
+    reportExtensionStatus('policy_sync_failed', { error: error.message }).catch(() => {});
+  });
+  reportExtensionStatus(reason, extraStatus).catch(() => {});
   bootstrapAttentionDetection().catch(() => {});
 }
 
@@ -273,6 +291,9 @@ async function syncPolicy() {
     lastPolicySyncAt: new Date().toISOString(),
     lastExtensionHeartbeatAt: new Date().toISOString(),
   });
+  await reportExtensionStatus('policy_sync_ok', {
+    policy_updated_at: policy.updated_at || null,
+  }).catch(() => {});
 
   return policy;
 }
@@ -302,6 +323,10 @@ async function heartbeatExtension() {
   }
 
   await chrome.storage.local.set(nextState);
+  await reportExtensionStatus(policyChanged ? 'heartbeat_policy_changed' : 'heartbeat_ok', {
+    policy_changed: policyChanged,
+    policy_updated_at: remotePolicy.updated_at || null,
+  }).catch(() => {});
   return policyChanged ? remotePolicy : currentPolicy;
 }
 
@@ -522,6 +547,67 @@ async function logVisit(url, pageTitle, knownEvaluation = null, extraMeta = {}) 
   }).catch(() => {});
 }
 
+async function postActivity(eventType, payload = {}, fields = {}) {
+  const settings = await getSettings();
+
+  if (!settings.platformUrl || !settings.deviceToken) {
+    return null;
+  }
+
+  const response = await fetch(`${settings.platformUrl}/api/companion/activity`, {
+    method: 'POST',
+    headers: {
+      ...authHeaders(settings.deviceToken),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      event_type: eventType,
+      ...fields,
+      payload,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Activity report failed with ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function reportExtensionStatus(reason, extra = {}) {
+  const status = await extensionStatus();
+  const payload = {
+    ...status,
+    reason,
+    status: reason,
+    ...extra,
+  };
+  const reportKey = JSON.stringify({
+    reason,
+    configured: payload.configured,
+    version: payload.version,
+    policyMode: payload.policyMode,
+    activeTask: payload.activeTask,
+    platformUrl: payload.platformUrl,
+    error: payload.error || null,
+    install_reason: payload.install_reason || null,
+    previous_version: payload.previous_version || null,
+    policy_changed: payload.policy_changed ?? null,
+  });
+  const stored = await chrome.storage.local.get([EXTENSION_STATUS_REPORT_KEY]);
+
+  if (stored[EXTENSION_STATUS_REPORT_KEY] === reportKey) {
+    return null;
+  }
+
+  await chrome.storage.local.set({
+    [EXTENSION_STATUS_REPORT_KEY]: reportKey,
+    [EXTENSION_STATUS_REPORT_AT_KEY]: new Date().toISOString(),
+  });
+
+  return postActivity('extension_status', payload);
+}
+
 async function contentScriptHeartbeat(url, pageTitle) {
   await logVisit(String(url || ''), pageTitle ? String(pageTitle) : null, null, {
     source: 'content_script',
@@ -597,6 +683,7 @@ async function extensionStatus() {
 
   return {
     configured: Boolean(settings.platformUrl && settings.deviceToken),
+    version: chrome.runtime.getManifest().version,
     platformUrl: settings.platformUrl,
     currentSite: activeTabUrl ? displayHostForUrl(activeTabUrl) : '',
     currentSiteAllowed: evaluation ? evaluation.allowed : null,
