@@ -171,11 +171,7 @@ const deleteBrowserRule = (destroyUrl: string) => {
     router.delete(destroyUrl, { preserveScroll: true });
 };
 
-const resetTaskAllowlistDomain = (domain: { value: string; destroy_url: string }, taskTitle: string) => {
-    if (!window.confirm(`Reset ${domain.value} for ${taskTitle}? Students will be blocked and can request approval again.`)) {
-        return;
-    }
-
+const resetTaskAllowlistDomain = (domain: { value: string; destroy_url: string }) => {
     router.delete(domain.destroy_url, { preserveScroll: true });
 };
 
@@ -578,9 +574,9 @@ watch(
                                     type="button"
                                     class="font-semibold uppercase tracking-[0.14em] text-rose-700 transition hover:text-rose-900"
                                     :aria-label="`Reset ${domain.value} for ${task.title}`"
-                                    @click="resetTaskAllowlistDomain(domain, task.title)"
+                                    @click="resetTaskAllowlistDomain(domain)"
                                 >
-                                    Delete
+                                    Del
                                 </button>
                             </span>
                         </div>
