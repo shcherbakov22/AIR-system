@@ -357,6 +357,33 @@ watch(
                     </section>
 
                     <section class="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
+                        <p class="text-xs uppercase tracking-[0.22em] text-stone-500">Per-task whitelists</p>
+                        <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            <div v-for="task in props.task_allowlists" :key="task.id" class="rounded-[1.25rem] bg-stone-100 p-4">
+                                <p class="font-semibold text-stone-950">{{ task.title }}</p>
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <span
+                                        v-for="domain in task.domains"
+                                        :key="domain.id"
+                                        class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs text-stone-700 ring-1 ring-stone-200"
+                                    >
+                                        <span>{{ domain.value }}</span>
+                                        <button
+                                            type="button"
+                                            class="font-semibold uppercase tracking-[0.14em] text-rose-700 transition hover:text-rose-900"
+                                            :aria-label="`Reset ${domain.value} for ${task.title}`"
+                                            @click="resetTaskAllowlistDomain(domain)"
+                                        >
+                                            Del
+                                        </button>
+                                    </span>
+                                </div>
+                            </div>
+                            <p v-if="props.task_allowlists.length === 0" class="text-sm text-stone-500">No task allowlists configured yet.</p>
+                        </div>
+                    </section>
+
+                    <section class="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div>
                                 <p class="text-xs uppercase tracking-[0.22em] text-stone-500">History</p>
@@ -477,33 +504,6 @@ watch(
                     <p class="mt-4 text-sm text-stone-600">Choose a student to see extension configuration and browsing history.</p>
                 </div>
             </div>
-
-            <section class="mt-6 rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-stone-200">
-                <p class="text-xs uppercase tracking-[0.22em] text-stone-500">Per-task whitelists</p>
-                <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="task in props.task_allowlists" :key="task.id" class="rounded-[1.25rem] bg-stone-100 p-4">
-                        <p class="font-semibold text-stone-950">{{ task.title }}</p>
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <span
-                                v-for="domain in task.domains"
-                                :key="domain.id"
-                                class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs text-stone-700 ring-1 ring-stone-200"
-                            >
-                                <span>{{ domain.value }}</span>
-                                <button
-                                    type="button"
-                                    class="font-semibold uppercase tracking-[0.14em] text-rose-700 transition hover:text-rose-900"
-                                    :aria-label="`Reset ${domain.value} for ${task.title}`"
-                                    @click="resetTaskAllowlistDomain(domain)"
-                                >
-                                    Del
-                                </button>
-                            </span>
-                        </div>
-                    </div>
-                    <p v-if="props.task_allowlists.length === 0" class="text-sm text-stone-500">No task allowlists configured yet.</p>
-                </div>
-            </section>
         </div>
     </AuthenticatedLayout>
 </template>
