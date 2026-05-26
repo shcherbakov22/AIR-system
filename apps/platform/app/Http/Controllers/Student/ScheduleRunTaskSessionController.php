@@ -98,6 +98,27 @@ class ScheduleRunTaskSessionController extends Controller
                 ];
             }
 
+            $skippedPendingBlock = $ownedScheduleRun->blocks()
+                ->where('position', '<', $ownedScheduleRunBlock->position)
+                ->where('status', 'pending')
+                ->orderBy('position')
+                ->lockForUpdate()
+                ->first();
+
+            if ($skippedPendingBlock) {
+                $automaticViolationService->createImmediateSkippedScheduleBlockViolation(
+                    $student,
+                    $ownedScheduleRun,
+                    $skippedPendingBlock,
+                    $ownedScheduleRunBlock,
+                );
+
+                return [
+                    'success' => false,
+                    'message' => 'You skipped an earlier schedule block. A violation has been created.',
+                ];
+            }
+
             $automaticViolationService->clearDismissedViolationsForNewTask($student);
 
             $startedAt = now();

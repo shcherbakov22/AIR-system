@@ -126,6 +126,53 @@ class AutomaticObserveTheTimeViolationService
         // Skipped schedule violations are evaluated only while the schedule is still active.
     }
 
+    public function createImmediateSkippedScheduleBlockViolation(
+        Student $student,
+        ScheduleRun $scheduleRun,
+        ScheduleRunBlock $skippedBlock,
+        ?ScheduleRunBlock $attemptedBlock = null,
+    ): bool {
+        if ($scheduleRun->status !== 'active' || $skippedBlock->status !== 'pending') {
+            return false;
+        }
+
+        if (! $this->skippedScheduleViolationsEnabled()) {
+            return false;
+        }
+
+        $ruleDefinition = $this->observeTheTimeRule();
+
+        if (! $ruleDefinition) {
+            return false;
+        }
+
+        $skippedTaskRuleDefinition = $this->automaticRule(self::SKIPPED_TASK_RULE_TITLE, $ruleDefinition);
+
+        if ($this->hasOpenViolationForRule($student, $skippedTaskRuleDefinition)) {
+            return true;
+        }
+
+        if ($this->hasSkippedScheduleViolationRecordForBlock($scheduleRun, $skippedBlock)) {
+            return true;
+        }
+
+        $details = 'Automatic violation for skipping scheduled block '.$skippedBlock->position
+            .' without approval: '.$skippedBlock->task_title_snapshot.'.';
+
+        if ($attemptedBlock) {
+            $details .= ' Student attempted to start block '.$attemptedBlock->position
+                .' instead: '.$attemptedBlock->task_title_snapshot.'.';
+        }
+
+        return $this->createViolationOnce(
+            $student,
+            $skippedTaskRuleDefinition,
+            'observe-time:skipped-block:run:'.$scheduleRun->id.':block:'.$skippedBlock->id,
+            now(),
+            $details,
+        ) !== null;
+    }
+
     private function createSkippedScheduleBlockViolationIfNeeded(
         Student $student,
         RuleDefinition $ruleDefinition,
