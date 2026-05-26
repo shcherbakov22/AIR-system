@@ -23,6 +23,8 @@ const ATTENTION_EVENT_QUEUE_KEY = 'attention_event_queue';
 const ATTENTION_UPLOAD_STATE_KEY = 'attention_upload_state';
 const EXTENSION_STATUS_REPORT_KEY = 'last_extension_status_report_key';
 const EXTENSION_STATUS_REPORT_AT_KEY = 'last_extension_status_report_at';
+const AUTH_FALLBACK_ACTIVE_KEY = 'auth_fallback_active';
+const AUTH_FALLBACK_AT_KEY = 'auth_fallback_at';
 const ATTENTION_MAX_QUEUE_LENGTH = 200;
 const ATTENTION_MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000;
 const ATTENTION_DEFAULT_SERVER_ORIGIN = 'https://192.168.11.228';
@@ -331,9 +333,8 @@ async function heartbeatExtension() {
 }
 
 async function fetchRemotePolicy(settings) {
-  const response = await fetch(`${settings.platformUrl}/api/companion/browser/policy`, {
+  const response = await fetchWithDeviceAuth(settings, `${settings.platformUrl}/api/companion/browser/policy`, {
     cache: 'no-store',
-    headers: authHeaders(settings.deviceToken),
   });
 
   if (!response.ok) {
@@ -529,10 +530,9 @@ async function logVisit(url, pageTitle, knownEvaluation = null, extraMeta = {}) 
     isRestrictedNonWebUrl(url) ? restrictedUrlEvaluation(url) : evaluateUrl(policy, url)
   );
 
-  await fetch(`${settings.platformUrl}/api/companion/browser/visits`, {
+  await fetchWithDeviceAuth(settings, `${settings.platformUrl}/api/companion/browser/visits`, {
     method: 'POST',
     headers: {
-      ...authHeaders(settings.deviceToken),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -554,10 +554,9 @@ async function postActivity(eventType, payload = {}, fields = {}) {
     return null;
   }
 
-  const response = await fetch(`${settings.platformUrl}/api/companion/activity`, {
+  const response = await fetchWithDeviceAuth(settings, `${settings.platformUrl}/api/companion/activity`, {
     method: 'POST',
     headers: {
-      ...authHeaders(settings.deviceToken),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -621,17 +620,16 @@ async function requestAccess(url, reason) {
     throw new Error('Open extension options and set the platform URL and device token first.');
   }
 
-  const response = await fetch(`${settings.platformUrl}/api/companion/browser/access-requests`, {
+  const response = await fetchWithDeviceAuth(settings, `${settings.platformUrl}/api/companion/browser/access-requests`, {
     method: 'POST',
     headers: {
-      ...authHeaders(settings.deviceToken),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ url, reason }),
   });
 
   if (!response.ok) {
-    throw new Error(`Access request failed with ${response.status}`);
+    throw new Error(`Access request failed with ${response.status}. Reconfigure the browser extension if this keeps happening.`);
   }
 
   return response.json();
@@ -640,14 +638,73 @@ async function requestAccess(url, reason) {
 async function getSettings() {
   const [managed, stored] = await Promise.all([
     readManagedSettings(),
-    chrome.storage.local.get(['platformUrl', 'deviceToken']),
+    chrome.storage.local.get(['platformUrl', 'deviceToken', AUTH_FALLBACK_ACTIVE_KEY]),
   ]);
-  const platformUrl = String(managed.platformUrl || stored.platformUrl || 'https://192.168.11.228').replace(/\/+$/, '');
+  const managedPlatformUrl = normalizePlatformUrl(managed.platformUrl);
+  const storedPlatformUrl = normalizePlatformUrl(stored.platformUrl);
+  const managedDeviceToken = String(managed.deviceToken || '').trim();
+  const storedDeviceToken = String(stored.deviceToken || '').trim();
+  const preferStored = Boolean(stored[AUTH_FALLBACK_ACTIVE_KEY] && storedDeviceToken);
+  const platformUrl = preferStored
+    ? (storedPlatformUrl || managedPlatformUrl || 'https://192.168.11.228')
+    : (managedPlatformUrl || storedPlatformUrl || 'https://192.168.11.228');
+  const deviceToken = preferStored ? storedDeviceToken : (managedDeviceToken || storedDeviceToken || '');
+  const authSource = preferStored ? 'local' : (managedDeviceToken ? 'managed' : (storedDeviceToken ? 'local' : 'none'));
+  const fallbackDeviceToken = preferStored
+    ? (managedDeviceToken && managedDeviceToken !== storedDeviceToken ? managedDeviceToken : '')
+    : (managedDeviceToken && storedDeviceToken && managedDeviceToken !== storedDeviceToken ? storedDeviceToken : '');
+  const fallbackPlatformUrl = preferStored
+    ? (managedPlatformUrl || platformUrl)
+    : (storedPlatformUrl || platformUrl);
 
   return {
     platformUrl,
-    deviceToken: managed.deviceToken || stored.deviceToken || '',
+    deviceToken,
+    authSource,
+    fallbackDeviceToken,
+    fallbackAuthSource: preferStored ? 'managed' : 'local',
+    fallbackPlatformUrl,
   };
+}
+
+function normalizePlatformUrl(value) {
+  return String(value || '').trim().replace(/\/+$/, '');
+}
+
+async function fetchWithDeviceAuth(settings, url, options = {}) {
+  const response = await fetch(url, withDeviceAuth(options, settings.deviceToken));
+
+  if (!isAuthFailure(response.status) || !settings.fallbackDeviceToken) {
+    return response;
+  }
+
+  const fallbackUrl = settings.fallbackPlatformUrl && settings.platformUrl && url.startsWith(settings.platformUrl)
+    ? `${settings.fallbackPlatformUrl}${url.slice(settings.platformUrl.length)}`
+    : url;
+  const fallbackResponse = await fetch(fallbackUrl, withDeviceAuth(options, settings.fallbackDeviceToken));
+
+  if (fallbackResponse.ok) {
+    await chrome.storage.local.set({
+      [AUTH_FALLBACK_ACTIVE_KEY]: settings.fallbackAuthSource === 'local',
+      [AUTH_FALLBACK_AT_KEY]: new Date().toISOString(),
+    });
+  }
+
+  return fallbackResponse;
+}
+
+function withDeviceAuth(options, deviceToken) {
+  return {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...authHeaders(deviceToken),
+    },
+  };
+}
+
+function isAuthFailure(status) {
+  return status === 401 || status === 403;
 }
 
 async function readManagedSettings() {
@@ -685,6 +742,7 @@ async function extensionStatus() {
     configured: Boolean(settings.platformUrl && settings.deviceToken),
     version: chrome.runtime.getManifest().version,
     platformUrl: settings.platformUrl,
+    authSource: settings.authSource,
     currentSite: activeTabUrl ? displayHostForUrl(activeTabUrl) : '',
     currentSiteAllowed: evaluation ? evaluation.allowed : null,
     policyMode: policy.mode === 'whitelist' ? 'whitelist' : 'blacklist',
