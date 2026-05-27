@@ -76,6 +76,45 @@ class SpeechAnnouncementTest extends TestCase
             ]);
     }
 
+    public function test_admin_next_announcement_can_ignore_items_before_replay_window(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+
+        $old = SpeechAnnouncement::create([
+            'kind' => 'task_finished',
+            'message' => 'Old task should not replay.',
+        ]);
+        $old->forceFill([
+            'created_at' => now()->subMinutes(16),
+            'updated_at' => now()->subMinutes(16),
+        ])->save();
+
+        $current = SpeechAnnouncement::create([
+            'kind' => 'task_started',
+            'message' => 'Current task should play.',
+        ]);
+        $current->forceFill([
+            'created_at' => now()->subMinutes(14),
+            'updated_at' => now()->subMinutes(14),
+        ])->save();
+
+        $this->actingAs($admin)
+            ->getJson(route('admin.speech-announcements.next', [
+                'not_before' => now()->subMinutes(15)->toIso8601String(),
+            ]))
+            ->assertOk()
+            ->assertJsonPath('announcement.id', $current->id)
+            ->assertJsonPath('announcement.message', 'Current task should play.');
+
+        $this->assertDatabaseHas('speech_announcements', [
+            'id' => $old->id,
+            'spoken_at' => null,
+            'processing_started_at' => null,
+        ]);
+    }
+
     public function test_admin_can_fetch_spoken_announcement_history(): void
     {
         $admin = User::factory()->create([

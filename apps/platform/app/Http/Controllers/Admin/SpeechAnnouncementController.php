@@ -7,6 +7,7 @@ use App\Models\SpeechAnnouncement;
 use App\Services\SpeechAnnouncementPlaybackService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class SpeechAnnouncementController extends Controller
 {
@@ -34,15 +35,17 @@ class SpeechAnnouncementController extends Controller
     public function next(): JsonResponse
     {
         $afterId = request()->integer('after_id');
+        $notBefore = request()->date('not_before');
 
         $playbackService = app(SpeechAnnouncementPlaybackService::class);
         $playbackService->releaseExpiredClaims();
 
-        $announcement = \Illuminate\Support\Facades\DB::transaction(function () use ($afterId) {
+        $announcement = \Illuminate\Support\Facades\DB::transaction(function () use ($afterId, $notBefore) {
             $announcement = SpeechAnnouncement::query()
                 ->whereNull('spoken_at')
                 ->whereNull('processing_started_at')
                 ->when($afterId > 0, fn ($query) => $query->where('id', '>', $afterId))
+                ->when($notBefore instanceof Carbon, fn ($query) => $query->where('created_at', '>=', $notBefore))
                 ->oldest('id')
                 ->lockForUpdate()
                 ->first();
@@ -70,6 +73,7 @@ class SpeechAnnouncementController extends Controller
                 'id' => $announcement->id,
                 'kind' => $announcement->kind,
                 'message' => $announcement->message,
+                'created_at' => $announcement->created_at?->toIso8601String(),
                 'processing_started_at' => $announcement->processing_started_at?->toIso8601String(),
                 'processing_host' => $announcement->processing_host,
             ],

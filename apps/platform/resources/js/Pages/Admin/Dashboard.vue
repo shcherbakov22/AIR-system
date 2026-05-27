@@ -237,8 +237,14 @@ const copiedStudentChatMessageId = ref<number | null>(null);
 const violationSelectByStudentId = new Map<number, HTMLSelectElement>();
 const browserSpeechStorageKey = 'air-dashboard-browser-speech-enabled';
 const browserSpeechWatermarkStorageKey = 'air-dashboard-browser-speech-watermark';
+const browserSpeechEnabledAtStorageKey = 'air-dashboard-browser-speech-enabled-at';
+const browserSpeechInitialReplayWindowMs = 15 * 60 * 1000;
 const browserSpeechEnabled = ref(localStorage.getItem(browserSpeechStorageKey) !== '0');
 const browserSpeechWatermark = ref(Number(localStorage.getItem(browserSpeechWatermarkStorageKey) ?? '0') || 0);
+const storedBrowserSpeechEnabledAt = Number(localStorage.getItem(browserSpeechEnabledAtStorageKey) ?? '0') || null;
+const browserSpeechEnabledAtMs = ref(browserSpeechEnabled.value
+    ? (storedBrowserSpeechEnabledAt ?? Date.now())
+    : null);
 const serverSpeechPendingCount = ref(props.serverSpeech.pending_count);
 const monitorGridRef = ref<HTMLElement | null>(null);
 let captureObserver: IntersectionObserver | null = null;
@@ -308,10 +314,17 @@ watch(browserSpeechEnabled, (enabled) => {
     localStorage.setItem(browserSpeechStorageKey, enabled ? '1' : '0');
 
     if (!enabled && 'speechSynthesis' in window) {
+        localStorage.removeItem(browserSpeechEnabledAtStorageKey);
+        browserSpeechEnabledAtMs.value = null;
         window.speechSynthesis.cancel();
         speechPlaybackActive.value = false;
         activeSpeechAnnouncementId.value = null;
         return;
+    }
+
+    if (enabled && browserSpeechEnabledAtMs.value === null) {
+        browserSpeechEnabledAtMs.value = Date.now();
+        localStorage.setItem(browserSpeechEnabledAtStorageKey, String(browserSpeechEnabledAtMs.value));
     }
 
     if ('speechSynthesis' in window) {
@@ -423,7 +436,17 @@ const fetchNextSpeechAnnouncement = async () => {
         return;
     }
 
-    const response = await window.fetch(`${route('admin.speech-announcements.next')}?after_id=${encodeURIComponent(String(browserSpeechWatermark.value))}`, {
+    if (browserSpeechEnabledAtMs.value === null) {
+        browserSpeechEnabledAtMs.value = Date.now();
+        localStorage.setItem(browserSpeechEnabledAtStorageKey, String(browserSpeechEnabledAtMs.value));
+    }
+
+    const params = new URLSearchParams({
+        after_id: String(browserSpeechWatermark.value),
+        not_before: new Date(browserSpeechEnabledAtMs.value - browserSpeechInitialReplayWindowMs).toISOString(),
+    });
+
+    const response = await window.fetch(`${route('admin.speech-announcements.next')}?${params.toString()}`, {
         headers: {
             Accept: 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
