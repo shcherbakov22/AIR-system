@@ -56,6 +56,14 @@ class ExtensionInterfaceTest extends TestCase
             'internet_access_mode' => 'whitelist',
             'last_seen_at' => now(),
         ]);
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension-placeholder',
+            'label' => 'Chrome browser extension',
+            'platform' => 'chrome_extension',
+            'internet_access_mode' => 'whitelist',
+            'last_seen_at' => null,
+        ]);
         BrowserPolicyRule::create([
             'student_id' => $student->id,
             'effect' => 'allow',

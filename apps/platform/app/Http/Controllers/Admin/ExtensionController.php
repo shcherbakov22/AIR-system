@@ -51,13 +51,15 @@ class ExtensionController extends Controller
                 'devices' => fn ($query) => $query
                     ->whereNull('revoked_at')
                     ->where('platform', 'chrome_extension')
+                    ->whereNotNull('last_seen_at')
                     ->latest('last_seen_at')
                     ->latest('id'),
             ])
             ->withCount([
                 'devices as active_device_count' => fn (Builder $query) => $query
                     ->whereNull('revoked_at')
-                    ->where('platform', 'chrome_extension'),
+                    ->where('platform', 'chrome_extension')
+                    ->whereNotNull('last_seen_at'),
                 'browserAccessRequests as pending_access_request_count' => fn (Builder $query) => $query->where('status', 'pending'),
                 'browserVisitLogs as visit_count_today' => fn (Builder $query) => $query->where('visited_at', '>=', now()->startOfDay()),
             ])
@@ -73,6 +75,7 @@ class ExtensionController extends Controller
                     'devices' => fn ($query) => $query
                         ->whereNull('revoked_at')
                         ->where('platform', 'chrome_extension')
+                        ->whereNotNull('last_seen_at')
                         ->latest('last_seen_at')
                         ->latest('id'),
                     'browserPolicyRules' => fn ($query) => $query->latest('created_at')->latest('id'),
