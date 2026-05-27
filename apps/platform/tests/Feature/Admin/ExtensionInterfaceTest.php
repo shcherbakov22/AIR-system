@@ -44,6 +44,14 @@ class ExtensionInterfaceTest extends TestCase
             'student_id' => $student->id,
             'device_key' => 'extension-device',
             'label' => 'Desk Extension',
+            'platform' => 'chrome_extension',
+            'internet_access_mode' => 'whitelist',
+            'last_seen_at' => now(),
+        ]);
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'native-companion-device',
+            'label' => 'Native Companion',
             'platform' => 'windows',
             'internet_access_mode' => 'whitelist',
             'last_seen_at' => now(),
@@ -107,6 +115,9 @@ class ExtensionInterfaceTest extends TestCase
                 ->where('focusedStudent.browser_accountability.recent_visits.0.decision', 'blocked')
                 ->where('focusedStudent.browser_accountability.recent_visits.0.display_url', 'laravel.com/docs?page=2')
                 ->where('focusedStudent.browser_accountability.recent_visits.0.destroy_url', route('admin.students.browser-history.logs.destroy', [$student, $visit]))
+                ->where('focusedStudent.devices.0.platform', 'chrome_extension')
+                ->has('focusedStudent.devices', 1)
+                ->where('students.0.device_count', 1)
                 ->where('task_allowlists.0.title', 'Coding')
                 ->where('task_allowlists.0.domains.0.value', 'github.com')
                 ->where('extension_download_url', route('companion.browser-extension.download'))

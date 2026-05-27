@@ -48,10 +48,16 @@ class ExtensionController extends Controller
         $students = Student::query()
             ->with([
                 'user',
-                'devices' => fn ($query) => $query->whereNull('revoked_at')->latest('last_seen_at')->latest('id'),
+                'devices' => fn ($query) => $query
+                    ->whereNull('revoked_at')
+                    ->where('platform', 'chrome_extension')
+                    ->latest('last_seen_at')
+                    ->latest('id'),
             ])
             ->withCount([
-                'devices as active_device_count' => fn (Builder $query) => $query->whereNull('revoked_at'),
+                'devices as active_device_count' => fn (Builder $query) => $query
+                    ->whereNull('revoked_at')
+                    ->where('platform', 'chrome_extension'),
                 'browserAccessRequests as pending_access_request_count' => fn (Builder $query) => $query->where('status', 'pending'),
                 'browserVisitLogs as visit_count_today' => fn (Builder $query) => $query->where('visited_at', '>=', now()->startOfDay()),
             ])
@@ -66,6 +72,7 @@ class ExtensionController extends Controller
                     'user',
                     'devices' => fn ($query) => $query
                         ->whereNull('revoked_at')
+                        ->where('platform', 'chrome_extension')
                         ->latest('last_seen_at')
                         ->latest('id'),
                     'browserPolicyRules' => fn ($query) => $query->latest('created_at')->latest('id'),
