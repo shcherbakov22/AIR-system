@@ -20,9 +20,11 @@ class StudentPushUpCounterService
         $profile = $this->lockProfile($student);
         $currentCount = max(0, (int) $profile->current_push_up_count);
 
-        $profile->update([
-            'current_push_up_count' => $currentCount + 1,
-        ]);
+        if ($profile->increment_push_up_count_per_violation) {
+            $profile->update([
+                'current_push_up_count' => $currentCount + 1,
+            ]);
+        }
 
         return $currentCount;
     }
@@ -60,6 +62,7 @@ class StudentPushUpCounterService
             [
                 'default_push_up_count' => 0,
                 'current_push_up_count' => self::DEFAULT_COUNT,
+                'increment_push_up_count_per_violation' => true,
                 'rest_duration_seconds' => 0,
                 'legacy_owner_user_id' => null,
                 'notes' => null,

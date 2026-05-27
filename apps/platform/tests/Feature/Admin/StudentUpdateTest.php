@@ -50,6 +50,7 @@ class StudentUpdateTest extends TestCase
                 ->where('student.settings.look_away_event_threshold', 3)
                 ->where('student.consequence_profile.default_push_up_count', 0)
                 ->where('student.consequence_profile.current_push_up_count', 10)
+                ->where('student.consequence_profile.increment_push_up_count_per_violation', true)
             );
     }
 
@@ -86,6 +87,7 @@ class StudentUpdateTest extends TestCase
             'look_away_event_threshold' => 5,
             'preferred_timezone' => 'Africa/Cairo',
             'default_push_up_count' => 8,
+            'increment_push_up_count_per_violation' => false,
             'rest_duration_seconds' => 120,
         ]);
 
@@ -116,6 +118,7 @@ class StudentUpdateTest extends TestCase
             'student_id' => $student->id,
             'default_push_up_count' => 8,
             'current_push_up_count' => 10,
+            'increment_push_up_count_per_violation' => false,
             'rest_duration_seconds' => 120,
             'notes' => null,
         ]);

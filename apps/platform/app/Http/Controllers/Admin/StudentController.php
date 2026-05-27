@@ -36,6 +36,7 @@ class StudentController extends Controller
             'consequence_profile' => [
                 'default_push_up_count' => $student->consequenceProfile?->default_push_up_count ?? 0,
                 'current_push_up_count' => $student->consequenceProfile?->current_push_up_count ?? 10,
+                'increment_push_up_count_per_violation' => $student->consequenceProfile?->increment_push_up_count_per_violation ?? true,
                 'rest_duration_seconds' => $student->consequenceProfile?->rest_duration_seconds ?? 0,
                 'legacy_owner_user_id' => $student->consequenceProfile?->legacy_owner_user_id,
             ],
@@ -86,6 +87,7 @@ class StudentController extends Controller
                 'student_id' => $student->id,
                 'default_push_up_count' => (int) $request->input('default_push_up_count'),
                 'current_push_up_count' => 10,
+                'increment_push_up_count_per_violation' => $request->boolean('increment_push_up_count_per_violation'),
                 'rest_duration_seconds' => (int) $request->input('rest_duration_seconds'),
                 'legacy_owner_user_id' => null,
                 'notes' => null,
@@ -136,6 +138,7 @@ class StudentController extends Controller
                 [
                     'default_push_up_count' => (int) $request->input('default_push_up_count'),
                     'current_push_up_count' => $student->consequenceProfile?->current_push_up_count ?? 10,
+                    'increment_push_up_count_per_violation' => $request->boolean('increment_push_up_count_per_violation'),
                     'rest_duration_seconds' => (int) $request->input('rest_duration_seconds'),
                     'notes' => $student->consequenceProfile?->notes,
                 ],

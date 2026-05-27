@@ -21,6 +21,7 @@ const props = defineProps<{
         };
         consequence_profile: {
             default_push_up_count: number;
+            increment_push_up_count_per_violation: boolean;
             rest_duration_seconds: number;
             legacy_owner_user_id?: number | null;
         };
@@ -45,6 +46,7 @@ const form = useForm({
     look_away_event_threshold: String(props.student.settings.look_away_event_threshold),
     preferred_timezone: props.student.settings.preferred_timezone ?? '',
     default_push_up_count: String(props.student.consequence_profile.default_push_up_count),
+    increment_push_up_count_per_violation: props.student.consequence_profile.increment_push_up_count_per_violation,
     rest_duration_seconds: String(props.student.consequence_profile.rest_duration_seconds),
 });
 
@@ -200,6 +202,16 @@ const deleteStudent = () => {
                                 <InputLabel for="rest_duration_seconds" value="Rest duration (seconds)" />
                                 <TextInput id="rest_duration_seconds" v-model="form.rest_duration_seconds" type="number" min="0" max="86400" class="mt-2 block w-full rounded-xl border-stone-300" />
                                 <InputError class="mt-2" :message="form.errors.rest_duration_seconds" />
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="inline-flex items-center gap-3">
+                                    <Checkbox v-model:checked="form.increment_push_up_count_per_violation" />
+                                    <span class="text-sm text-stone-700">
+                                        Increase push-up count after each violation
+                                    </span>
+                                </label>
+                                <InputError class="mt-2" :message="form.errors.increment_push_up_count_per_violation" />
                             </div>
 
                         </div>

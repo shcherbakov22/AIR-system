@@ -136,6 +136,59 @@ class ViolationManagementTest extends TestCase
         ]);
     }
 
+    public function test_violation_does_not_increment_push_up_count_when_student_toggle_is_disabled(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_no_increment',
+        ]);
+
+        $student = $this->createStudent('student_no_increment', 'Student No Increment');
+        $student->consequenceProfile()->create([
+            'default_push_up_count' => 0,
+            'current_push_up_count' => 12,
+            'increment_push_up_count_per_violation' => false,
+            'rest_duration_seconds' => 0,
+            'legacy_owner_user_id' => null,
+            'notes' => null,
+        ]);
+
+        $ruleDefinitions = collect(['Stay on assigned work', 'Observe the time'])
+            ->map(fn (string $title) => RuleDefinition::create([
+                'title' => $title,
+                'description' => 'Student must follow the rule.',
+                'scope' => 'global',
+                'student_id' => null,
+                'default_penalty_units' => 0,
+                'is_active' => true,
+                'created_by_user_id' => $admin->id,
+            ]));
+
+        foreach ($ruleDefinitions as $index => $ruleDefinition) {
+            $this->actingAs($admin)->post(route('admin.violations.store'), [
+                'student_id' => $student->id,
+                'rule_definition_id' => $ruleDefinition->id,
+                'occurred_at' => $index === 0 ? '2026-03-08T10:15' : '2026-03-08T10:20',
+                'notes' => 'Observed switching away from the assigned work tab.',
+            ])->assertRedirect(route('admin.violations.index', absolute: false));
+        }
+
+        $this->assertSame(
+            [12, 12],
+            Violation::query()
+                ->where('student_id', $student->id)
+                ->oldest('id')
+                ->pluck('penalty_units')
+                ->all(),
+        );
+
+        $this->assertDatabaseHas('student_consequence_profiles', [
+            'student_id' => $student->id,
+            'current_push_up_count' => 12,
+            'increment_push_up_count_per_violation' => false,
+        ]);
+    }
+
     public function test_admin_can_not_create_a_violation_with_a_rule_for_a_different_student(): void
     {
         $admin = User::factory()->create([
