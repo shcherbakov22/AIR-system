@@ -137,6 +137,7 @@ class ViolationController extends Controller
                 'display_name' => $student->display_name,
                 'username' => $student->user->username,
                 'current_push_up_count' => $student->consequenceProfile?->current_push_up_count ?? StudentPushUpCounterService::DEFAULT_COUNT,
+                'increment_push_up_count_per_violation' => $student->consequenceProfile?->increment_push_up_count_per_violation ?? true,
             ])->all(),
             'ruleDefinitions' => $ruleDefinitions->map(fn (RuleDefinition $ruleDefinition) => [
                 'id' => $ruleDefinition->id,

@@ -87,7 +87,6 @@ class StudentUpdateTest extends TestCase
             'look_away_event_threshold' => 5,
             'preferred_timezone' => 'Africa/Cairo',
             'default_push_up_count' => 8,
-            'increment_push_up_count_per_violation' => false,
             'rest_duration_seconds' => 120,
         ]);
 
@@ -118,7 +117,7 @@ class StudentUpdateTest extends TestCase
             'student_id' => $student->id,
             'default_push_up_count' => 8,
             'current_push_up_count' => 10,
-            'increment_push_up_count_per_violation' => false,
+            'increment_push_up_count_per_violation' => true,
             'rest_duration_seconds' => 120,
             'notes' => null,
         ]);

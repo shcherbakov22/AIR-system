@@ -44,7 +44,6 @@ class StudentCreationTest extends TestCase
             'look_away_event_threshold' => 4,
             'preferred_timezone' => 'Africa/Cairo',
             'default_push_up_count' => 12,
-            'increment_push_up_count_per_violation' => false,
             'rest_duration_seconds' => 90,
         ]);
 
@@ -82,7 +81,7 @@ class StudentCreationTest extends TestCase
             'student_id' => $student->id,
             'default_push_up_count' => 12,
             'current_push_up_count' => 10,
-            'increment_push_up_count_per_violation' => false,
+            'increment_push_up_count_per_violation' => true,
             'rest_duration_seconds' => 90,
             'notes' => null,
         ]);

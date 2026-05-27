@@ -189,6 +189,35 @@ class ViolationManagementTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_toggle_push_up_counter_increment_from_violations_tab(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_increment_toggle',
+        ]);
+
+        $student = $this->createStudent('student_increment_toggle', 'Student Increment Toggle');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.push-up-counter-increment.update', $student), [
+                'enabled' => false,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('student_consequence_profiles', [
+            'student_id' => $student->id,
+            'current_push_up_count' => 10,
+            'increment_push_up_count_per_violation' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.violations.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('students.0.increment_push_up_count_per_violation', false)
+            );
+    }
+
     public function test_admin_can_not_create_a_violation_with_a_rule_for_a_different_student(): void
     {
         $admin = User::factory()->create([

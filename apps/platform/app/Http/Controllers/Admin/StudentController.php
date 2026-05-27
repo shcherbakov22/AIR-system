@@ -87,7 +87,7 @@ class StudentController extends Controller
                 'student_id' => $student->id,
                 'default_push_up_count' => (int) $request->input('default_push_up_count'),
                 'current_push_up_count' => 10,
-                'increment_push_up_count_per_violation' => $request->boolean('increment_push_up_count_per_violation'),
+                'increment_push_up_count_per_violation' => true,
                 'rest_duration_seconds' => (int) $request->input('rest_duration_seconds'),
                 'legacy_owner_user_id' => null,
                 'notes' => null,
@@ -138,7 +138,7 @@ class StudentController extends Controller
                 [
                     'default_push_up_count' => (int) $request->input('default_push_up_count'),
                     'current_push_up_count' => $student->consequenceProfile?->current_push_up_count ?? 10,
-                    'increment_push_up_count_per_violation' => $request->boolean('increment_push_up_count_per_violation'),
+                    'increment_push_up_count_per_violation' => $student->consequenceProfile?->increment_push_up_count_per_violation ?? true,
                     'rest_duration_seconds' => (int) $request->input('rest_duration_seconds'),
                     'notes' => $student->consequenceProfile?->notes,
                 ],
@@ -210,5 +210,29 @@ class StudentController extends Controller
         });
 
         return redirect()->back()->with('success', 'Push-up counter updated.');
+    }
+
+    public function updatePushUpCounterIncrement(\Illuminate\Http\Request $request, Student $student): RedirectResponse
+    {
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        DB::transaction(function () use ($validated, $student) {
+            $student->loadMissing('consequenceProfile');
+
+            $student->consequenceProfile()->updateOrCreate(
+                ['student_id' => $student->id],
+                [
+                    'default_push_up_count' => $student->consequenceProfile?->default_push_up_count ?? 0,
+                    'current_push_up_count' => $student->consequenceProfile?->current_push_up_count ?? StudentPushUpCounterService::DEFAULT_COUNT,
+                    'increment_push_up_count_per_violation' => (bool) $validated['enabled'],
+                    'rest_duration_seconds' => $student->consequenceProfile?->rest_duration_seconds ?? 0,
+                    'notes' => $student->consequenceProfile?->notes,
+                ],
+            );
+        });
+
+        return redirect()->back()->with('success', 'Push-up increment setting updated.');
     }
 }

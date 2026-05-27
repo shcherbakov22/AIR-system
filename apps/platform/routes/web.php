@@ -183,6 +183,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/students/{student}', [AdminStudentController::class, 'destroy'])->name('students.destroy');
         Route::patch('/students/{student}/password', [AdminStudentController::class, 'updatePassword'])->name('students.password.update');
         Route::patch('/students/{student}/push-up-counter', [AdminStudentController::class, 'updatePushUpCounter'])->name('students.push-up-counter.update');
+        Route::patch('/students/{student}/push-up-counter-increment', [AdminStudentController::class, 'updatePushUpCounterIncrement'])->name('students.push-up-counter-increment.update');
         Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
         Route::patch('/students/{student}/chat/read', [AdminChatController::class, 'markRead'])->name('students.chat.read');
         Route::get('/student-monitor-captures/{studentMonitorCapture}/day-history', [AdminStudentMonitorCaptureController::class, 'dayHistory'])->name('student-monitor-captures.day-history');

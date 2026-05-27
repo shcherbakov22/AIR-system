@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PageProps } from '@/types';
+import Checkbox from '@/Components/Checkbox.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { labelViolationResolutionAction } from '@/lib/labels';
 import { computed } from 'vue';
@@ -11,6 +12,7 @@ const props = defineProps<{
         display_name: string;
         username: string;
         current_push_up_count: number;
+        increment_push_up_count_per_violation: boolean;
     }>;
     ruleDefinitions: Array<{
         id: number;
@@ -70,6 +72,15 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
 const updatePushUpCounter = (studentId: number, action: 'increment' | 'decrement' | 'reset') => {
     router.patch(route('admin.students.push-up-counter.update', studentId), {
         action,
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
+const updatePushUpCounterIncrement = (studentId: number, enabled: boolean) => {
+    router.patch(route('admin.students.push-up-counter-increment.update', studentId), {
+        enabled,
     }, {
         preserveScroll: true,
         preserveState: true,
@@ -164,6 +175,13 @@ const queuePushUps = (url?: string | null) => {
                                             Reset
                                         </button>
                                     </div>
+                                    <label class="mt-2 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-600">
+                                        <Checkbox
+                                            :checked="student.increment_push_up_count_per_violation"
+                                            @update:checked="(enabled) => updatePushUpCounterIncrement(student.id, Boolean(enabled))"
+                                        />
+                                        <span>Auto increase</span>
+                                    </label>
                                 </th>
                                 <td
                                     v-for="ruleDefinition in props.ruleDefinitions"
