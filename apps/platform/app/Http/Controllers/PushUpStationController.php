@@ -6,21 +6,9 @@ use App\Models\PushUpSession;
 use App\Services\PushUpSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class PushUpStationController extends Controller
 {
-    public function show(): Response
-    {
-        return Inertia::render('PushUpStation/Show', [
-            'defaults' => (new PushUpSessionService())->defaultConfiguration(10),
-            'station_state_url' => route('push-up-station.heartbeat'),
-            'claim_next_url' => route('push-up-station.claim-next'),
-            'watchdog_timeout_seconds' => 60,
-        ]);
-    }
-
     public function heartbeat(Request $request, PushUpSessionService $service): JsonResponse
     {
         $validated = $request->validate([

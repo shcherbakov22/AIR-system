@@ -98,7 +98,6 @@ Route::prefix('ss')
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
-    Route::get('/push-up-station', [PushUpStationController::class, 'show'])->name('push-up-station.show');
     Route::post('/push-up-station/heartbeat', [PushUpStationController::class, 'heartbeat'])->name('push-up-station.heartbeat');
     Route::post('/push-up-station/claim-next', [PushUpStationController::class, 'claimNext'])->name('push-up-station.claim-next');
     Route::patch('/push-up-station/sessions/{pushUpSession}/start', [PushUpStationController::class, 'start'])->name('push-up-station.sessions.start');

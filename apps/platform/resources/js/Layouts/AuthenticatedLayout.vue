@@ -185,12 +185,6 @@ const navItems = computed(() => {
             active: route().current('admin.ai-overseer-decisions.*'),
         });
         items.push({
-            label: 'Counter',
-            href: route('push-up-station.show'),
-            external: false,
-            active: route().current('push-up-station.*'),
-        });
-        items.push({
             label: 'Database',
             href: route('admin.database'),
             external: true,
@@ -226,12 +220,6 @@ const navItems = computed(() => {
             href: route('student.assignments.index'),
             external: false,
             active: route().current('student.assignments.*'),
-        });
-        items.push({
-            label: 'Counter',
-            href: route('push-up-station.show'),
-            external: false,
-            active: route().current('push-up-station.*'),
         });
         items.push({
             label: 'Rules',
