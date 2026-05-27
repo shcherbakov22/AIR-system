@@ -32,6 +32,12 @@ class StudentDeviceController extends Controller
             'devices.monitorCaptures' => fn ($query) => $query->latest('captured_at')->limit(2),
         ]);
 
+        $devices = $student->devices
+            ->whereNull('revoked_at')
+            ->reject(fn (StudentDevice $device) => $device->platform === 'chrome_extension')
+            ->sortBy('label')
+            ->values();
+
         return Inertia::render('Admin/Students/Devices', [
             'student' => [
                 'id' => $student->id,
@@ -39,10 +45,7 @@ class StudentDeviceController extends Controller
                 'username' => $student->user?->username,
             ],
             'browser_accountability' => $this->browserAccountabilityPayload($student),
-            'devices' => $student->devices
-                ->whereNull('revoked_at')
-                ->sortBy('label')
-                ->values()
+            'devices' => $devices
                 ->map(fn (StudentDevice $device) => $this->deviceCardPayload($device, $devicePolicyService))
                 ->all(),
         ]);
@@ -61,6 +64,12 @@ class StudentDeviceController extends Controller
             'devices.monitorCaptures' => fn ($query) => $query->latest('captured_at')->latest('id')->limit(20),
         ]);
 
+        $devices = $student->devices
+            ->whereNull('revoked_at')
+            ->reject(fn (StudentDevice $device) => $device->platform === 'chrome_extension')
+            ->sortBy('label')
+            ->values();
+
         return Inertia::render('Admin/Students/CompanionDebug', [
             'student' => [
                 'id' => $student->id,
@@ -68,10 +77,7 @@ class StudentDeviceController extends Controller
                 'username' => $student->user?->username,
             ],
             'browser_accountability' => $this->browserAccountabilityPayload($student),
-            'devices' => $student->devices
-                ->whereNull('revoked_at')
-                ->sortBy('label')
-                ->values()
+            'devices' => $devices
                 ->map(fn (StudentDevice $device) => [
                     ...$this->deviceCardPayload($device, $devicePolicyService),
                     'policy_snapshot' => $devicePolicyService->buildForDevice($device),

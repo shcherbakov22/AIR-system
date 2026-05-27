@@ -127,6 +127,58 @@ class StudentDeviceManagementTest extends TestCase
             );
     }
 
+    public function test_browser_extension_devices_are_hidden_from_native_device_cards(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_hidden_extension_devices',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_hidden_extension_devices',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Hidden Extension Device Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'native-device',
+            'label' => 'Native Desk',
+            'platform' => 'windows',
+        ]);
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+            'label' => 'Chrome browser extension',
+            'platform' => 'chrome_extension',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.students.devices.index', $student))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Students/Devices')
+                ->has('devices', 1)
+                ->where('devices.0.label', 'Native Desk')
+            );
+
+        $this->actingAs($admin)
+            ->get(route('admin.students.devices.debug', $student))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Students/CompanionDebug')
+                ->has('devices', 1)
+                ->where('devices.0.label', 'Native Desk')
+            );
+    }
+
     public function test_admin_can_rename_and_revoke_student_device(): void
     {
         $admin = User::factory()->create([

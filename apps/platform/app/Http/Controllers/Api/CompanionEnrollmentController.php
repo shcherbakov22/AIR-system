@@ -46,6 +46,7 @@ class CompanionEnrollmentController extends Controller
                 'meta' => $request->input('meta', []),
             ],
         );
+        $this->revokeDuplicateNativeDevices($device);
 
         $enrollmentToken->forceFill([
             'used_at' => now(),
@@ -79,6 +80,7 @@ class CompanionEnrollmentController extends Controller
                 'meta' => $request->input('meta', []),
             ],
         );
+        $this->revokeDuplicateNativeDevices($device);
 
         return $this->enrollmentResponse($device, $user->username, $user->student->display_name);
     }
@@ -167,5 +169,39 @@ class CompanionEnrollmentController extends Controller
                 'browser_login_url' => $browserLoginUrl,
             ],
         ]);
+    }
+
+    private function revokeDuplicateNativeDevices(StudentDevice $device): void
+    {
+        if ($device->platform === 'chrome_extension') {
+            return;
+        }
+
+        $hostname = trim((string) $device->hostname);
+        $label = trim((string) $device->label);
+
+        if ($hostname === '' && $label === '') {
+            return;
+        }
+
+        StudentDevice::query()
+            ->where('student_id', $device->student_id)
+            ->whereKeyNot($device->id)
+            ->where('platform', $device->platform)
+            ->where('platform', '!=', 'chrome_extension')
+            ->whereNull('revoked_at')
+            ->where(function ($query) use ($hostname, $label) {
+                if ($hostname !== '') {
+                    $query->where('hostname', $hostname);
+                    return;
+                }
+
+                $query->where('label', $label);
+            })
+            ->update([
+                'revoked_at' => now(),
+                'revoked_by_user_id' => null,
+                'token_hash' => null,
+            ]);
     }
 }

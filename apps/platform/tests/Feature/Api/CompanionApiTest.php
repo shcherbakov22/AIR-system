@@ -63,6 +63,50 @@ class CompanionApiTest extends TestCase
         $this->assertNotEmpty($response->json('token'));
     }
 
+    public function test_enrolling_same_native_machine_revokes_older_device_row(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('companion_duplicate_student', 'secret-pass');
+
+        $oldDevice = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'old-device-key',
+            'label' => 'Desk PC',
+            'hostname' => 'desk-pc',
+            'platform' => 'windows',
+            'app_version' => '0.1.0',
+            'token_hash' => hash('sha256', 'old-token'),
+            'last_seen_at' => now()->subDay(),
+        ]);
+
+        $response = $this->postJson(route('api.companion.enroll'), [
+            'username' => $studentUser->username,
+            'password' => 'secret-pass',
+            'device_key' => 'new-device-key',
+            'label' => 'Desk PC',
+            'hostname' => 'desk-pc',
+            'platform' => 'windows',
+            'app_version' => '0.1.27',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('accepted', true)
+            ->assertJsonPath('device.device_key', 'new-device-key');
+
+        $this->assertDatabaseHas('student_devices', [
+            'id' => $oldDevice->id,
+            'student_id' => $student->id,
+            'device_key' => 'old-device-key',
+            'token_hash' => null,
+        ]);
+        $this->assertNotNull($oldDevice->fresh()->revoked_at);
+        $this->assertDatabaseHas('student_devices', [
+            'student_id' => $student->id,
+            'device_key' => 'new-device-key',
+            'revoked_at' => null,
+        ]);
+    }
+
     public function test_device_can_claim_one_time_enrollment_token(): void
     {
         [$student, $studentUser] = $this->makeStudent('token_student', 'secret-pass');
