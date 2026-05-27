@@ -1970,7 +1970,7 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.app_control.blocked_processes', ['Game.exe', 'taskmgr.exe']);
     }
 
-    public function test_unconfigured_browser_extension_reports_violation_and_blocks_browsers(): void
+    public function test_unconfigured_browser_extension_placeholder_does_not_block_browsers_before_first_check_in(): void
     {
         [$student, $studentUser] = $this->makeStudent('unconfigured_extension_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -2015,10 +2015,9 @@ class CompanionApiTest extends TestCase
         $this->withHeaders($this->authHeaders($token))
             ->getJson(route('api.companion.policy.show'))
             ->assertOk()
-            ->assertJsonPath('policy.violations.open_count', 1)
-            ->assertJsonPath('policy.violations.items.0.rule_title', 'Browser extension removed')
-            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true)
-            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 0);
+            ->assertJsonPath('policy.violations.open_count', 0)
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false)
+            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
     }
 
     public function test_missing_browser_extension_record_does_not_block_before_initial_install(): void

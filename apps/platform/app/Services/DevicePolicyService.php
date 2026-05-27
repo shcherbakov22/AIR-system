@@ -156,17 +156,13 @@ class DevicePolicyService
             return false;
         }
 
-        if ($extensionDevices->isEmpty()) {
-            return false;
-        }
-
         $staleDeadline = now()->subMinutes(self::BROWSER_EXTENSION_STALE_AFTER_MINUTES);
         $seenDevices = $extensionDevices->filter(
             fn (StudentDevice $device) => $device->last_seen_at instanceof Carbon
         );
 
         if ($seenDevices->isEmpty()) {
-            return true;
+            return false;
         }
 
         $hasFreshExtension = $seenDevices->contains(
