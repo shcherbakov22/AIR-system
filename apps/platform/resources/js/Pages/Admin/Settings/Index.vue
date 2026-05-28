@@ -123,9 +123,6 @@ const saveStudent = (student: StudentSettings) => {
                                     <div class="font-semibold text-stone-950">
                                         {{ student.username }}
                                     </div>
-                                    <div class="text-xs text-stone-500">
-                                        {{ student.display_name }}
-                                    </div>
                                 </td>
                                 <td class="px-4 py-4">
                                     <label class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700">
