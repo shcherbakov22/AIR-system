@@ -755,6 +755,58 @@ class ScheduleRunFlowTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_student_cannot_start_custom_timer_longer_than_task_default_duration(): void
+    {
+        Carbon::setTestNow('2026-03-08 09:00:00');
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'schedule_run_long_custom_timer',
+        ]);
+        $catalogOwner = User::factory()->create([
+            'role' => UserRole::Admin,
+        ]);
+        $breakTemplate = $this->createTaskTemplate(
+            $catalogOwner,
+            'Break Timer',
+            15,
+            'Handle an urgent interruption.',
+            'Pause the schedule until the interruption is handled.',
+        );
+
+        $student = $this->createStudent($studentUser);
+        $scheduleTemplate = $this->createScheduleTemplate($student);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.store', $scheduleTemplate));
+
+        $scheduleRun = ScheduleRun::query()
+            ->where('student_id', $student->id)
+            ->sole();
+
+        $this->actingAs($studentUser)
+            ->post(route('student.schedule-runs.pause', $scheduleRun), [
+                'task_template_id' => $breakTemplate->id,
+                'duration_minutes' => 16,
+            ])
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('error', 'Custom timer cannot be longer than 15 minutes for Break Timer.');
+
+        $this->assertDatabaseHas('schedule_runs', [
+            'id' => $scheduleRun->id,
+            'status' => 'active',
+        ]);
+
+        $this->assertDatabaseMissing('task_sessions', [
+            'student_id' => $student->id,
+            'schedule_run_id' => null,
+            'task_template_id' => $breakTemplate->id,
+            'status' => 'active',
+        ]);
+
+        Carbon::setTestNow();
+    }
+
     public function test_running_schedule_task_can_only_be_interrupted_by_allowed_task_templates(): void
     {
         Carbon::setTestNow('2026-03-08 09:00:00');

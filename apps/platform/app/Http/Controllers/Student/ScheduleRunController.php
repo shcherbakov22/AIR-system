@@ -204,6 +204,13 @@ class ScheduleRunController extends Controller
                 ->firstOrFail();
             $durationMinutes = (int) ($request->input('duration_minutes') ?: $taskTemplate->default_duration_minutes);
 
+            if ($durationMinutes > $taskTemplate->default_duration_minutes) {
+                return [
+                    'success' => false,
+                    'message' => "Custom timer cannot be longer than {$taskTemplate->default_duration_minutes} minutes for {$taskTemplate->title}.",
+                ];
+            }
+
             $ownedScheduleRun = ScheduleRun::query()
                 ->whereKey($scheduleRun->id)
                 ->where('student_id', $studentId)

@@ -217,12 +217,36 @@ const pauseOwnTimerForm = useForm({
 const selectedPauseTaskTemplate = computed(
     () => pauseTaskTemplates.value.find((taskTemplate) => String(taskTemplate.id) === pauseOwnTimerForm.task_template_id) ?? null,
 );
+const selectedPauseTaskMaxDuration = computed(() => selectedPauseTaskTemplate.value?.default_duration_minutes ?? 10000);
+
+const clampPauseOwnTimerDuration = () => {
+    const maxDuration = selectedPauseTaskTemplate.value?.default_duration_minutes;
+
+    if (!maxDuration || pauseOwnTimerForm.duration_minutes === '') {
+        return;
+    }
+
+    const duration = Number(pauseOwnTimerForm.duration_minutes);
+
+    if (!Number.isFinite(duration)) {
+        return;
+    }
+
+    if (duration > maxDuration) {
+        pauseOwnTimerForm.duration_minutes = String(maxDuration);
+    }
+};
 
 watch(
     selectedPauseTaskTemplate,
     (taskTemplate) => {
         pauseOwnTimerForm.duration_minutes = taskTemplate ? String(taskTemplate.default_duration_minutes) : '';
     },
+);
+
+watch(
+    () => pauseOwnTimerForm.duration_minutes,
+    () => clampPauseOwnTimerDuration(),
 );
 
 const parseTimestamp = (value?: string | null): number | null => {
@@ -872,6 +896,8 @@ const pauseScheduleForOwnTimer = () => {
         return;
     }
 
+    clampPauseOwnTimerDuration();
+
     pauseOwnTimerForm.post(route('student.schedule-runs.pause', props.activeScheduleRun.id), {
         preserveScroll: true,
         onSuccess: () => {
@@ -1184,7 +1210,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 v-model="pauseOwnTimerForm.duration_minutes"
                                 type="number"
                                 min="1"
-                                max="10000"
+                                :max="selectedPauseTaskMaxDuration"
                                 step="1"
                                 inputmode="numeric"
                                 class="block w-full rounded-full border-stone-300 bg-white px-4 py-2 text-sm text-stone-950 shadow-sm focus:border-stone-950 focus:ring-stone-950"
