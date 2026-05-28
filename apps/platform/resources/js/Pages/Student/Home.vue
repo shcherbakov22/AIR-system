@@ -161,6 +161,12 @@ const props = defineProps<{
         can_end_early: boolean;
         can_interrupt_schedule: boolean;
     }>;
+    peerSilenceTargets: Array<{
+        id: number;
+        display_name: string;
+        username: string;
+        store_url: string;
+    }>;
 }>();
 
 const page = usePage<PageProps>();
@@ -203,6 +209,21 @@ const queueViolationPushUps = (url?: string | null) => {
     }
 
     router.post(url, {}, { preserveScroll: true, preserveState: true });
+};
+const peerSilenceMenuOpen = ref(false);
+const peerSilenceForm = useForm({});
+
+const togglePeerSilenceMenu = () => {
+    peerSilenceMenuOpen.value = !peerSilenceMenuOpen.value;
+};
+
+const reportPeerSilence = (target: { store_url: string }) => {
+    peerSilenceForm.post(target.store_url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            peerSilenceMenuOpen.value = false;
+        },
+    });
 };
 const hasBlockingCommunication = computed(() => props.communicationGate.has_unread);
 const hasBlockingAssignments = computed(() => props.assignmentGate.has_unread);
@@ -966,6 +987,41 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
     <Head title="Student portal" />
 
     <AuthenticatedLayout>
+        <div class="fixed right-2 top-1.5 z-30">
+            <div class="relative">
+                <button
+                    type="button"
+                    class="rounded-full border border-rose-200 bg-white/90 px-2 py-0.5 text-[11px] font-semibold text-rose-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="props.peerSilenceTargets.length === 0 || peerSilenceForm.processing"
+                    @click="togglePeerSilenceMenu"
+                >
+                    Shut up
+                </button>
+
+                <div
+                    v-if="peerSilenceMenuOpen"
+                    class="absolute right-0 mt-2 w-56 rounded-2xl border border-rose-100 bg-white p-2 shadow-xl"
+                >
+                    <p class="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-500">
+                        Keep silence
+                    </p>
+                    <div class="mt-1 max-h-72 overflow-y-auto">
+                        <button
+                            v-for="target in props.peerSilenceTargets"
+                            :key="target.id"
+                            type="button"
+                            class="block w-full rounded-xl px-2 py-1.5 text-left transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="peerSilenceForm.processing"
+                            @click="reportPeerSilence(target)"
+                        >
+                            <span class="block truncate text-sm font-semibold text-stone-950">{{ target.username }}</span>
+                            <span class="block truncate text-xs text-stone-500">{{ target.display_name }}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="mx-auto max-w-6xl p-5">
             <div
                 v-if="flashSuccess"

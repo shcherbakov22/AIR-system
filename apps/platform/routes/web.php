@@ -39,6 +39,7 @@ use App\Http\Controllers\Student\AttentionEventController as StudentAttentionEve
 use App\Http\Controllers\Student\ChatController as StudentChatController;
 use App\Http\Controllers\Student\CompanionEnrollmentController as StudentCompanionEnrollmentController;
 use App\Http\Controllers\Student\HomeController as StudentHomeController;
+use App\Http\Controllers\Student\PeerSilenceViolationController as StudentPeerSilenceViolationController;
 use App\Http\Controllers\Student\PushUpSessionController as StudentPushUpSessionController;
 use App\Http\Controllers\Student\RuleController as StudentRuleController;
 use App\Http\Controllers\Student\ScheduleController as StudentScheduleController;
@@ -201,6 +202,7 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('student')->name('student.')->middleware('student')->group(function () {
         Route::get('/home', StudentHomeController::class)->name('home');
+        Route::post('/peer-silence-violations/{student}', [StudentPeerSilenceViolationController::class, 'store'])->name('peer-silence-violations.store');
         Route::post('/violations/{violation}/push-up-sessions', [StudentPushUpSessionController::class, 'store'])->name('violations.push-up-sessions.store');
         Route::get('/announcements', [StudentAnnouncementController::class, 'show'])->name('announcements.show');
         Route::get('/ai-overseer-decisions', [StudentAiOverseerDecisionController::class, 'index'])->name('ai-overseer-decisions.index');

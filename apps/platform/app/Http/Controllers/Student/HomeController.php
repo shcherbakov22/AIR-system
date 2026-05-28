@@ -8,6 +8,7 @@ use App\Models\Violation;
 use App\Models\ScheduleRun;
 use App\Models\ScheduleRunBlock;
 use App\Models\ScheduleTemplate;
+use App\Models\Student;
 use App\Models\TaskSession;
 use App\Models\TaskTemplate;
 use App\Services\AutomaticObserveTheTimeViolationService;
@@ -214,6 +215,21 @@ class HomeController extends Controller
                 'can_manage_own_schedule' => $student?->canManageOwnSchedule() ?? true,
                 'can_use_ad_hoc_timer' => $student?->canUseAdHocTimer() ?? true,
             ],
+            'peerSilenceTargets' => $student
+                ? Student::query()
+                    ->with('user')
+                    ->where('status', 'active')
+                    ->whereKeyNot($student->id)
+                    ->orderBy('display_name')
+                    ->get()
+                    ->map(fn (Student $target) => [
+                        'id' => $target->id,
+                        'display_name' => $target->display_name,
+                        'username' => $target->user->username,
+                        'store_url' => route('student.peer-silence-violations.store', $target),
+                    ])
+                    ->all()
+                : [],
             'violationSummary' => [
                 'open_violations' => $openViolations->count(),
             ],
