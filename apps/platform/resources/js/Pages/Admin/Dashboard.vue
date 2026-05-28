@@ -225,6 +225,7 @@ const captureHistoryCache = new Map<number, DashboardCapture[]>();
 const captureHistoryRequestCache = new Map<number, Promise<DashboardCapture[]>>();
 const selectedAppsStudent = ref<DashboardStudent | null>(null);
 const appsPanelRefreshing = ref(false);
+const dismissedPendingAppNotificationIds = ref<Set<number>>(new Set());
 const selectedViolationRuleIds = ref<Record<number, string>>({});
 const violationApplyPendingByStudentId = ref<Record<number, boolean>>({});
 const assignmentComposerOpenByStudentId = ref<Record<number, boolean>>({});
@@ -1077,7 +1078,23 @@ const hasAnyAdminChatGate = computed(() =>
 );
 
 const pendingAppNotifications = (student: DashboardStudent) =>
-    student.app_control?.pending_review.slice(0, 3) ?? [];
+    student.app_control?.pending_review
+        .filter((app) => !dismissedPendingAppNotificationIds.value.has(app.id))
+        .slice(0, 3) ?? [];
+
+const dismissPendingAppNotification = (appId: number) => {
+    dismissedPendingAppNotificationIds.value = new Set([
+        ...dismissedPendingAppNotificationIds.value,
+        appId,
+    ]);
+};
+
+const dismissPendingAppNotificationsForStudent = (student: DashboardStudent) => {
+    dismissedPendingAppNotificationIds.value = new Set([
+        ...dismissedPendingAppNotificationIds.value,
+        ...(student.app_control?.pending_review.map((app) => app.id) ?? []),
+    ]);
+};
 
 const CHAT_NOTIFICATION_PREVIEW_LIMIT = 500;
 
@@ -1681,7 +1698,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                         <button
                             type="button"
                             class="block text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-800 transition hover:text-amber-950"
-                            @click="openAppsPanel(student)"
+                            @click="dismissPendingAppNotificationsForStudent(student)"
                         >
                             New open apps {{ student.app_control?.pending_review.length }}
                         </button>
@@ -1691,7 +1708,7 @@ const blockTooltip = (block: DashboardBlock): string => {
                                 :key="app.id"
                                 type="button"
                                 class="block w-full rounded-[0.65rem] bg-white/80 px-2 py-1.5 text-left ring-1 ring-amber-100 transition hover:ring-amber-300"
-                                @click="openAppsPanel(student)"
+                                @click="dismissPendingAppNotification(app.id)"
                             >
                                 <p class="truncate text-[11px] font-medium text-amber-950">
                                     {{ app.app_name }}
