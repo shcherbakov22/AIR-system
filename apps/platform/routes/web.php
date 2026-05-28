@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\HiddenScheduleBlockTimeController as AdminHiddenS
 use App\Http\Controllers\Admin\PushUpSessionController as AdminPushUpSessionController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\SpeechAnnouncementController as AdminSpeechAnnouncementController;
 use App\Http\Controllers\Admin\StudentAppPolicyController as AdminStudentAppPolicyController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
@@ -114,6 +115,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
         Route::get('/logs', [AdminActivityLogController::class, 'index'])->name('logs.index');
         Route::delete('/logs/category', [AdminActivityLogController::class, 'destroyCategory'])->name('logs.destroy-category');
+        Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+        Route::patch('/settings/students/{student}', [AdminSettingsController::class, 'updateStudent'])->name('settings.students.update');
         Route::get('/extension', [AdminExtensionController::class, 'index'])->name('extension.index');
         Route::delete('/extension/task-allowlists/{browserPolicyRule}', [AdminExtensionController::class, 'destroyTaskAllowlistRule'])->name('extension.task-allowlists.destroy');
         Route::get('/students/{student}/extension', [AdminExtensionController::class, 'show'])->name('extension.show');

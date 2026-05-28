@@ -27,6 +27,7 @@ class DevicePolicyService
         $student = $device->student()
             ->with([
                 'user',
+                'setting',
                 'violations',
                 'activeOrPausedScheduleRun.blocks.taskTemplate',
                 'taskSessions.taskTemplate',
@@ -40,6 +41,8 @@ class DevicePolicyService
         $browserExtensionMissing = $this->browserExtensionMissingForStudent($student);
 
         $internetPolicy = $this->internetPolicy($device);
+        $screenCaptureIntervalSeconds = max(5, (int) ($student->setting?->screen_capture_interval_seconds ?? 30));
+        $cameraCaptureIntervalSeconds = max(5, (int) ($student->setting?->camera_capture_interval_seconds ?? 30));
         $violationItems = $openViolations->map(fn ($violation) => [
             'id' => $violation->id,
             'rule_title' => $violation->rule_title_snapshot,
@@ -95,8 +98,8 @@ class DevicePolicyService
             'capture' => [
                 'screen_enabled' => true,
                 'camera_enabled' => true,
-                'screen_interval_seconds' => 30,
-                'camera_interval_seconds' => 30,
+                'screen_interval_seconds' => $screenCaptureIntervalSeconds,
+                'camera_interval_seconds' => $cameraCaptureIntervalSeconds,
             ],
             'activity_collection' => [
                 'track_open_gui_apps' => true,

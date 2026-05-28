@@ -18,6 +18,8 @@ class StudentSetting extends Model
         'look_away_event_count',
         'look_away_task_session_id',
         'preferred_timezone',
+        'screen_capture_interval_seconds',
+        'camera_capture_interval_seconds',
     ];
 
     protected function casts(): array
@@ -27,6 +29,8 @@ class StudentSetting extends Model
             'can_use_ad_hoc_timer' => 'boolean',
             'look_away_event_threshold' => 'integer',
             'look_away_event_count' => 'integer',
+            'screen_capture_interval_seconds' => 'integer',
+            'camera_capture_interval_seconds' => 'integer',
         ];
     }
 

@@ -137,6 +137,12 @@ const navItems = computed(() => {
             active: route().current('admin.logs.*'),
         });
         items.push({
+            label: 'Settings',
+            href: route('admin.settings.index'),
+            external: false,
+            active: route().current('admin.settings.*'),
+        });
+        items.push({
             label: 'Extension',
             href: route('admin.extension.index'),
             external: false,

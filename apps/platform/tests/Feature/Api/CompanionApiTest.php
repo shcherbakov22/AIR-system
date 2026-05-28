@@ -164,6 +164,24 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('network_state.reason', 'internet_control_removed');
     }
 
+    public function test_policy_uses_student_capture_intervals(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('policy_capture_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+
+        StudentSetting::create([
+            'student_id' => $student->id,
+            'screen_capture_interval_seconds' => 65,
+            'camera_capture_interval_seconds' => 95,
+        ]);
+
+        $this->withHeaders($this->authHeaders($device->issueToken()))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.capture.screen_interval_seconds', 65)
+            ->assertJsonPath('policy.capture.camera_interval_seconds', 95);
+    }
+
     public function test_policy_ignores_legacy_device_internet_access_mode(): void
     {
         [$student, $studentUser] = $this->makeStudent('internet_student', 'secret-pass');
