@@ -117,64 +117,66 @@ const saveStudent = (student: StudentSettings) => {
                             <tr
                                 v-for="student in props.students"
                                 :key="student.id"
-                                class="align-top"
+                                class="align-middle"
                             >
-                                <td class="px-4 py-4 sm:px-5">
+                                <td class="whitespace-nowrap px-4 py-2.5 sm:px-5">
                                     <div class="font-semibold text-stone-950">
                                         {{ student.username }}
                                     </div>
                                 </td>
-                                <td class="px-4 py-4">
-                                    <label class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-stone-700">
-                                        <Checkbox
-                                            :checked="forms[student.id].increment_push_up_count_per_violation"
-                                            @update:checked="(checked) => forms[student.id].increment_push_up_count_per_violation = Boolean(checked)"
-                                        />
-                                        <span>Auto increase</span>
-                                    </label>
-                                    <div class="mt-2 text-xs text-stone-500">
-                                        Next count: {{ student.consequence_profile.current_push_up_count }}
+                                <td class="px-4 py-2.5">
+                                    <div class="flex items-center gap-3 whitespace-nowrap">
+                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-stone-700">
+                                            <Checkbox
+                                                :checked="forms[student.id].increment_push_up_count_per_violation"
+                                                @update:checked="(checked) => forms[student.id].increment_push_up_count_per_violation = Boolean(checked)"
+                                            />
+                                            <span>Auto increase</span>
+                                        </label>
+                                        <span class="text-xs text-stone-500">
+                                            Next {{ student.consequence_profile.current_push_up_count }}
+                                        </span>
                                     </div>
                                     <InputError
-                                        class="mt-2"
+                                        class="mt-1"
                                         :message="forms[student.id].errors.increment_push_up_count_per_violation"
                                     />
                                 </td>
-                                <td class="px-4 py-4">
-                                    <TextInput
-                                        v-model="forms[student.id].screen_capture_interval_seconds"
-                                        type="number"
-                                        min="15"
-                                        max="3600"
-                                        step="1"
-                                        class="w-28"
-                                    />
-                                    <div class="mt-1 text-xs text-stone-500">
-                                        seconds
+                                <td class="px-4 py-2.5">
+                                    <div class="flex items-center gap-1.5 whitespace-nowrap">
+                                        <TextInput
+                                            v-model="forms[student.id].screen_capture_interval_seconds"
+                                            type="number"
+                                            min="15"
+                                            max="3600"
+                                            step="1"
+                                            class="h-8 w-16 px-2 py-1 text-sm"
+                                        />
+                                        <span class="text-xs text-stone-500">s</span>
                                     </div>
                                     <InputError
-                                        class="mt-2"
+                                        class="mt-1"
                                         :message="forms[student.id].errors.screen_capture_interval_seconds"
                                     />
                                 </td>
-                                <td class="px-4 py-4">
-                                    <TextInput
-                                        v-model="forms[student.id].camera_capture_interval_seconds"
-                                        type="number"
-                                        min="15"
-                                        max="3600"
-                                        step="1"
-                                        class="w-28"
-                                    />
-                                    <div class="mt-1 text-xs text-stone-500">
-                                        seconds
+                                <td class="px-4 py-2.5">
+                                    <div class="flex items-center gap-1.5 whitespace-nowrap">
+                                        <TextInput
+                                            v-model="forms[student.id].camera_capture_interval_seconds"
+                                            type="number"
+                                            min="15"
+                                            max="3600"
+                                            step="1"
+                                            class="h-8 w-16 px-2 py-1 text-sm"
+                                        />
+                                        <span class="text-xs text-stone-500">s</span>
                                     </div>
                                     <InputError
-                                        class="mt-2"
+                                        class="mt-1"
                                         :message="forms[student.id].errors.camera_capture_interval_seconds"
                                     />
                                 </td>
-                                <td class="px-4 py-4 text-right sm:px-5">
+                                <td class="px-4 py-2.5 text-right sm:px-5">
                                     <PrimaryButton
                                         type="button"
                                         :disabled="forms[student.id].processing"
