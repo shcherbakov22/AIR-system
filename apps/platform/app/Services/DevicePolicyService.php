@@ -243,6 +243,7 @@ class DevicePolicyService
 
         return in_array($normalized, [
             'chrome.exe',
+            'new_chrome.exe',
             'msedge.exe',
             'firefox.exe',
             'brave.exe',

@@ -2098,6 +2098,42 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 0);
     }
 
+    public function test_stale_installed_browser_extension_detects_renamed_chrome_process(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('renamed_chrome_extension_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+            'label' => 'Chrome browser extension',
+            'hostname' => null,
+            'platform' => 'chrome_extension',
+            'app_version' => '0.1.0',
+            'last_seen_at' => now()->subMinutes(4),
+            'last_seen_ip' => '192.168.11.50',
+        ]);
+
+        $device->activityEvents()->create([
+            'event_type' => 'open_apps',
+            'payload' => [
+                'apps' => [
+                    ['app_name' => 'new_chrome.exe', 'window_title' => 'Rules - Google Chrome'],
+                ],
+            ],
+            'observed_at' => now()->subSeconds(61),
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.violations.open_count', 1)
+            ->assertJsonPath('policy.violations.items.0.rule_title', 'Browser extension removed')
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true)
+            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 0);
+    }
+
     public function test_stale_browser_extension_does_not_keep_browser_in_a_dead_restart_loop(): void
     {
         [$student, $studentUser] = $this->makeStudent('closed_browser_extension_student', 'secret-pass');
