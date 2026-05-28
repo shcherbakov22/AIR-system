@@ -220,8 +220,9 @@ class StudentCompanionEnrollmentTest extends TestCase
             ->assertSee('CloudManagementEnrollmentToken', false)
             ->assertSee('HKLM:\SOFTWARE\Google\Chrome\Enrollment', false)
             ->assertSee('HKLM:\Software\WOW6432Node\Google\Enrollment', false)
-            ->assertSee('Clear-LocalChromeForceInstallPolicy', false)
-            ->assertSee('Local Chrome force-install policy cleared', false)
+            ->assertDontSee('Clear-LocalChromeForceInstallPolicy', false)
+            ->assertDontSee('Local Chrome force-install policy cleared', false)
+            ->assertSee('Chrome and Edge local force-install policies written.', false)
             ->assertSee('test-enterprise-token', false)
             ->assertSee('certutil.exe -addstore -f Root', false);
 

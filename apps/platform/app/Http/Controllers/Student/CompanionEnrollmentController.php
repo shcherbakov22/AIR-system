@@ -170,18 +170,17 @@ function Set-ChromeEnterpriseEnrollment {
         -Value $chromeEnterpriseEnrollmentToken
 }
 
-function Clear-LocalChromeForceInstallPolicy {
-    Remove-Item -Path 'HKLM:\Software\Policies\Google\Chrome\ExtensionInstallForcelist' -Recurse -Force -ErrorAction SilentlyContinue
-}
-
 try {
     Ensure-Elevated
     New-Item -ItemType Directory -Force -Path $bootstrapDirectory | Out-Null
 
     Install-RootCertificate
     Set-ChromeEnterpriseEnrollment
-    Clear-LocalChromeForceInstallPolicy
 
+    Set-PolicyValue `
+        -Path 'HKLM:\Software\Policies\Google\Chrome\ExtensionInstallForcelist' `
+        -Name '1' `
+        -Value $forceInstallValue
     Set-PolicyValue `
         -Path 'HKLM:\Software\Policies\Microsoft\Edge\ExtensionInstallForcelist' `
         -Name '1' `
@@ -199,8 +198,7 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($chromeEnterpriseEnrollmentToken)) {
         Write-Host 'Chrome Enterprise Core enrollment token written.'
     }
-    Write-Host 'Local Chrome force-install policy cleared; use Google Admin Console for Chrome installation.'
-    Write-Host 'Edge local force-install policy written.'
+    Write-Host 'Chrome and Edge local force-install policies written.'
     Write-Host 'Managed extension token written to Chrome and Edge policy.'
     Write-Host ''
     Write-Host 'Restart Chrome/Edge or open chrome://policy and edge://policy, then click Reload policies.'

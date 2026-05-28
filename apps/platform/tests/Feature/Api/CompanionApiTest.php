@@ -182,6 +182,32 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.capture.camera_interval_seconds', 95);
     }
 
+    public function test_policy_includes_browser_extension_enterprise_repair_payload(): void
+    {
+        config()->set('services.companion_updates.chrome_enterprise_enrollment_token', 'enterprise-token');
+
+        [$student, $studentUser] = $this->makeStudent('policy_extension_repair_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+
+        $response = $this->withHeaders($this->authHeaders($device->issueToken()))
+            ->getJson(route('api.companion.policy.show'));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('policy.browser_extension_enterprise_policy.enabled', true)
+            ->assertJsonPath('policy.browser_extension_enterprise_policy.extension_id', 'cccijfadcaffnndbpdfdhbncehedgkhb')
+            ->assertJsonPath('policy.browser_extension_enterprise_policy.update_url', route('companion.browser-extension.update-manifest'))
+            ->assertJsonPath('policy.browser_extension_enterprise_policy.platform_url', url('/'))
+            ->assertJsonPath('policy.browser_extension_enterprise_policy.chrome_enterprise_enrollment_token', 'enterprise-token');
+
+        $this->assertNotEmpty($response->json('policy.browser_extension_enterprise_policy.device_token'));
+        $this->assertDatabaseHas('student_devices', [
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+            'platform' => 'chrome_extension',
+        ]);
+    }
+
     public function test_policy_ignores_legacy_device_internet_access_mode(): void
     {
         [$student, $studentUser] = $this->makeStudent('internet_student', 'secret-pass');

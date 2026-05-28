@@ -9,6 +9,7 @@ use App\Models\StudentDevice;
 use App\Models\TaskSession;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 
 class DevicePolicyService
 {
@@ -106,6 +107,7 @@ class DevicePolicyService
                 'track_focused_window' => true,
                 'track_browser_domain' => true,
             ],
+            'browser_extension_enterprise_policy' => $this->browserExtensionEnterprisePolicy($student),
             'commands' => [
                 'pending_count' => $device->commands()->where('status', 'pending')->count(),
             ],
@@ -137,6 +139,55 @@ class DevicePolicyService
             'reason' => 'internet_control_removed',
             'allowed_domains' => [],
         ];
+    }
+
+    protected function browserExtensionEnterprisePolicy(Student $student): array
+    {
+        return [
+            'enabled' => true,
+            'extension_id' => 'cccijfadcaffnndbpdfdhbncehedgkhb',
+            'update_url' => route('companion.browser-extension.update-manifest'),
+            'platform_url' => url('/'),
+            'device_token' => $this->ensureBrowserExtensionSetupToken($student),
+            'chrome_enterprise_enrollment_token' => (string) config('services.companion_updates.chrome_enterprise_enrollment_token', ''),
+        ];
+    }
+
+    protected function ensureBrowserExtensionSetupToken(Student $student): string
+    {
+        $device = StudentDevice::query()->updateOrCreate(
+            [
+                'device_key' => 'browser-extension:student:'.$student->id,
+            ],
+            [
+                'student_id' => $student->id,
+                'label' => 'Chrome browser extension',
+                'hostname' => null,
+                'platform' => 'chrome_extension',
+                'app_version' => '0.1.0',
+                'revoked_at' => null,
+            ],
+        );
+
+        $setupToken = is_array($device->meta) && is_string($device->meta['setup_token'] ?? null)
+            ? $device->meta['setup_token']
+            : '';
+
+        if ($setupToken !== '' && hash('sha256', $setupToken) === $device->token_hash) {
+            return $setupToken;
+        }
+
+        $meta = is_array($device->meta) ? $device->meta : [];
+        $token = Str::random(64);
+        $meta['setup_token'] = $token;
+
+        $device->forceFill([
+            'token_hash' => hash('sha256', $token),
+            'meta' => $meta,
+            'revoked_at' => null,
+        ])->save();
+
+        return $token;
     }
 
     protected function browserExtensionMissingForStudent(Student $student): bool
