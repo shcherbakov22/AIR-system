@@ -182,12 +182,40 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.capture.camera_interval_seconds', 95);
     }
 
-    public function test_policy_includes_browser_extension_enterprise_repair_payload(): void
+    public function test_policy_disables_browser_extension_enterprise_repair_without_install_history(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('policy_extension_no_history_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+
+        $this->withHeaders($this->authHeaders($device->issueToken()))
+            ->getJson(route('api.companion.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.browser_extension_enterprise_policy.enabled', false)
+            ->assertJsonPath('policy.browser_extension_enterprise_policy.device_token', '');
+
+        $this->assertDatabaseMissing('student_devices', [
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+        ]);
+    }
+
+    public function test_policy_includes_browser_extension_enterprise_repair_payload_after_install_history(): void
     {
         config()->set('services.companion_updates.chrome_enterprise_enrollment_token', 'enterprise-token');
 
         [$student, $studentUser] = $this->makeStudent('policy_extension_repair_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
+
+        StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'browser-extension:student:'.$student->id,
+            'label' => 'Chrome browser extension',
+            'hostname' => null,
+            'platform' => 'chrome_extension',
+            'app_version' => '0.1.0',
+            'last_seen_at' => now()->subMinute(),
+            'last_seen_ip' => '192.168.11.50',
+        ]);
 
         $response = $this->withHeaders($this->authHeaders($device->issueToken()))
             ->getJson(route('api.companion.policy.show'));

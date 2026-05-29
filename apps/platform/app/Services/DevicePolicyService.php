@@ -143,6 +143,17 @@ class DevicePolicyService
 
     protected function browserExtensionEnterprisePolicy(Student $student): array
     {
+        if (! $this->hasBrowserExtensionInstallHistory($student)) {
+            return [
+                'enabled' => false,
+                'extension_id' => 'cccijfadcaffnndbpdfdhbncehedgkhb',
+                'update_url' => '',
+                'platform_url' => '',
+                'device_token' => '',
+                'chrome_enterprise_enrollment_token' => '',
+            ];
+        }
+
         return [
             'enabled' => true,
             'extension_id' => 'cccijfadcaffnndbpdfdhbncehedgkhb',
@@ -151,6 +162,16 @@ class DevicePolicyService
             'device_token' => $this->ensureBrowserExtensionSetupToken($student),
             'chrome_enterprise_enrollment_token' => (string) config('services.companion_updates.chrome_enterprise_enrollment_token', ''),
         ];
+    }
+
+    protected function hasBrowserExtensionInstallHistory(Student $student): bool
+    {
+        return StudentDevice::query()
+            ->where('student_id', $student->id)
+            ->where('platform', 'chrome_extension')
+            ->whereNull('revoked_at')
+            ->whereNotNull('last_seen_at')
+            ->exists();
     }
 
     protected function ensureBrowserExtensionSetupToken(Student $student): string
