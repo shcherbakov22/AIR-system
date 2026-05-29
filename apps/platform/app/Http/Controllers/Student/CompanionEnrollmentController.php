@@ -48,7 +48,8 @@ class CompanionEnrollmentController extends Controller
         $rootCaUrl = $this->rootCertificateUrl();
         $script = <<<'POWERSHELL'
 param(
-    [switch]$Elevated
+    [switch]$Elevated,
+    [switch]$Native64
 )
 
 $ErrorActionPreference = 'Stop'
@@ -62,6 +63,19 @@ $forceInstallValue = "$extensionId;$updateUrl"
 $bootstrapDirectory = Join-Path $env:ProgramData 'AIRCompanion\EnterpriseExtension'
 $resultPath = Join-Path $bootstrapDirectory 'enterprise-extension-install-result.txt'
 $elevatedWrapperPath = Join-Path $bootstrapDirectory 'enterprise-extension-install-elevated.ps1'
+
+if (-not $Native64 -and $env:PROCESSOR_ARCHITEW6432) {
+    $nativePowerShell = Join-Path $env:WINDIR 'Sysnative\WindowsPowerShell\v1.0\powershell.exe'
+    if (Test-Path $nativePowerShell) {
+        $argumentList = ('-NoProfile -ExecutionPolicy Bypass -File "{0}" -Native64' -f $PSCommandPath)
+        if ($Elevated) {
+            $argumentList += ' -Elevated'
+        }
+
+        $process = Start-Process -FilePath $nativePowerShell -ArgumentList $argumentList -PassThru -Wait
+        exit $process.ExitCode
+    }
+}
 
 function Show-FailureAndPause {
     param([string]$Message)
@@ -156,13 +170,32 @@ function Set-ExtensionManagedConfig {
     Set-PolicyValue -Path $policyPath -Name 'deviceToken' -Value $deviceToken
 }
 
+function Set-ExtensionForceInstall {
+    param([string]$BrowserPolicyRoot)
+
+    Set-PolicyValue `
+        -Path (Join-Path $BrowserPolicyRoot 'ExtensionInstallForcelist') `
+        -Name '1' `
+        -Value $forceInstallValue
+
+    $extensionSettings = @{
+        $extensionId = @{
+            installation_mode = 'force_installed'
+            toolbar_pin = 'force_pinned'
+            update_url = $updateUrl
+        }
+    } | ConvertTo-Json -Compress -Depth 5
+
+    Set-PolicyValue `
+        -Path $BrowserPolicyRoot `
+        -Name 'ExtensionSettings' `
+        -Value $extensionSettings
+}
+
 function Set-ChromeEnterpriseEnrollment {
     if ([string]::IsNullOrWhiteSpace($chromeEnterpriseEnrollmentToken)) {
         return
     }
-
-    Remove-Item -Path 'HKLM:\SOFTWARE\Google\Chrome\Enrollment' -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item -Path 'HKLM:\Software\WOW6432Node\Google\Enrollment' -Recurse -Force -ErrorAction SilentlyContinue
 
     Set-PolicyValue `
         -Path 'HKLM:\Software\Policies\Google\Chrome' `
@@ -177,14 +210,8 @@ try {
     Install-RootCertificate
     Set-ChromeEnterpriseEnrollment
 
-    Set-PolicyValue `
-        -Path 'HKLM:\Software\Policies\Google\Chrome\ExtensionInstallForcelist' `
-        -Name '1' `
-        -Value $forceInstallValue
-    Set-PolicyValue `
-        -Path 'HKLM:\Software\Policies\Microsoft\Edge\ExtensionInstallForcelist' `
-        -Name '1' `
-        -Value $forceInstallValue
+    Set-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
+    Set-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
     Set-ExtensionManagedConfig -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
     Set-ExtensionManagedConfig -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
 
@@ -199,6 +226,7 @@ try {
         Write-Host 'Chrome Enterprise Core enrollment token written.'
     }
     Write-Host 'Chrome and Edge local force-install policies written.'
+    Write-Host 'Chrome and Edge ExtensionSettings policies written.'
     Write-Host 'Managed extension token written to Chrome and Edge policy.'
     Write-Host ''
     Write-Host 'Restart Chrome/Edge or open chrome://policy and edge://policy, then click Reload policies.'
