@@ -78,8 +78,22 @@ Route::get('/companion/downloads/windows', [CompanionUpdateController::class, 'd
 Route::get('/companion/downloads/chrome/extension', [CompanionUpdateController::class, 'browserExtensionBundle'])
     ->name('companion.browser-extension.download');
 Route::get('/companion/downloads/chrome/extension.crx', [CompanionUpdateController::class, 'browserExtensionCrx'])
+    ->withoutMiddleware([
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        VerifyCsrfToken::class,
+    ])
     ->name('companion.browser-extension.crx');
 Route::get('/companion/downloads/chrome/extension-updates.xml', [CompanionUpdateController::class, 'browserExtensionUpdateManifest'])
+    ->withoutMiddleware([
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        VerifyCsrfToken::class,
+    ])
     ->name('companion.browser-extension.update-manifest');
 Route::get('/companion/browser-login/{token}', CompanionBrowserLoginController::class)
     ->name('companion.browser-login.consume');

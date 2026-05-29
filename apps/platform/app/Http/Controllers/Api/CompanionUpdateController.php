@@ -76,7 +76,7 @@ class CompanionUpdateController extends Controller
 
         abort_unless($realPath !== false && is_file($realPath) && is_readable($realPath), 404);
 
-        return $this->downloadResponse($realPath, 'air-look-extension.crx', 'application/x-chrome-extension');
+        return $this->fileResponse($realPath, 'application/x-chrome-extension');
     }
 
     public function browserExtensionUpdateManifest(): Response
@@ -161,6 +161,19 @@ class CompanionUpdateController extends Controller
             'X-Content-Type-Options' => 'nosniff',
             'X-AIR-Companion-SHA256' => $sha256,
             'X-AIR-Companion-Version' => (string) config('services.companion_updates.version', '0.1.0'),
+            'ETag' => '"'.$sha256.'"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ])->setLastModified(new \DateTimeImmutable('@'.(filemtime($realPath) ?: time())));
+    }
+
+    private function fileResponse(string $realPath, string $contentType): BinaryFileResponse
+    {
+        $sha256 = hash_file('sha256', $realPath);
+
+        return response()->file($realPath, [
+            'Content-Type' => $contentType,
+            'X-Content-Type-Options' => 'nosniff',
+            'X-AIR-Companion-SHA256' => $sha256,
             'ETag' => '"'.$sha256.'"',
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
         ])->setLastModified(new \DateTimeImmutable('@'.(filemtime($realPath) ?: time())));

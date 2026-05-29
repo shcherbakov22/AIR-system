@@ -141,7 +141,8 @@ class CompanionUpdateApiTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'application/x-chrome-extension')
             ->assertHeader('X-AIR-Companion-SHA256', hash_file('sha256', $bundlePath))
-            ->assertDownload('air-look-extension.crx');
+            ->assertHeaderMissing('Content-Disposition')
+            ->assertHeaderMissing('Set-Cookie');
     }
 
     public function test_browser_extension_update_manifest_serves_xml(): void
@@ -157,6 +158,7 @@ class CompanionUpdateApiTest extends TestCase
         $this->get(route('companion.browser-extension.update-manifest'))
             ->assertOk()
             ->assertHeader('Content-Type', 'application/xml; charset=UTF-8')
+            ->assertHeaderMissing('Set-Cookie')
             ->assertSee('<gupdate protocol="2.0"></gupdate>', false);
     }
 
