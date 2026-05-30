@@ -210,6 +210,8 @@ function Clear-ExtensionForceInstall {
         }
     }
 
+    Remove-Item -Path $forceListPath -Recurse -Force -ErrorAction SilentlyContinue
+
     try {
         $extensionSettings = (Get-ItemProperty -Path $BrowserPolicyRoot -Name 'ExtensionSettings' -ErrorAction Stop).ExtensionSettings
         if ($extensionSettings -like "*$extensionId*") {
