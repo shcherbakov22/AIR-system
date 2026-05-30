@@ -437,7 +437,7 @@ class DashboardRoutingTest extends TestCase
             'rule_title_snapshot' => $ruleDefinition->title,
             'penalty_units' => 10,
             'occurred_at' => now()->subMinute(),
-            'notes' => null,
+            'notes' => 'Automatic violation for opening blocked program Steam.exe during task Coding.',
             'reported_by_user_id' => $admin->id,
         ]);
 
@@ -494,6 +494,7 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.communication_gate.chat_url', route('admin.chats.show', $student))
                 ->where('monitorStudents.0.open_violations.0.rule_title', 'Observe the time')
                 ->where('monitorStudents.0.open_violations.0.push_up_count', 10)
+                ->where('monitorStudents.0.open_violations.0.notes', 'Automatic violation for opening blocked program Steam.exe during task Coding.')
                 ->where('monitorStudents.0.current_push_up_count', 10)
                 ->where('monitorStudents.0.violation_rule_options.0.title', 'Observe the time')
             );
@@ -678,7 +679,7 @@ class DashboardRoutingTest extends TestCase
             'student_id' => $student->id,
             'rule_definition_id' => $ruleDefinition->id,
             'occurred_at' => '2026-03-08T12:05',
-                        'notes' => 'Left the task without permission.',
+            'notes' => 'Automatic violation for opening blocked website youtube.com during task Math. URL: https://youtube.com/watch?v=blocked',
         ])->assertRedirect(route('admin.violations.index', absolute: false));
 
         $this->actingAs($studentUser)
@@ -687,7 +688,8 @@ class DashboardRoutingTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/Home')
                 ->where('student.display_name', 'Student Penalties')
-                                ->where('violationSummary.open_violations', 1)
+                ->where('violationSummary.open_violations', 1)
+                ->where('openViolations.0.notes', 'Automatic violation for opening blocked website youtube.com during task Math. URL: https://youtube.com/watch?v=blocked')
             );
     }
 

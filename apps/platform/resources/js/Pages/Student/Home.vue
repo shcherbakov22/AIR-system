@@ -55,6 +55,7 @@ const props = defineProps<{
         rule_title: string;
         push_up_count: number;
         occurred_at_label?: string | null;
+        notes?: string | null;
         start_push_up_url?: string | null;
     }>;
     activeScheduleRun: {
@@ -1363,13 +1364,18 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                             Until a mentor closes these violations, you cannot continue the schedule or start your custom timer.
                         </p>
                         <div class="min-w-0 space-y-1 text-sm">
-                            <p
+                            <div
                                 v-for="violation in openViolations"
                                 :key="violation.id"
-                                class="flex items-center justify-between gap-3"
+                                class="flex items-start justify-between gap-3"
                             >
-                                <span class="truncate">
-                                    {{ violation.rule_title }} - {{ violation.push_up_count }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
+                                <span class="min-w-0">
+                                    <span class="block truncate">
+                                        {{ violation.rule_title }} - {{ violation.push_up_count }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
+                                    </span>
+                                    <span v-if="violation.notes" class="mt-0.5 block line-clamp-2 text-xs text-rose-700">
+                                        {{ violation.notes }}
+                                    </span>
                                 </span>
                                 <button
                                     v-if="violation.start_push_up_url"
@@ -1386,7 +1392,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                 >
                                     Ask AI
                                 </button>
-                            </p>
+                            </div>
                         </div>
                     </div>
                 </div>

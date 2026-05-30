@@ -183,6 +183,7 @@ type DashboardStudent = {
         rule_title: string;
         push_up_count: number;
         occurred_at_label?: string | null;
+        notes?: string | null;
         start_push_up_url?: string | null;
     }>;
     violation_rule_options: Array<{
@@ -1887,6 +1888,9 @@ const blockTooltip = (block: DashboardBlock): string => {
                                     </p>
                                     <p class="text-[10px] text-rose-700">
                                         {{ violation.push_up_count }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
+                                    </p>
+                                    <p v-if="violation.notes" class="mt-0.5 line-clamp-2 text-[10px] leading-snug text-rose-700">
+                                        {{ violation.notes }}
                                     </p>
                                 </div>
 
