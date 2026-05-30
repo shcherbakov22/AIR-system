@@ -117,7 +117,7 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
     .catch(() => {});
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'request_access') {
     requestAccess(message.url, message.reason || null)
       .then((response) => sendResponse({ ok: true, response }))
@@ -152,6 +152,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         policy,
         evaluation: evaluateUrl(policy, String(message.url || '')),
       }))
+      .catch((error) => {
+        reportExtensionStatus('policy_sync_failed', { error: error.message }).catch(() => {});
+        sendResponse({ ok: false, error: error.message });
+      });
+
+    return true;
+  }
+
+  if (message?.type === 'open_allowed_url_after_sync') {
+    openAllowedUrlAfterSync(String(message.url || ''), sender)
+      .then((response) => sendResponse({ ok: true, ...response }))
       .catch((error) => {
         reportExtensionStatus('policy_sync_failed', { error: error.message }).catch(() => {});
         sendResponse({ ok: false, error: error.message });
@@ -396,6 +407,26 @@ async function blockTab(tabId, url, evaluation, policy) {
   );
 
   await chrome.tabs.update(tabId, { url: blockedUrl });
+}
+
+async function openAllowedUrlAfterSync(url, sender) {
+  const policy = await syncPolicy();
+  const referenceUrl = isRestrictedNonWebUrl(url) ? restrictedUrlReference(url) : url;
+  const evaluation = evaluateUrl(policy, referenceUrl);
+
+  if (!evaluation.allowed) {
+    return { allowed: false, evaluation };
+  }
+
+  const tabId = sender?.tab?.id;
+
+  if (!tabId) {
+    throw new Error('Could not identify the blocked tab.');
+  }
+
+  await chrome.tabs.update(tabId, { url: referenceUrl });
+
+  return { allowed: true, evaluation };
 }
 
 async function applyNetworkRules(policy, platformUrl = '') {

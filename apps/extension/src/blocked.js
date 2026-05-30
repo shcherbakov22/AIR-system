@@ -78,7 +78,15 @@ async function refreshPolicyAndRedirectIfAllowed(showStatus) {
     });
 
     if (response?.ok && response.evaluation?.allowed) {
-      location.href = requestedUrl;
+      const openResponse = await chrome.runtime.sendMessage({
+        type: 'open_allowed_url_after_sync',
+        url: requestedUrl,
+      });
+
+      if (!openResponse?.ok || !openResponse.allowed) {
+        status.textContent = openResponse?.error || 'Allowed, but could not reopen the URL.';
+      }
+
       return;
     }
 
