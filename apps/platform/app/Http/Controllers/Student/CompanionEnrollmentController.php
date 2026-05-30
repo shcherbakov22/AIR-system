@@ -192,6 +192,33 @@ function Set-ExtensionForceInstall {
         -Value $extensionSettings
 }
 
+function Clear-ExtensionForceInstall {
+    param([string]$BrowserPolicyRoot)
+
+    $forceListPath = Join-Path $BrowserPolicyRoot 'ExtensionInstallForcelist'
+    for ($index = 1; $index -le 20; $index++) {
+        $valueName = [string]$index
+        $currentValue = $null
+        try {
+            $currentValue = (Get-ItemProperty -Path $forceListPath -Name $valueName -ErrorAction Stop).$valueName
+        } catch {
+            continue
+        }
+
+        if ($currentValue -eq $forceInstallValue) {
+            Remove-ItemProperty -Path $forceListPath -Name $valueName -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    try {
+        $extensionSettings = (Get-ItemProperty -Path $BrowserPolicyRoot -Name 'ExtensionSettings' -ErrorAction Stop).ExtensionSettings
+        if ($extensionSettings -like "*$extensionId*") {
+            Remove-ItemProperty -Path $BrowserPolicyRoot -Name 'ExtensionSettings' -Force -ErrorAction SilentlyContinue
+        }
+    } catch {
+    }
+}
+
 function Set-ChromeEnterpriseEnrollment {
     if ([string]::IsNullOrWhiteSpace($chromeEnterpriseEnrollmentToken)) {
         return
@@ -210,8 +237,14 @@ try {
     Install-RootCertificate
     Set-ChromeEnterpriseEnrollment
 
-    Set-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
-    Set-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
+    if ([string]::IsNullOrWhiteSpace($chromeEnterpriseEnrollmentToken)) {
+        Set-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
+        Set-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
+    } else {
+        Clear-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
+        Clear-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
+    }
+
     Set-ExtensionManagedConfig -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
     Set-ExtensionManagedConfig -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
 
@@ -222,11 +255,14 @@ try {
     Write-Host "Extension ID: $extensionId"
     Write-Host "Update URL: $updateUrl"
     Write-Host "Platform URL: $platformUrl"
-    if (-not [string]::IsNullOrWhiteSpace($chromeEnterpriseEnrollmentToken)) {
+    if ([string]::IsNullOrWhiteSpace($chromeEnterpriseEnrollmentToken)) {
+        Write-Host 'Chrome and Edge local force-install policies written.'
+        Write-Host 'Chrome and Edge ExtensionSettings policies written.'
+    } else {
         Write-Host 'Chrome Enterprise Core enrollment token written.'
+        Write-Host 'Local Chrome and Edge force-install policies for AIR were cleared.'
+        Write-Host 'Install and pin policy should come from Google Admin Console.'
     }
-    Write-Host 'Chrome and Edge local force-install policies written.'
-    Write-Host 'Chrome and Edge ExtensionSettings policies written.'
     Write-Host 'Managed extension token written to Chrome and Edge policy.'
     Write-Host ''
     Write-Host 'Restart Chrome/Edge or open chrome://policy and edge://policy, then click Reload policies.'
