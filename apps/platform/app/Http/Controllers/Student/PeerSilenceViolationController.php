@@ -25,6 +25,7 @@ class PeerSilenceViolationController extends Controller
         $reporter = $request->user()?->student;
 
         abort_unless($reporter !== null, 403);
+        abort_unless($reporter->canReportPeerSilence(), 403);
         abort_if($reporter->id === $student->id || $student->status !== 'active', 404);
 
         $ruleDefinition = RuleDefinition::query()->firstOrCreate(

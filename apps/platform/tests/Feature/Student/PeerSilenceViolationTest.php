@@ -60,6 +60,21 @@ class PeerSilenceViolationTest extends TestCase
             );
     }
 
+    public function test_dima_cannot_see_keep_silence_targets(): void
+    {
+        $reporter = $this->createStudent('dima', 'Dima');
+        $this->createStudent('target_for_dima', 'Target For Dima');
+
+        $this->actingAs($reporter->user)
+            ->get(route('student.home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/Home')
+                ->where('studentCapabilities.can_report_peer_silence', false)
+                ->has('peerSilenceTargets', 0)
+            );
+    }
+
     public function test_student_can_give_another_student_keep_silence_violation(): void
     {
         $reporter = $this->createStudent('silence_reporter', 'Silence Reporter');
@@ -89,6 +104,19 @@ class PeerSilenceViolationTest extends TestCase
         $this->actingAs($reporter->user)
             ->post(route('student.peer-silence-violations.store', $reporter))
             ->assertNotFound();
+
+        $this->assertDatabaseCount('violations', 0);
+    }
+
+    public function test_dima_cannot_give_keep_silence_violation_by_posting_directly(): void
+    {
+        $reporter = $this->createStudent('dima', 'Dima');
+        $target = $this->createStudent('dima_silence_target', 'Dima Silence Target');
+        $this->createKeepSilenceRule($reporter->user);
+
+        $this->actingAs($reporter->user)
+            ->post(route('student.peer-silence-violations.store', $target))
+            ->assertForbidden();
 
         $this->assertDatabaseCount('violations', 0);
     }

@@ -214,8 +214,9 @@ class HomeController extends Controller
             'studentCapabilities' => [
                 'can_manage_own_schedule' => $student?->canManageOwnSchedule() ?? true,
                 'can_use_ad_hoc_timer' => $student?->canUseAdHocTimer() ?? true,
+                'can_report_peer_silence' => $student?->canReportPeerSilence() ?? false,
             ],
-            'peerSilenceTargets' => $student
+            'peerSilenceTargets' => $student?->canReportPeerSilence()
                 ? Student::query()
                     ->with('user')
                     ->where('status', 'active')
