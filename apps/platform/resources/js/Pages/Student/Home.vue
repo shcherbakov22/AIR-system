@@ -15,7 +15,6 @@ const props = defineProps<{
     studentCapabilities: {
         can_manage_own_schedule: boolean;
         can_use_ad_hoc_timer: boolean;
-        can_report_peer_silence: boolean;
     };
     scheduleFinishWindow: {
         can_finish_now: boolean;
@@ -989,7 +988,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
     <Head title="Student portal" />
 
     <AuthenticatedLayout>
-        <div v-if="props.studentCapabilities.can_report_peer_silence" class="fixed right-2 top-1.5 z-30">
+        <div class="fixed right-2 top-1.5 z-30">
             <div class="relative">
                 <button
                     type="button"

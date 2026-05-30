@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
 class Student extends Model
 {
@@ -191,13 +190,5 @@ class Student extends Model
     public function canUseAdHocTimer(): bool
     {
         return $this->setting?->can_use_ad_hoc_timer ?? true;
-    }
-
-    public function canReportPeerSilence(): bool
-    {
-        $this->loadMissing('user');
-
-        return ! in_array(Str::lower((string) $this->user?->username), ['dima', 'дима'], true)
-            && ! in_array(Str::lower((string) $this->display_name), ['dima', 'дима'], true);
     }
 }

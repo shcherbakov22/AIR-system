@@ -60,18 +60,20 @@ class PeerSilenceViolationTest extends TestCase
             );
     }
 
-    public function test_dima_cannot_see_keep_silence_targets(): void
+    public function test_dima_can_see_keep_silence_targets(): void
     {
         $reporter = $this->createStudent('dima', 'Dima');
-        $this->createStudent('target_for_dima', 'Target For Dima');
+        $target = $this->createStudent('target_for_dima', 'Target For Dima');
 
         $this->actingAs($reporter->user)
             ->get(route('student.home'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/Home')
-                ->where('studentCapabilities.can_report_peer_silence', false)
-                ->has('peerSilenceTargets', 0)
+                ->has('peerSilenceTargets', 1)
+                ->where('peerSilenceTargets.0.id', $target->id)
+                ->where('peerSilenceTargets.0.username', 'target_for_dima')
+                ->where('peerSilenceTargets.0.display_name', 'Target For Dima')
             );
     }
 
@@ -108,7 +110,7 @@ class PeerSilenceViolationTest extends TestCase
         $this->assertDatabaseCount('violations', 0);
     }
 
-    public function test_dima_cannot_give_keep_silence_violation_by_posting_directly(): void
+    public function test_dima_can_give_keep_silence_violation_by_posting_directly(): void
     {
         $reporter = $this->createStudent('dima', 'Dima');
         $target = $this->createStudent('dima_silence_target', 'Dima Silence Target');
@@ -116,9 +118,15 @@ class PeerSilenceViolationTest extends TestCase
 
         $this->actingAs($reporter->user)
             ->post(route('student.peer-silence-violations.store', $target))
-            ->assertForbidden();
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', 'Keep silence violation created for Dima Silence Target.');
 
-        $this->assertDatabaseCount('violations', 0);
+        $this->assertDatabaseHas('violations', [
+            'student_id' => $target->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Keep silence',
+            'reported_by_user_id' => $reporter->user_id,
+        ]);
     }
 
     public function test_student_keep_silence_violation_is_not_duplicated_when_open(): void
