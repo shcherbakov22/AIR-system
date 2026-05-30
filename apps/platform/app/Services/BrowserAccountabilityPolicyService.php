@@ -77,13 +77,22 @@ class BrowserAccountabilityPolicyService
         $mode = $device ? $this->modeForDevice($device) : $this->modeForStudent($student);
         $activeTaskSession = $this->activeTaskSession($student);
         $rules = $this->activeRules($student, $activeTaskSession?->task_template_id);
-        $matchedRule = $this->matchingRule($rules, $host, $domain, $mode === 'whitelist' ? 'allow' : 'block');
+        $exactUrlAllowRule = $this->usesExactUrlRule($url)
+            ? $this->matchingRule($rules, $url, $host, $domain, 'allow', 'exact_url')
+            : null;
 
-        $allowed = match ($mode) {
-            'whitelist' => $matchedRule !== null,
-            'blacklist' => $matchedRule === null,
-            default => true,
-        };
+        if ($this->usesExactUrlRule($url)) {
+            $matchedRule = $exactUrlAllowRule;
+            $allowed = $exactUrlAllowRule !== null;
+        } else {
+            $matchedRule = $this->matchingRule($rules, $url, $host, $domain, $mode === 'whitelist' ? 'allow' : 'block');
+
+            $allowed = match ($mode) {
+                'whitelist' => $matchedRule !== null,
+                'blacklist' => $matchedRule === null,
+                default => true,
+            };
+        }
 
         return [
             'mode' => $mode,
@@ -157,13 +166,15 @@ class BrowserAccountabilityPolicyService
             throw new \RuntimeException('Cannot approve a task-scoped browser request without a captured task.');
         }
 
+        $ruleMatch = $this->approvalRuleMatch($accessRequest);
+
         $rule = BrowserPolicyRule::updateOrCreate(
             [
                 'student_id' => $global ? $accessRequest->student_id : null,
                 'task_template_id' => $global ? null : $accessRequest->task_template_id,
                 'effect' => 'allow',
-                'match_type' => 'domain_tree',
-                'value' => $accessRequest->registrable_domain,
+                'match_type' => $ruleMatch['match_type'],
+                'value' => $ruleMatch['value'],
             ],
             [
                 'created_by_user_id' => $mentor->id,
@@ -359,24 +370,58 @@ class BrowserAccountabilityPolicyService
             ->first();
     }
 
-    protected function matchingRule(Collection $rules, string $host, string $domain, string $effect): ?BrowserPolicyRule
+    protected function matchingRule(Collection $rules, string $url, string $host, string $domain, string $effect, ?string $matchType = null): ?BrowserPolicyRule
     {
         return $rules
             ->where('effect', $effect)
-            ->first(fn (BrowserPolicyRule $rule) => $this->matchesRule($rule, $host, $domain));
+            ->when($matchType !== null, fn (Collection $rules) => $rules->where('match_type', $matchType))
+            ->first(fn (BrowserPolicyRule $rule) => $this->matchesRule($rule, $url, $host, $domain));
     }
 
-    protected function matchesRule(BrowserPolicyRule $rule, string $host, string $domain): bool
+    protected function matchesRule(BrowserPolicyRule $rule, string $url, string $host, string $domain): bool
     {
-        if ($rule->match_type !== 'domain_tree') {
-            return false;
+        if ($rule->match_type === 'exact_url') {
+            return $this->normalizeExactUrl($url) === $this->normalizeExactUrl($rule->value);
         }
 
-        $value = Str::lower($rule->value);
+        if ($rule->match_type === 'domain_tree') {
+            $value = Str::lower($rule->value);
 
-        return $domain === $value
-            || $host === $value
-            || str_ends_with($host, '.'.$value);
+            if ($value === '') {
+                return false;
+            }
+
+            return $domain === $value
+                || $host === $value
+                || str_ends_with($host, '.'.$value);
+        }
+
+        return false;
+    }
+
+    protected function approvalRuleMatch(BrowserAccessRequest $accessRequest): array
+    {
+        if ($this->usesExactUrlRule($accessRequest->requested_url)) {
+            return [
+                'match_type' => 'exact_url',
+                'value' => $this->normalizeExactUrl($accessRequest->requested_url),
+            ];
+        }
+
+        return [
+            'match_type' => 'domain_tree',
+            'value' => $accessRequest->registrable_domain,
+        ];
+    }
+
+    protected function usesExactUrlRule(string $url): bool
+    {
+        return Str::startsWith(Str::lower(trim($url)), 'file://');
+    }
+
+    protected function normalizeExactUrl(string $url): string
+    {
+        return trim($url);
     }
 
     protected function rulePayload(BrowserPolicyRule $rule): array

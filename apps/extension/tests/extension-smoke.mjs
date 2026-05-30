@@ -136,7 +136,7 @@ async function main() {
     awaitPromise: true,
   }, optionsSession);
   await waitFor(
-    () => activityEvents.some((event) => event.event_type === 'extension_status' && event.payload?.status === 'policy_sync_ok' && event.payload?.version === '0.1.12'),
+    () => activityEvents.some((event) => event.event_type === 'extension_status' && event.payload?.status === 'policy_sync_ok' && event.payload?.version === '0.1.14'),
     5000,
     'extension status activity was not posted after policy sync',
   );
@@ -221,7 +221,7 @@ function assertManifestHasPopup() {
   const manifest = JSON.parse(readFileSync(join(extensionDir, 'manifest.json'), 'utf8'));
 
   assert(manifest.action?.default_popup === 'src/popup.html', 'manifest does not define the toolbar popup');
-  assert(manifest.version === '0.1.12', 'manifest version was not bumped');
+  assert(manifest.version === '0.1.14', 'manifest version was not bumped');
   assert(manifest.permissions?.includes('offscreen'), 'manifest does not allow offscreen attention detection');
   assert(manifest.permissions?.includes('videoCapture'), 'manifest does not request extension camera capture permission');
   assert(manifest.storage?.managed_schema === 'src/managed-schema.json', 'manifest does not declare managed storage schema');

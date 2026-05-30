@@ -649,6 +649,93 @@ class CompanionApiTest extends TestCase
         ]);
     }
 
+    public function test_browser_access_approval_adds_exact_url_rule_for_local_file(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_local_file_request_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $token = $device->issueToken();
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'browser_local_file_request_admin',
+        ]);
+        $localBookUrl = 'file:///C:/Users/NordicStar/Downloads/history-book.pdf';
+
+        $historyTemplate = TaskTemplate::create([
+            'title' => 'History',
+            'summary' => null,
+            'instructions' => 'Read the book.',
+            'default_duration_minutes' => 45,
+            'requires_internet' => false,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        TaskSession::create([
+            'student_id' => $student->id,
+            'task_template_id' => $historyTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'History',
+            'planned_duration_minutes' => 45,
+            'started_at' => now(),
+            'duration_seconds' => 0,
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $requestResponse = $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.access-requests.store'), [
+                'url' => $localBookUrl,
+                'reason' => 'Need the local history book.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('request.host', '')
+            ->assertJsonPath('request.registrable_domain', '')
+            ->assertJsonPath('request.task_template_id', $historyTemplate->id);
+
+        $accessRequestId = $requestResponse->json('request.id');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.students.browser-access-requests.approve', [$student, $accessRequestId]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('browser_policy_rules', [
+            'student_id' => null,
+            'task_template_id' => $historyTemplate->id,
+            'effect' => 'allow',
+            'match_type' => 'exact_url',
+            'value' => $localBookUrl,
+        ]);
+        $this->assertDatabaseMissing('browser_policy_rules', [
+            'student_id' => null,
+            'task_template_id' => $historyTemplate->id,
+            'effect' => 'allow',
+            'match_type' => 'domain_tree',
+            'value' => '',
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->getJson(route('api.companion.browser.policy.show'))
+            ->assertOk()
+            ->assertJsonPath('policy.rules.0.match_type', 'exact_url')
+            ->assertJsonPath('policy.rules.0.value', $localBookUrl);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => $localBookUrl,
+                'meta' => ['source' => 'explicit_navigation'],
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'allowed')
+            ->assertJsonPath('visit.host', '')
+            ->assertJsonPath('visit.registrable_domain', '');
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => 'file:///C:/Users/NordicStar/Downloads/other-book.pdf',
+                'meta' => ['source' => 'explicit_navigation'],
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'blocked');
+    }
+
     public function test_browser_access_request_without_active_task_is_denied_automatically(): void
     {
         [$student, $studentUser] = $this->makeStudent('browser_no_task_request_student', 'secret-pass');

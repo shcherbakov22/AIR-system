@@ -248,13 +248,19 @@ async function handleNavigation(tabId, url) {
   }
 
   if (isRestrictedNonWebUrl(url)) {
-    const evaluation = restrictedUrlEvaluation(url);
     const restrictedUrl = restrictedUrlReference(url);
+    const policy = await getPolicy();
+    const evaluation = evaluateUrl(policy, restrictedUrl);
 
     await logVisit(restrictedUrl, null, evaluation, {
       source: 'explicit_navigation',
       restricted_scheme: schemeFromUrl(url),
     });
+
+    if (evaluation.allowed) {
+      return;
+    }
+
     await blockTab(tabId, restrictedUrl, evaluation, { mode: 'restricted' });
     return;
   }
@@ -353,13 +359,18 @@ async function enforceOpenTabs(policy, platformUrl = '') {
     }
 
     if (isRestrictedNonWebUrl(tab.url)) {
-      const evaluation = restrictedUrlEvaluation(tab.url);
       const restrictedUrl = restrictedUrlReference(tab.url);
+      const evaluation = evaluateUrl(policy, restrictedUrl);
 
       await logVisit(restrictedUrl, tab.title || null, evaluation, {
         source: 'policy_enforcement',
         restricted_scheme: schemeFromUrl(tab.url),
       });
+
+      if (evaluation.allowed) {
+        return;
+      }
+
       await blockTab(tab.id, restrictedUrl, evaluation, { mode: 'restricted' }).catch(() => {});
       return;
     }
@@ -527,7 +538,7 @@ async function logVisit(url, pageTitle, knownEvaluation = null, extraMeta = {}) 
 
   const policy = knownEvaluation ? null : await getPolicy();
   const evaluation = knownEvaluation || (
-    isRestrictedNonWebUrl(url) ? restrictedUrlEvaluation(url) : evaluateUrl(policy, url)
+    isRestrictedNonWebUrl(url) ? evaluateUrl(policy, url) : evaluateUrl(policy, url)
   );
 
   await fetchWithDeviceAuth(settings, `${settings.platformUrl}/api/companion/browser/visits`, {
@@ -735,7 +746,7 @@ async function extensionStatus() {
   const evaluation = shouldIgnoreUrl(activeTabUrl, settings.platformUrl)
     ? null
     : (isRestrictedNonWebUrl(activeTabUrl)
-        ? restrictedUrlEvaluation(activeTabUrl)
+        ? evaluateUrl(policy, restrictedUrlReference(activeTabUrl))
         : (isHttpUrl(activeTabUrl) ? evaluateUrl(policy, activeTabUrl) : null));
 
   return {
@@ -1026,8 +1037,21 @@ function evaluateUrl(policy, url) {
   const registrableDomain = registrableDomainForHost(host);
   const rules = Array.isArray(policy?.rules) ? policy.rules : [];
   const mode = policy?.mode === 'whitelist' ? 'whitelist' : 'blacklist';
+  const exactUrlAllowedRule = isRestrictedNonWebUrl(url)
+    ? rules.find((rule) => rule.effect === 'allow' && rule.match_type === 'exact_url' && matchesPolicyRule(rule, url, host, registrableDomain))
+    : null;
+
+  if (isRestrictedNonWebUrl(url)) {
+    return {
+      allowed: Boolean(exactUrlAllowedRule),
+      host,
+      registrableDomain,
+      matchedRuleId: exactUrlAllowedRule?.id || null,
+    };
+  }
+
   const effect = mode === 'whitelist' ? 'allow' : 'block';
-  const matchedRule = rules.find((rule) => rule.effect === effect && matchesDomainTree(rule, host, registrableDomain));
+  const matchedRule = rules.find((rule) => rule.effect === effect && matchesPolicyRule(rule, url, host, registrableDomain));
 
   return {
     allowed: mode === 'whitelist' ? Boolean(matchedRule) : !matchedRule,
@@ -1037,6 +1061,14 @@ function evaluateUrl(policy, url) {
   };
 }
 
+function matchesPolicyRule(rule, url, host, registrableDomain) {
+  if (rule.match_type === 'exact_url') {
+    return normalizeExactUrl(url) === normalizeExactUrl(rule.value || '');
+  }
+
+  return matchesDomainTree(rule, host, registrableDomain);
+}
+
 function matchesDomainTree(rule, host, registrableDomain) {
   if (rule.match_type !== 'domain_tree') {
     return false;
@@ -1044,7 +1076,15 @@ function matchesDomainTree(rule, host, registrableDomain) {
 
   const value = String(rule.value || '').toLowerCase();
 
+  if (!value) {
+    return false;
+  }
+
   return registrableDomain === value || host === value || host.endsWith(`.${value}`);
+}
+
+function normalizeExactUrl(url) {
+  return String(url || '').trim();
 }
 
 function hostFromUrl(url) {
