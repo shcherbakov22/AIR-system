@@ -2116,7 +2116,7 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
     }
 
-    public function test_stale_installed_browser_extension_reports_violation_and_blocks_browsers(): void
+    public function test_stale_installed_browser_extension_does_not_create_policy_violation_or_kill_browsers(): void
     {
         [$student, $studentUser] = $this->makeStudent('missing_extension_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -2146,13 +2146,12 @@ class CompanionApiTest extends TestCase
         $this->withHeaders($this->authHeaders($token))
             ->getJson(route('api.companion.policy.show'))
             ->assertOk()
-            ->assertJsonPath('policy.violations.open_count', 1)
-            ->assertJsonPath('policy.violations.items.0.rule_title', 'Browser extension removed')
-            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true)
-            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 0);
+            ->assertJsonPath('policy.violations.open_count', 0)
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false)
+            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
     }
 
-    public function test_stale_installed_browser_extension_detects_renamed_chrome_process(): void
+    public function test_stale_installed_browser_extension_ignores_renamed_chrome_process_for_kill(): void
     {
         [$student, $studentUser] = $this->makeStudent('renamed_chrome_extension_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -2182,10 +2181,9 @@ class CompanionApiTest extends TestCase
         $this->withHeaders($this->authHeaders($token))
             ->getJson(route('api.companion.policy.show'))
             ->assertOk()
-            ->assertJsonPath('policy.violations.open_count', 1)
-            ->assertJsonPath('policy.violations.items.0.rule_title', 'Browser extension removed')
-            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true)
-            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 0);
+            ->assertJsonPath('policy.violations.open_count', 0)
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false)
+            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
     }
 
     public function test_stale_browser_extension_does_not_keep_browser_in_a_dead_restart_loop(): void
@@ -2273,7 +2271,7 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false);
     }
 
-    public function test_fresh_extension_heartbeat_without_content_script_proof_blocks_browsers(): void
+    public function test_fresh_extension_heartbeat_without_content_script_proof_does_not_kill_browsers(): void
     {
         [$student, $studentUser] = $this->makeStudent('restricted_extension_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -2303,10 +2301,9 @@ class CompanionApiTest extends TestCase
         $this->withHeaders($this->authHeaders($token))
             ->getJson(route('api.companion.policy.show'))
             ->assertOk()
-            ->assertJsonPath('policy.violations.open_count', 1)
-            ->assertJsonPath('policy.violations.items.0.rule_title', 'Browser extension removed')
-            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true)
-            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 0);
+            ->assertJsonPath('policy.violations.open_count', 0)
+            ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false)
+            ->assertJsonPath('policy.violation_app_enforcement.browser_reopen_grace_seconds', 60);
     }
 
     public function test_recent_blocked_extension_visit_prevents_false_restricted_extension_enforcement(): void
@@ -2407,7 +2404,7 @@ class CompanionApiTest extends TestCase
             ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', false);
     }
 
-    public function test_stale_browser_extension_does_not_add_gui_kill_on_top_of_real_violations(): void
+    public function test_stale_browser_extension_does_not_add_fake_violation_on_top_of_real_violations(): void
     {
         [$student, $studentUser] = $this->makeStudent('stale_extension_plus_violation_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
@@ -2447,7 +2444,7 @@ class CompanionApiTest extends TestCase
         $this->withHeaders($this->authHeaders($token))
             ->getJson(route('api.companion.policy.show'))
             ->assertOk()
-            ->assertJsonPath('policy.violations.open_count', 2)
+            ->assertJsonPath('policy.violations.open_count', 1)
             ->assertJsonPath('policy.violation_app_enforcement.kill_gui_apps', true);
     }
 

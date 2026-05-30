@@ -39,8 +39,6 @@ class DevicePolicyService
         $activeScheduleRun = $student->activeOrPausedScheduleRun;
         $communicationGate = $this->communicationGateService->payload($student);
         $openViolations = $student->violations->where('status', 'open')->values();
-        $browserExtensionMissing = $this->browserExtensionMissingForStudent($student);
-
         $internetPolicy = $this->internetPolicy($device);
         $screenCaptureIntervalSeconds = max(5, (int) ($student->setting?->screen_capture_interval_seconds ?? 30));
         $cameraCaptureIntervalSeconds = max(5, (int) ($student->setting?->camera_capture_interval_seconds ?? 30));
@@ -49,14 +47,6 @@ class DevicePolicyService
             'rule_title' => $violation->rule_title_snapshot,
             'occurred_at' => $violation->occurred_at?->toAtomString(),
         ])->values();
-
-        if ($browserExtensionMissing) {
-            $violationItems->push([
-                'id' => null,
-                'rule_title' => 'Browser extension removed',
-                'occurred_at' => now()->toAtomString(),
-            ]);
-        }
 
         return [
             'device' => [
@@ -84,12 +74,12 @@ class DevicePolicyService
                 'requires_internet' => $activeTaskSession?->taskTemplate?->requires_internet ?? false,
             ],
             'violations' => [
-                'open_count' => $openViolations->count() + ($browserExtensionMissing ? 1 : 0),
+                'open_count' => $openViolations->count(),
                 'items' => $violationItems->all(),
             ],
             'violation_app_enforcement' => [
-                'kill_gui_apps' => $browserExtensionMissing || $openViolations->isNotEmpty(),
-                'browser_reopen_grace_seconds' => $browserExtensionMissing ? 0 : 60,
+                'kill_gui_apps' => $openViolations->isNotEmpty(),
+                'browser_reopen_grace_seconds' => 60,
             ],
             'communication_gate' => $communicationGate,
             'internet_policy' => $internetPolicy,
