@@ -230,9 +230,10 @@ class StudentCompanionEnrollmentTest extends TestCase
             ->assertDontSee('Clear-LocalChromeForceInstallPolicy', false)
             ->assertDontSee('Local Chrome force-install policy cleared', false)
             ->assertSee('Clear-ExtensionForceInstall', false)
-            ->assertSee('Local Chrome and Edge force-install policies for AIR were cleared.', false)
+            ->assertSee('Local Chrome and Edge install policies for AIR were cleared.', false)
             ->assertSee('Chrome and Edge local force-install policies written.', false)
             ->assertSee('Chrome and Edge ExtensionSettings policies written.', false)
+            ->assertSee('Chrome and Edge extension install settings are controlled by Admin Console.', false)
             ->assertSee('test-enterprise-token', false)
             ->assertSee('certutil.exe -addstore -f Root', false);
 

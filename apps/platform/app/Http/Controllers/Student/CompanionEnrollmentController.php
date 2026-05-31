@@ -249,13 +249,13 @@ try {
     if ([string]::IsNullOrWhiteSpace($chromeEnterpriseEnrollmentToken)) {
         Set-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
         Set-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
+        Set-ExtensionSettings -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
+        Set-ExtensionSettings -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
     } else {
         Clear-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
         Clear-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
     }
 
-    Set-ExtensionSettings -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
-    Set-ExtensionSettings -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
     Set-ExtensionManagedConfig -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
     Set-ExtensionManagedConfig -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
 
@@ -271,8 +271,8 @@ try {
         Write-Host 'Chrome and Edge ExtensionSettings policies written.'
     } else {
         Write-Host 'Chrome Enterprise Core enrollment token written.'
-        Write-Host 'Local Chrome and Edge force-install policies for AIR were cleared.'
-        Write-Host 'Chrome and Edge ExtensionSettings policies written.'
+        Write-Host 'Local Chrome and Edge install policies for AIR were cleared.'
+        Write-Host 'Chrome and Edge extension install settings are controlled by Admin Console.'
     }
     Write-Host 'Managed extension token written to Chrome and Edge policy.'
     Write-Host ''
