@@ -26,6 +26,12 @@ async function main() {
 
   const platformPort = await freePort();
   const platformOrigin = `http://platform.test:${platformPort}`;
+  const localBookPath = join(workDir, 'history-book.html');
+  const otherLocalBookPath = join(workDir, 'other-history-book.html');
+  await writeFile(localBookPath, '<title>Local History Book</title><h1>Local History Book</h1>', 'utf8');
+  await writeFile(otherLocalBookPath, '<title>Other Local Book</title><h1>Other Local Book</h1>', 'utf8');
+  const localBookUrl = fileUrlFromPath(localBookPath);
+  const otherLocalBookUrl = fileUrlFromPath(otherLocalBookPath);
   const content = await listen((req, res) => {
     contentRequests.push({ host: req.headers.host, url: req.url });
     res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -171,6 +177,48 @@ async function main() {
     assert(codingBlocked.href.includes(`chrome-extension://${extensionId}/src/blocked.html`), 'Coding task did not block unknown site');
     assert(!contentRequests.some((request) => request.host === `blocked-site.test:${content.port}`), 'Coding unknown blocked site reached content server');
 
+    const fileBlocked = await navigateAndWait(client, localBookUrl);
+    assert(fileBlocked.href.includes(`chrome-extension://${extensionId}/src/blocked.html`), `Coding task did not block local file navigation: ${fileBlocked.href}`);
+
+    await evaluateOrThrow(client, {
+      expression: `
+        document.getElementById('reason').value = 'Need the local history book for this task';
+        document.getElementById('requestButton').click();
+      `,
+    }, fileBlocked.sessionId);
+
+    await waitForDb(env, "App\\Models\\BrowserAccessRequest::query()->where('requested_url', " + JSON.stringify(localBookUrl) + ")->where('status', 'pending')->exists()", 10000, 'local file access request was not stored');
+
+    await navigateExisting(client, adminSession, `${platformOrigin}/admin/students/${seed.student_id}/devices`);
+    await waitForSelector(client, adminSession, 'button', 10000);
+    await evaluateOrThrow(client, {
+      expression: `
+        const allowButton = [...document.querySelectorAll('button')]
+          .find((button) => button.textContent.trim() === 'Allow');
+        if (!allowButton) {
+          throw new Error('Allow button for local file not found');
+        }
+        allowButton.click();
+      `,
+    }, adminSession);
+
+    await waitForDb(env, `App\\Models\\BrowserPolicyRule::query()->where('task_template_id', ${seed.coding_template_id})->where('match_type', 'exact_url')->where('value', ${JSON.stringify(localBookUrl)})->exists()`, 10000, 'admin approval did not create exact local file task rule');
+
+    await evaluateOrThrow(client, {
+      expression: `
+        const retryButton = document.getElementById('retryButton');
+        if (!retryButton) {
+          throw new Error('Try again button for local file not found');
+        }
+        retryButton.click();
+      `,
+    }, fileBlocked.sessionId);
+    await waitForLocation(client, fileBlocked.sessionId, localBookUrl, 10000);
+    await waitForText(client, fileBlocked.sessionId, 'Local History Book', 10000);
+
+    const otherFileBlocked = await navigateAndWait(client, otherLocalBookUrl);
+    assert(otherFileBlocked.href.includes(`chrome-extension://${extensionId}/src/blocked.html`), 'Exact local file approval allowed a different local file');
+
     console.log('platform browser e2e passed');
   } finally {
     if (client) {
@@ -191,6 +239,10 @@ async function main() {
     }
     rmRetry(workDir).catch(() => {});
   }
+}
+
+function fileUrlFromPath(path) {
+  return `file://${path}`;
 }
 
 function seedPhp(outputPath) {
