@@ -712,6 +712,17 @@ class CompanionApiTest extends TestCase
         ]);
 
         $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.access-requests.store'), [
+                'url' => $localBookUrl,
+                'reason' => 'Trying again after approval.',
+            ])
+            ->assertAccepted()
+            ->assertJsonPath('request.status', 'approved')
+            ->assertJsonPath('request.task_template_id', $historyTemplate->id);
+
+        $this->assertDatabaseCount('browser_policy_rules', 1);
+
+        $this->withHeaders($this->authHeaders($token))
             ->getJson(route('api.companion.browser.policy.show'))
             ->assertOk()
             ->assertJsonPath('policy.rules.0.match_type', 'exact_url')

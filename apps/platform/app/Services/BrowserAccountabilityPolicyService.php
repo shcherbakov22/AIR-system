@@ -132,8 +132,14 @@ class BrowserAccountabilityPolicyService
 
     public function createAccessRequest(StudentDevice $device, string $url, ?string $reason = null): BrowserAccessRequest
     {
+        $student = $device->student()->firstOrFail();
         $host = $this->hostFromUrl($url);
-        $activeTaskSession = $this->activeTaskSession($device->student()->firstOrFail());
+        $activeTaskSession = $this->activeTaskSession($student);
+        $evaluation = $this->evaluate($student, $url, $device);
+        $matchedAllowRule = $evaluation['matched_rule'] instanceof BrowserPolicyRule
+            && $evaluation['matched_rule']->effect === 'allow'
+            ? $evaluation['matched_rule']
+            : null;
 
         return BrowserAccessRequest::create([
             'student_id' => $device->student_id,
@@ -143,9 +149,12 @@ class BrowserAccountabilityPolicyService
             'host' => $host,
             'registrable_domain' => $this->registrableDomain($host),
             'reason' => $reason !== null ? trim($reason) : null,
-            'status' => $activeTaskSession?->task_template_id ? 'pending' : 'denied',
-            'mentor_note' => $activeTaskSession?->task_template_id ? null : 'Automatically denied because no task was active when the request was sent.',
-            'decided_at' => $activeTaskSession?->task_template_id ? null : now(),
+            'status' => $matchedAllowRule ? 'approved' : ($activeTaskSession?->task_template_id ? 'pending' : 'denied'),
+            'approved_rule_id' => $matchedAllowRule?->id,
+            'mentor_note' => $matchedAllowRule
+                ? 'Automatically approved because this URL is already allowed for the current task.'
+                : ($activeTaskSession?->task_template_id ? null : 'Automatically denied because no task was active when the request was sent.'),
+            'decided_at' => ($matchedAllowRule || ! $activeTaskSession?->task_template_id) ? now() : null,
         ]);
     }
 
