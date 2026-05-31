@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AIR Browser Accountability",
   "description": "Accountability browsing policy, visit logging, and mentor access requests.",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "permissions": ["alarms", "declarativeNetRequest", "offscreen", "storage", "tabs", "videoCapture", "webNavigation"],
   "host_permissions": ["<all_urls>"],
   "background": {

@@ -653,6 +653,7 @@ class CompanionApiTest extends TestCase
     {
         [$student, $studentUser] = $this->makeStudent('browser_local_file_request_student', 'secret-pass');
         $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $device->update(['internet_access_mode' => 'whitelist']);
         $token = $device->issueToken();
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
@@ -745,6 +746,42 @@ class CompanionApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('visit.decision', 'blocked');
+    }
+
+    public function test_browser_blacklist_allows_local_files_unless_exactly_blocked(): void
+    {
+        [$student, $studentUser] = $this->makeStudent('browser_blacklist_local_file_student', 'secret-pass');
+        $device = $this->enrollDevice($studentUser, 'secret-pass');
+        $device->update(['internet_access_mode' => 'blacklist']);
+        $token = $device->issueToken();
+        $blockedBookUrl = 'file:///C:/Users/NordicStar/Downloads/blocked-book.pdf';
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => 'file:///C:/Users/NordicStar/Downloads/normal-book.pdf',
+                'meta' => ['source' => 'explicit_navigation'],
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'allowed')
+            ->assertJsonPath('visit.host', '')
+            ->assertJsonPath('visit.registrable_domain', '');
+
+        BrowserPolicyRule::create([
+            'student_id' => $student->id,
+            'task_template_id' => null,
+            'effect' => 'block',
+            'match_type' => 'exact_url',
+            'value' => $blockedBookUrl,
+        ]);
+
+        $this->withHeaders($this->authHeaders($token))
+            ->postJson(route('api.companion.browser.visits.store'), [
+                'url' => $blockedBookUrl,
+                'meta' => ['source' => 'explicit_navigation'],
+            ])
+            ->assertOk()
+            ->assertJsonPath('visit.decision', 'blocked')
+            ->assertJsonPath('visit.matched_rule_id', fn ($id) => $id !== null);
     }
 
     public function test_browser_access_request_without_active_task_is_denied_automatically(): void

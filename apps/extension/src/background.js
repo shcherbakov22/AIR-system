@@ -1068,16 +1068,15 @@ function evaluateUrl(policy, url) {
   const registrableDomain = registrableDomainForHost(host);
   const rules = Array.isArray(policy?.rules) ? policy.rules : [];
   const mode = policy?.mode === 'whitelist' ? 'whitelist' : 'blacklist';
-  const exactUrlAllowedRule = isRestrictedNonWebUrl(url)
-    ? rules.find((rule) => rule.effect === 'allow' && rule.match_type === 'exact_url' && matchesPolicyRule(rule, url, host, registrableDomain))
-    : null;
-
   if (isRestrictedNonWebUrl(url)) {
+    const effect = mode === 'whitelist' ? 'allow' : 'block';
+    const matchedRule = rules.find((rule) => rule.effect === effect && rule.match_type === 'exact_url' && matchesPolicyRule(rule, url, host, registrableDomain));
+
     return {
-      allowed: Boolean(exactUrlAllowedRule),
+      allowed: mode === 'whitelist' ? Boolean(matchedRule) : !matchedRule,
       host,
       registrableDomain,
-      matchedRuleId: exactUrlAllowedRule?.id || null,
+      matchedRuleId: matchedRule?.id || null,
     };
   }
 

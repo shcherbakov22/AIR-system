@@ -77,13 +77,14 @@ class BrowserAccountabilityPolicyService
         $mode = $device ? $this->modeForDevice($device) : $this->modeForStudent($student);
         $activeTaskSession = $this->activeTaskSession($student);
         $rules = $this->activeRules($student, $activeTaskSession?->task_template_id);
-        $exactUrlAllowRule = $this->usesExactUrlRule($url)
-            ? $this->matchingRule($rules, $url, $host, $domain, 'allow', 'exact_url')
-            : null;
-
         if ($this->usesExactUrlRule($url)) {
-            $matchedRule = $exactUrlAllowRule;
-            $allowed = $exactUrlAllowRule !== null;
+            $effect = $mode === 'whitelist' ? 'allow' : 'block';
+            $matchedRule = $this->matchingRule($rules, $url, $host, $domain, $effect, 'exact_url');
+            $allowed = match ($mode) {
+                'whitelist' => $matchedRule !== null,
+                'blacklist' => $matchedRule === null,
+                default => true,
+            };
         } else {
             $matchedRule = $this->matchingRule($rules, $url, $host, $domain, $mode === 'whitelist' ? 'allow' : 'block');
 
