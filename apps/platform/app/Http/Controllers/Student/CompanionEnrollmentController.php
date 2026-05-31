@@ -177,12 +177,19 @@ function Set-ExtensionForceInstall {
         -Path (Join-Path $BrowserPolicyRoot 'ExtensionInstallForcelist') `
         -Name '1' `
         -Value $forceInstallValue
+}
+
+function Set-ExtensionSettings {
+    param([string]$BrowserPolicyRoot)
 
     $extensionSettings = @{
         $extensionId = @{
             installation_mode = 'force_installed'
             toolbar_pin = 'force_pinned'
             update_url = $updateUrl
+            override_update_url = $true
+            file_url_navigation_allowed = $true
+            blocked_permissions = @()
         }
     } | ConvertTo-Json -Compress -Depth 5
 
@@ -247,6 +254,8 @@ try {
         Clear-ExtensionForceInstall -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
     }
 
+    Set-ExtensionSettings -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
+    Set-ExtensionSettings -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
     Set-ExtensionManagedConfig -BrowserPolicyRoot 'HKLM:\Software\Policies\Google\Chrome'
     Set-ExtensionManagedConfig -BrowserPolicyRoot 'HKLM:\Software\Policies\Microsoft\Edge'
 
@@ -263,7 +272,7 @@ try {
     } else {
         Write-Host 'Chrome Enterprise Core enrollment token written.'
         Write-Host 'Local Chrome and Edge force-install policies for AIR were cleared.'
-        Write-Host 'Install and pin policy should come from Google Admin Console.'
+        Write-Host 'Chrome and Edge ExtensionSettings policies written.'
     }
     Write-Host 'Managed extension token written to Chrome and Edge policy.'
     Write-Host ''
