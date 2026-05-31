@@ -142,7 +142,11 @@ class Student extends Model
         return $this->hasOne(StudentMonitorCapture::class)
             ->ofMany(
                 ['captured_at' => 'max', 'id' => 'max'],
-                fn ($query) => $query->where('capture_kind', 'screen'),
+                fn ($query) => $query
+                    ->where('capture_kind', 'screen')
+                    ->whereNotNull('path')
+                    ->where('path', '<>', '')
+                    ->where('path', '<>', '0'),
             );
     }
 
@@ -151,7 +155,11 @@ class Student extends Model
         return $this->hasOne(StudentMonitorCapture::class)
             ->ofMany(
                 ['captured_at' => 'max', 'id' => 'max'],
-                fn ($query) => $query->where('capture_kind', 'camera'),
+                fn ($query) => $query
+                    ->where('capture_kind', 'camera')
+                    ->whereNotNull('path')
+                    ->where('path', '<>', '')
+                    ->where('path', '<>', '0'),
             );
     }
 

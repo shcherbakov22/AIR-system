@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class StudentMonitorCaptureController extends Controller
 {
@@ -50,6 +51,10 @@ class StudentMonitorCaptureController extends Controller
                 Str::uuid().'.'.$extension,
                 'local',
             );
+
+            if (! is_string($path) || $path === '') {
+                throw new RuntimeException('Failed to store student monitor '.$captureKind.' capture.');
+            }
 
             return StudentMonitorCapture::create([
                 'student_id' => $student->id,

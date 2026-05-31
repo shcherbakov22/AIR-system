@@ -21,6 +21,9 @@ class StudentMonitorCaptureController extends Controller
         $captures = StudentMonitorCapture::query()
             ->where('student_id', $studentMonitorCapture->student_id)
             ->where('capture_kind', $studentMonitorCapture->capture_kind)
+            ->whereNotNull('path')
+            ->where('path', '<>', '')
+            ->where('path', '<>', '0')
             ->where(function ($query) use ($dayStart, $dayEnd) {
                 $query
                     ->whereBetween('captured_at', [$dayStart, $dayEnd])

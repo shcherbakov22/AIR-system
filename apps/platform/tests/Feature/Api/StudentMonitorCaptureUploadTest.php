@@ -81,6 +81,9 @@ class StudentMonitorCaptureUploadTest extends TestCase
         ]);
 
         $storedPath = \App\Models\StudentMonitorCapture::query()->value('path');
+        $this->assertIsString($storedPath);
+        $this->assertNotSame('', $storedPath);
+        $this->assertNotSame('0', $storedPath);
         Storage::disk('local')->assertExists($storedPath);
     }
 
@@ -119,5 +122,11 @@ class StudentMonitorCaptureUploadTest extends TestCase
             'student_id' => $student->id,
             'capture_kind' => 'camera',
         ]);
+
+        $storedPath = \App\Models\StudentMonitorCapture::query()->value('path');
+        $this->assertIsString($storedPath);
+        $this->assertNotSame('', $storedPath);
+        $this->assertNotSame('0', $storedPath);
+        Storage::disk('local')->assertExists($storedPath);
     }
 }

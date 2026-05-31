@@ -8,6 +8,7 @@ use App\Models\StudentMonitorCapture;
 use App\Models\TaskSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class CompanionCaptureController extends Controller
 {
@@ -41,6 +42,10 @@ class CompanionCaptureController extends Controller
             Str::uuid().'.'.$extension,
             'local',
         );
+
+        if (! is_string($path) || $path === '') {
+            throw new RuntimeException('Failed to store companion '.$captureKind.' capture.');
+        }
 
         $capture = StudentMonitorCapture::create([
             'student_id' => $student->id,

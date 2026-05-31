@@ -11,6 +11,7 @@ use App\Models\RuleDefinition;
 use App\Models\ScheduleRun;
 use App\Models\Student;
 use App\Models\StudentDevice;
+use App\Models\StudentMonitorCapture;
 use App\Models\StudentSetting;
 use App\Models\TaskTemplate;
 use App\Models\TaskSession;
@@ -1124,6 +1125,12 @@ class CompanionApiTest extends TestCase
             'app_name_snapshot' => 'Code.exe',
             'browser_domain_snapshot' => 'github.com',
         ]);
+
+        $storedPath = StudentMonitorCapture::query()->value('path');
+        $this->assertIsString($storedPath);
+        $this->assertNotSame('', $storedPath);
+        $this->assertNotSame('0', $storedPath);
+        Storage::disk('local')->assertExists($storedPath);
     }
 
     public function test_device_can_create_attention_calibration_session_upload_batches_and_check_status(): void

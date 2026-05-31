@@ -309,7 +309,7 @@ class DashboardRoutingTest extends TestCase
             'started_by_user_id' => $studentUser->id,
         ]);
 
-        StudentMonitorCapture::create([
+        $screenCapture = StudentMonitorCapture::create([
             'student_id' => $student->id,
             'task_session_id' => $taskSession->id,
             'capture_kind' => 'screen',
@@ -320,6 +320,22 @@ class DashboardRoutingTest extends TestCase
             'captured_at' => now()->subMinute(),
             'uploaded_at' => now()->subMinute(),
             'task_title_snapshot' => 'Coding',
+            'source_label' => 'Browser Extension',
+            'source_version' => '1.0.0',
+            'meta' => [],
+        ]);
+
+        StudentMonitorCapture::create([
+            'student_id' => $student->id,
+            'task_session_id' => $taskSession->id,
+            'capture_kind' => 'screen',
+            'disk' => 'local',
+            'path' => '0',
+            'mime_type' => 'image/jpeg',
+            'size_bytes' => 2048,
+            'captured_at' => now(),
+            'uploaded_at' => now(),
+            'task_title_snapshot' => 'Broken screen row',
             'source_label' => 'Browser Extension',
             'source_version' => '1.0.0',
             'meta' => [],
@@ -404,7 +420,7 @@ class DashboardRoutingTest extends TestCase
             'meta' => ['source' => 'registry_uninstall'],
         ]);
 
-        StudentMonitorCapture::create([
+        $cameraCapture = StudentMonitorCapture::create([
             'student_id' => $student->id,
             'task_session_id' => $taskSession->id,
             'capture_kind' => 'camera',
@@ -415,6 +431,22 @@ class DashboardRoutingTest extends TestCase
             'captured_at' => now()->subSeconds(30),
             'uploaded_at' => now()->subSeconds(30),
             'task_title_snapshot' => 'Coding',
+            'source_label' => 'Hardware Bridge',
+            'source_version' => '1.0.0',
+            'meta' => [],
+        ]);
+
+        StudentMonitorCapture::create([
+            'student_id' => $student->id,
+            'task_session_id' => $taskSession->id,
+            'capture_kind' => 'camera',
+            'disk' => 'local',
+            'path' => '0',
+            'mime_type' => 'image/jpeg',
+            'size_bytes' => 2048,
+            'captured_at' => now(),
+            'uploaded_at' => now(),
+            'task_title_snapshot' => 'Broken camera row',
             'source_label' => 'Hardware Bridge',
             'source_version' => '1.0.0',
             'meta' => [],
@@ -475,7 +507,9 @@ class DashboardRoutingTest extends TestCase
                 ->component('Admin/Dashboard')
                 ->has('monitorStudents', 1)
                 ->where('monitorStudents.0.display_name', 'Monitor Student')
+                ->where('monitorStudents.0.latest_screen_capture.id', $screenCapture->id)
                 ->where('monitorStudents.0.latest_screen_capture.task_title', 'Coding')
+                ->where('monitorStudents.0.latest_camera_capture.id', $cameraCapture->id)
                 ->where('monitorStudents.0.latest_camera_capture.source_label', 'Hardware Bridge')
                 ->where('monitorStudents.0.latest_device_activity.device_label', 'Desk PC')
                 ->where('monitorStudents.0.latest_device_activity.focused_app.app_name', 'Code.exe')
