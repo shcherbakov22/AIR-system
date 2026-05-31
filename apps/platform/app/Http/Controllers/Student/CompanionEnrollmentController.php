@@ -184,6 +184,9 @@ function Set-ExtensionSettings {
 
     $extensionSettings = @{
         $extensionId = @{
+            installation_mode = 'force_installed'
+            toolbar_pin = 'force_pinned'
+            update_url = $updateUrl
             override_update_url = $true
             file_url_navigation_allowed = $true
             blocked_permissions = @()
