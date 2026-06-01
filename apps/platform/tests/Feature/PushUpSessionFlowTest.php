@@ -236,6 +236,102 @@ class PushUpSessionFlowTest extends TestCase
         ]);
     }
 
+    public function test_direct_station_token_can_claim_and_complete_push_up_session(): void
+    {
+        config()->set('services.push_up_station.shared_token', 'station-secret');
+
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $studentUser = User::factory()->create(['role' => UserRole::Student]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Counter Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Stay on task',
+            'penalty_units' => 10,
+            'occurred_at' => now(),
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        PushUpSession::create([
+            'student_id' => $student->id,
+            'violation_id' => $violation->id,
+            'requested_by_user_id' => $admin->id,
+            'status' => 'pending',
+            'required_push_ups' => 10,
+            'configuration' => [
+                'sets' => 1,
+                'reps' => 10,
+                'rest_seconds' => 30,
+                'penalty_reps' => 5,
+                'drop_threshold' => 20,
+                'up_gap' => 6,
+                'down_tolerance' => 3,
+            ],
+            'current_rep' => 0,
+            'current_set' => 1,
+        ]);
+
+        $this
+            ->postJson(route('api.push-up-station.heartbeat'), [
+                'station_key' => 'esp32-station',
+                'station_name' => 'ESP32 station',
+            ])
+            ->assertUnauthorized();
+
+        $claim = $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->postJson(route('api.push-up-station.claim-next'), [
+                'station_key' => 'esp32-station',
+                'station_name' => 'ESP32 station',
+            ])
+            ->assertOk()
+            ->json();
+
+        $sessionId = $claim['session']['id'];
+        $this->assertSame(10, $claim['session']['config_reps']);
+
+        $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->postJson(route('api.push-up-station.sessions.start', $sessionId), [
+                'station_key' => 'esp32-station',
+            ])
+            ->assertOk();
+
+        $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->postJson(route('api.push-up-station.sessions.progress', $sessionId), [
+                'station_key' => 'esp32-station',
+                'current_rep' => 10,
+                'current_set' => 1,
+            ])
+            ->assertOk();
+
+        $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->postJson(route('api.push-up-station.sessions.complete', $sessionId), [
+                'station_key' => 'esp32-station',
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('violations', [
+            'id' => $violation->id,
+            'status' => 'resolved',
+        ]);
+
+        $this->assertDatabaseHas('push_up_sessions', [
+            'id' => $sessionId,
+            'status' => 'completed',
+        ]);
+    }
+
     public function test_student_can_queue_only_their_own_open_violation(): void
     {
         $studentUser = User::factory()->create(['role' => UserRole::Student]);

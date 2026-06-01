@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\CompanionPolicyController;
 use App\Http\Controllers\Api\CompanionPushUpStationController;
 use App\Http\Controllers\Api\CompanionUpdateController;
 use App\Http\Controllers\Api\EdgeClientHeartbeatController;
+use App\Http\Controllers\Api\PushUpStationDeviceController;
 use App\Http\Controllers\Api\StudentMonitorCaptureController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,15 @@ Route::post('/student-monitor-captures/screen', [StudentMonitorCaptureController
 
 Route::post('/student-monitor-captures/camera', [StudentMonitorCaptureController::class, 'storeCamera'])
     ->name('api.student-monitor-captures.camera');
+
+Route::prefix('push-up-station')->name('api.push-up-station.')->group(function () {
+    Route::post('/heartbeat', [PushUpStationDeviceController::class, 'heartbeat'])->name('heartbeat');
+    Route::post('/claim-next', [PushUpStationDeviceController::class, 'claimNext'])->name('claim-next');
+    Route::post('/sessions/{pushUpSession}/start', [PushUpStationDeviceController::class, 'start'])->name('sessions.start');
+    Route::post('/sessions/{pushUpSession}/progress', [PushUpStationDeviceController::class, 'progress'])->name('sessions.progress');
+    Route::post('/sessions/{pushUpSession}/complete', [PushUpStationDeviceController::class, 'complete'])->name('sessions.complete');
+    Route::post('/sessions/{pushUpSession}/fail', [PushUpStationDeviceController::class, 'fail'])->name('sessions.fail');
+});
 
 Route::prefix('companion')->name('api.companion.')->group(function () {
     Route::get('/update-manifest', [CompanionUpdateController::class, 'manifest'])->name('update.manifest');

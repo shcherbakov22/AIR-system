@@ -39,6 +39,10 @@ return [
         'shared_token' => env('EDGE_CLIENT_SHARED_TOKEN', 'dev-edge-token'),
     ],
 
+    'push_up_station' => [
+        'shared_token' => env('PUSH_UP_STATION_SHARED_TOKEN', 'dev-pushup-station-token'),
+    ],
+
     'local_tls' => [
         'root_ca_path' => env(
             'LOCAL_TLS_ROOT_CA_PATH',
