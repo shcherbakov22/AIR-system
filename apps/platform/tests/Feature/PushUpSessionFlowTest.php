@@ -50,9 +50,9 @@ class PushUpSessionFlowTest extends TestCase
             'reps' => 12,
             'rest_seconds' => 30,
             'penalty_reps' => 5,
-            'drop_threshold' => 20,
-            'up_gap' => 6,
-            'down_tolerance' => 3,
+            'drop_threshold' => 15,
+            'up_gap' => 5,
+            'down_tolerance' => 5,
         ], $session->configuration);
     }
 
@@ -98,9 +98,9 @@ class PushUpSessionFlowTest extends TestCase
                 'reps' => 10,
                 'rest_seconds' => 30,
                 'penalty_reps' => 5,
-                'drop_threshold' => 20,
-                'up_gap' => 6,
-                'down_tolerance' => 3,
+                'drop_threshold' => 15,
+                'up_gap' => 5,
+                'down_tolerance' => 5,
             ],
         ]);
 
@@ -169,9 +169,9 @@ class PushUpSessionFlowTest extends TestCase
                 'reps' => 10,
                 'rest_seconds' => 30,
                 'penalty_reps' => 5,
-                'drop_threshold' => 20,
-                'up_gap' => 6,
-                'down_tolerance' => 3,
+                'drop_threshold' => 15,
+                'up_gap' => 5,
+                'down_tolerance' => 5,
             ],
             'current_rep' => 0,
             'current_set' => 1,
@@ -271,9 +271,9 @@ class PushUpSessionFlowTest extends TestCase
                 'reps' => 10,
                 'rest_seconds' => 30,
                 'penalty_reps' => 5,
-                'drop_threshold' => 20,
-                'up_gap' => 6,
-                'down_tolerance' => 3,
+                'drop_threshold' => 15,
+                'up_gap' => 5,
+                'down_tolerance' => 5,
             ],
             'current_rep' => 0,
             'current_set' => 1,
@@ -330,6 +330,130 @@ class PushUpSessionFlowTest extends TestCase
             'id' => $sessionId,
             'status' => 'completed',
         ]);
+    }
+
+    public function test_direct_station_cannot_claim_session_after_violation_is_resolved(): void
+    {
+        config()->set('services.push_up_station.shared_token', 'station-secret');
+
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $studentUser = User::factory()->create(['role' => UserRole::Student]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Counter Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'status' => 'resolved',
+            'rule_title_snapshot' => 'Already resolved',
+            'penalty_units' => 10,
+            'occurred_at' => now(),
+            'resolved_at' => now(),
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        PushUpSession::create([
+            'student_id' => $student->id,
+            'violation_id' => $violation->id,
+            'requested_by_user_id' => $admin->id,
+            'status' => 'pending',
+            'required_push_ups' => 10,
+            'configuration' => [
+                'sets' => 1,
+                'reps' => 10,
+                'rest_seconds' => 30,
+                'penalty_reps' => 5,
+                'drop_threshold' => 15,
+                'up_gap' => 5,
+                'down_tolerance' => 5,
+            ],
+            'current_rep' => 0,
+            'current_set' => 1,
+        ]);
+
+        $response = $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->postJson(route('api.push-up-station.claim-next'), [
+                'station_key' => 'esp32-station',
+                'station_name' => 'ESP32 station',
+            ])
+            ->assertOk()
+            ->json();
+
+        $this->assertSame(0, $response['pending_count']);
+        $this->assertNull($response['session']);
+    }
+
+    public function test_direct_station_heartbeat_drops_active_session_after_violation_is_resolved(): void
+    {
+        config()->set('services.push_up_station.shared_token', 'station-secret');
+
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $studentUser = User::factory()->create(['role' => UserRole::Student]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Counter Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'status' => 'resolved',
+            'rule_title_snapshot' => 'Already resolved',
+            'penalty_units' => 10,
+            'occurred_at' => now(),
+            'resolved_at' => now(),
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $station = PushUpStation::create([
+            'station_key' => 'esp32-station',
+            'name' => 'ESP32 station',
+            'last_seen_at' => now(),
+            'last_claimed_at' => now(),
+        ]);
+
+        PushUpSession::create([
+            'student_id' => $student->id,
+            'violation_id' => $violation->id,
+            'requested_by_user_id' => $admin->id,
+            'push_up_station_id' => $station->id,
+            'status' => 'running',
+            'required_push_ups' => 10,
+            'configuration' => [
+                'sets' => 1,
+                'reps' => 10,
+                'rest_seconds' => 30,
+                'penalty_reps' => 5,
+                'drop_threshold' => 15,
+                'up_gap' => 5,
+                'down_tolerance' => 5,
+            ],
+            'claimed_at' => now(),
+            'started_at' => now(),
+            'current_rep' => 4,
+            'current_set' => 1,
+        ]);
+
+        $response = $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->postJson(route('api.push-up-station.heartbeat'), [
+                'station_key' => 'esp32-station',
+                'station_name' => 'ESP32 station',
+            ])
+            ->assertOk()
+            ->json();
+
+        $this->assertSame(0, $response['pending_count']);
+        $this->assertNull($response['session']);
     }
 
     public function test_student_can_queue_only_their_own_open_violation(): void
@@ -431,9 +555,9 @@ class PushUpSessionFlowTest extends TestCase
             'reps' => 48,
             'rest_seconds' => 30,
             'penalty_reps' => 5,
-            'drop_threshold' => 20,
-            'up_gap' => 6,
-            'down_tolerance' => 3,
+            'drop_threshold' => 15,
+            'up_gap' => 5,
+            'down_tolerance' => 5,
         ], $staleSession->configuration);
         $this->assertSame(0, $staleSession->current_rep);
         $this->assertSame(1, $staleSession->current_set);
@@ -480,9 +604,9 @@ class PushUpSessionFlowTest extends TestCase
                 'reps' => 10,
                 'rest_seconds' => 30,
                 'penalty_reps' => 5,
-                'drop_threshold' => 20,
-                'up_gap' => 6,
-                'down_tolerance' => 3,
+                'drop_threshold' => 15,
+                'up_gap' => 5,
+                'down_tolerance' => 5,
             ],
             'claimed_at' => now()->subMinutes(5),
             'current_rep' => 4,

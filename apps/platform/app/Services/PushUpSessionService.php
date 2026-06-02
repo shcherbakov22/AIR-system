@@ -28,9 +28,9 @@ class PushUpSessionService
             'reps' => $requiredPushUps,
             'rest_seconds' => 30,
             'penalty_reps' => 5,
-            'drop_threshold' => 20,
-            'up_gap' => 6,
-            'down_tolerance' => 3,
+            'drop_threshold' => 15,
+            'up_gap' => 5,
+            'down_tolerance' => 5,
         ];
     }
 
@@ -176,6 +176,7 @@ class PushUpSessionService
             ->with(['student.user', 'violation', 'station'])
             ->where('push_up_station_id', $station->id)
             ->whereIn('status', [self::STATUS_CLAIMED, self::STATUS_RUNNING])
+            ->whereHas('violation', fn ($query) => $query->where('status', 'open'))
             ->latest('id')
             ->first();
     }
@@ -184,6 +185,7 @@ class PushUpSessionService
     {
         return PushUpSession::query()
             ->where('status', self::STATUS_PENDING)
+            ->whereHas('violation', fn ($query) => $query->where('status', 'open'))
             ->count();
     }
 
@@ -193,6 +195,7 @@ class PushUpSessionService
             $current = PushUpSession::query()
                 ->where('push_up_station_id', $station->id)
                 ->whereIn('status', [self::STATUS_CLAIMED, self::STATUS_RUNNING])
+                ->whereHas('violation', fn ($query) => $query->where('status', 'open'))
                 ->lockForUpdate()
                 ->latest('id')
                 ->first();
@@ -203,6 +206,7 @@ class PushUpSessionService
 
             $next = PushUpSession::query()
                 ->where('status', self::STATUS_PENDING)
+                ->whereHas('violation', fn ($query) => $query->where('status', 'open'))
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->first();
