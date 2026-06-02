@@ -26,7 +26,7 @@ class CompanionPushUpStationController extends Controller
             'current_set' => $payload['current_set'],
             'config_reps' => (int) ($payload['configuration']['reps'] ?? $payload['required_push_ups']),
             'config_sets' => (int) ($payload['configuration']['sets'] ?? 1),
-            'config_drop_threshold' => (int) ($payload['configuration']['drop_threshold'] ?? 20),
+            'config_drop_threshold' => (int) ($payload['configuration']['drop_threshold'] ?? 22),
             'config_up_gap' => (int) ($payload['configuration']['up_gap'] ?? 6),
             'config_down_tolerance' => (int) ($payload['configuration']['down_tolerance'] ?? 3),
             'student_name' => $payload['student']['display_name'],

@@ -28,7 +28,7 @@ class PushUpSessionService
             'reps' => $requiredPushUps,
             'rest_seconds' => 30,
             'penalty_reps' => 5,
-            'drop_threshold' => 15,
+            'drop_threshold' => 22,
             'up_gap' => 5,
             'down_tolerance' => 5,
         ];
