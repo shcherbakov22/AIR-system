@@ -508,7 +508,7 @@ class PushUpSessionFlowTest extends TestCase
         config()->set('services.push_up_station.shared_token', 'station-secret');
         Log::spy();
 
-        PushUpStation::create([
+        $station = PushUpStation::create([
             'station_key' => 'esp32-station',
             'name' => 'ESP32 station',
             'last_seen_at' => now(),
@@ -549,6 +549,8 @@ class PushUpSessionFlowTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('accepted', true);
+
+        $this->assertTrue($station->fresh()->last_seen_at->isAfter(now()->subSeconds(5)));
 
         Log::shouldHaveReceived('log')->once();
     }

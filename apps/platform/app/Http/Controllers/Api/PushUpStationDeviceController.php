@@ -80,6 +80,7 @@ class PushUpStationDeviceController extends Controller
             'free_heap' => $validated['free_heap'] ?? $payload['free_heap'] ?? $station->free_heap,
             'distance' => $validated['distance'] ?? $payload['distance'] ?? $station->distance,
             'debug_payload' => $payload,
+            'last_seen_at' => now(),
         ])->save();
     }
 
