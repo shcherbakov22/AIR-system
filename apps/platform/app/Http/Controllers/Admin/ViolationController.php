@@ -13,10 +13,12 @@ use App\Services\SpeechAnnouncementService;
 use App\Services\AutomaticViolationDismissalService;
 use App\Services\StudentPushUpCounterService;
 use App\Services\TaskSessionUnfinishService;
+use App\Services\ViolationFalsePositiveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 
 class ViolationController extends Controller
 {
@@ -58,6 +60,32 @@ class ViolationController extends Controller
             ->all();
     }
 
+    protected function latestResolution(Violation $violation): ?ViolationResolution
+    {
+        return $violation->resolutions
+            ->sortByDesc('recorded_at')
+            ->first();
+    }
+
+    protected function falsePositiveReviewPayload(Violation $violation): array
+    {
+        $payload = $this->toPayload($violation);
+        $latestResolution = $this->latestResolution($violation);
+
+        return $payload + [
+            'claimed_at_label' => $latestResolution?->recorded_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
+            'claimed_by' => $latestResolution?->createdBy
+                ? [
+                    'id' => $latestResolution->createdBy->id,
+                    'name' => $latestResolution->createdBy->name,
+                    'username' => $latestResolution->createdBy->username,
+                    'role' => $latestResolution->createdBy->role?->value,
+                ]
+                : null,
+            'reinstate_url' => route('admin.violations.false-positive.reinstate', $violation),
+        ];
+    }
+
     protected function toPayload(Violation $violation): array
     {
         $violation->loadMissing([
@@ -66,9 +94,7 @@ class ViolationController extends Controller
             'resolutions.createdBy',
         ]);
 
-        $latestResolution = $violation->resolutions
-            ->sortByDesc('recorded_at')
-            ->first();
+        $latestResolution = $this->latestResolution($violation);
 
         return [
             'id' => $violation->id,
@@ -99,12 +125,19 @@ class ViolationController extends Controller
                             'id' => $latestResolution->createdBy->id,
                             'name' => $latestResolution->createdBy->name,
                             'username' => $latestResolution->createdBy->username,
+                            'role' => $latestResolution->createdBy->role?->value,
                         ]
                         : null,
                 ]
                 : null,
             'start_push_up_url' => $violation->status === 'open'
                 ? route('admin.violations.push-up-sessions.store', $violation)
+                : null,
+            'false_positive_url' => $violation->status === 'open'
+                ? route('admin.violations.false-positive', $violation)
+                : null,
+            'reinstate_false_positive_url' => $violation->status === 'false_positive'
+                ? route('admin.violations.false-positive.reinstate', $violation)
                 : null,
         ];
     }
@@ -127,6 +160,15 @@ class ViolationController extends Controller
             ->latest('occurred_at')
             ->get();
 
+        $falsePositiveReviews = Violation::query()
+            ->with(['student.user', 'ruleDefinition', 'resolutions.createdBy'])
+            ->where('status', 'false_positive')
+            ->latest('updated_at')
+            ->get()
+            ->filter(fn (Violation $violation) => $this->latestResolution($violation)?->createdBy?->isStudent())
+            ->take(24)
+            ->values();
+
         $openViolationCounts = $openViolations
             ->groupBy(fn (Violation $violation) => $violation->student_id.':'.$violation->rule_definition_id)
             ->map(fn ($group) => $group->count());
@@ -146,6 +188,8 @@ class ViolationController extends Controller
             'openViolations' => $openViolations
                 ->take(24)
                 ->map(fn (Violation $violation) => $this->toPayload($violation)),
+            'falsePositiveReviews' => $falsePositiveReviews
+                ->map(fn (Violation $violation) => $this->falsePositiveReviewPayload($violation)),
         ]);
     }
 
@@ -264,6 +308,7 @@ class ViolationController extends Controller
                             'id' => $resolution->createdBy->id,
                             'name' => $resolution->createdBy->name,
                             'username' => $resolution->createdBy->username,
+                            'role' => $resolution->createdBy->role?->value,
                         ]
                         : null,
                 ]),
@@ -322,6 +367,31 @@ class ViolationController extends Controller
         return redirect()
             ->route('admin.violations.show', $violation)
             ->with('success', $result['message']);
+    }
+
+    public function falsePositive(Violation $violation, ViolationFalsePositiveService $service): RedirectResponse
+    {
+        try {
+            $service->markFalsePositive($violation, request()->user());
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', "Violation {$violation->rule_title_snapshot} marked as a false positive.");
+    }
+
+    public function reinstateFalsePositive(Violation $violation, ViolationFalsePositiveService $service): RedirectResponse
+    {
+        try {
+            $updatedViolation = $service->reinstateAfterFalseClaim($violation, request()->user());
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with(
+            'success',
+            "Violation {$updatedViolation->rule_title_snapshot} returned with {$updatedViolation->penalty_units} push-ups.",
+        );
     }
 
     public function destroy(Violation $violation, AutomaticViolationDismissalService $automaticViolationDismissalService): RedirectResponse

@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Enums\UserRole;
 use App\Models\RuleDefinition;
 use App\Models\Student;
+use App\Models\StudentConsequenceProfile;
 use App\Models\User;
 use App\Models\Violation;
 use App\Models\ViolationResolution;
@@ -48,6 +49,7 @@ class ViolationManagementTest extends TestCase
                 ->has('ruleDefinitions', 0)
                 ->where('openViolationCounts', [])
                 ->has('openViolations', 0)
+                ->has('falsePositiveReviews', 0)
             );
     }
 
@@ -594,6 +596,204 @@ class ViolationManagementTest extends TestCase
             'action' => 'waived',
             'notes' => 'Waived after context review.',
             'created_by_user_id' => $admin->id,
+        ]);
+    }
+
+    public function test_admin_can_mark_violation_as_false_positive(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_false_positive',
+        ]);
+
+        $student = $this->createStudent('student_false_positive_admin', 'Student False Positive Admin');
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Stay on assigned work',
+            'description' => 'Student must stay on assigned work.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Stay on assigned work',
+            'penalty_units' => 10,
+            'occurred_at' => '2026-03-08 09:00:00',
+            'notes' => 'Left the assigned work page.',
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.violations.show', $violation))
+            ->patch(route('admin.violations.false-positive', $violation))
+            ->assertRedirect(route('admin.violations.show', $violation, absolute: false))
+            ->assertSessionHas('success', 'Violation Stay on assigned work marked as a false positive.');
+
+        $this->assertDatabaseHas('violations', [
+            'id' => $violation->id,
+            'status' => 'false_positive',
+            'penalty_units' => 10,
+        ]);
+
+        $this->assertDatabaseHas('violation_resolutions', [
+            'violation_id' => $violation->id,
+            'action' => 'false_positive',
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'category' => 'violations',
+            'action' => 'mentor_false_positive_marked',
+            'student_id' => $student->id,
+            'actor_user_id' => $admin->id,
+        ]);
+    }
+
+    public function test_student_false_positive_claim_closes_violation_and_appears_for_admin_review(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_false_positive_review',
+        ]);
+
+        $student = $this->createStudent('student_false_positive_review', 'Student False Positive Review');
+        $studentUser = $student->user;
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Stay on assigned work',
+            'description' => 'Student must stay on assigned work.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Stay on assigned work',
+            'penalty_units' => 10,
+            'occurred_at' => '2026-03-08 09:00:00',
+            'notes' => 'Left the assigned work page.',
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->from(route('student.home'))
+            ->patch(route('student.violations.false-positive', $violation))
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', 'Violation marked as a false positive for mentor review.');
+
+        $this->assertDatabaseHas('violations', [
+            'id' => $violation->id,
+            'status' => 'false_positive',
+        ]);
+
+        $this->assertDatabaseHas('violation_resolutions', [
+            'violation_id' => $violation->id,
+            'action' => 'false_positive',
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'category' => 'violations',
+            'action' => 'student_false_positive_claimed',
+            'student_id' => $student->id,
+            'actor_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.violations.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Violations/Index')
+                ->has('openViolations', 0)
+                ->has('falsePositiveReviews', 1)
+                ->where('falsePositiveReviews.0.id', $violation->id)
+                ->where('falsePositiveReviews.0.student.username', 'student_false_positive_review')
+                ->where('falsePositiveReviews.0.claimed_by.username', 'student_false_positive_review')
+            );
+    }
+
+    public function test_admin_can_reinstate_student_false_positive_claim_with_four_times_current_counter(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_reinstate_false_positive',
+        ]);
+
+        $student = $this->createStudent('student_reinstate_false_positive', 'Student Reinstate False Positive');
+        $studentUser = $student->user;
+
+        StudentConsequenceProfile::create([
+            'student_id' => $student->id,
+            'default_push_up_count' => 0,
+            'current_push_up_count' => 12,
+            'increment_push_up_count_per_violation' => true,
+            'rest_duration_seconds' => 0,
+            'legacy_owner_user_id' => null,
+            'notes' => null,
+        ]);
+
+        $ruleDefinition = RuleDefinition::create([
+            'title' => 'Stay on assigned work',
+            'description' => 'Student must stay on assigned work.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $ruleDefinition->id,
+            'status' => 'false_positive',
+            'rule_title_snapshot' => 'Stay on assigned work',
+            'penalty_units' => 10,
+            'occurred_at' => '2026-03-08 09:00:00',
+            'notes' => 'Left the assigned work page.',
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $violation->resolutions()->create([
+            'action' => 'false_positive',
+            'notes' => 'Student marked this violation as a false positive.',
+            'recorded_at' => now(),
+            'created_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.violations.index'))
+            ->patch(route('admin.violations.false-positive.reinstate', $violation))
+            ->assertRedirect(route('admin.violations.index', absolute: false))
+            ->assertSessionHas('success', 'Violation Stay on assigned work returned with 48 push-ups.');
+
+        $this->assertDatabaseHas('violations', [
+            'id' => $violation->id,
+            'status' => 'open',
+            'penalty_units' => 48,
+        ]);
+
+        $this->assertDatabaseHas('violation_resolutions', [
+            'violation_id' => $violation->id,
+            'action' => 'reinstated',
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'category' => 'violations',
+            'action' => 'false_positive_reinstated',
+            'student_id' => $student->id,
+            'actor_user_id' => $admin->id,
         ]);
     }
 

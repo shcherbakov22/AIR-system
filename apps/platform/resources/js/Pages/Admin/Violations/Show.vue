@@ -13,6 +13,7 @@ const props = defineProps<{
         id: number;
         status: string;
         rule_title: string;
+        push_up_count: number;
         occurred_at_label?: string | null;
         notes?: string | null;
         student: {
@@ -33,8 +34,11 @@ const props = defineProps<{
                 id: number;
                 name: string;
                 username: string;
+                role?: string | null;
             } | null;
         } | null;
+        false_positive_url?: string | null;
+        reinstate_false_positive_url?: string | null;
     };
     resolutions: Array<{
         id: number;
@@ -45,6 +49,7 @@ const props = defineProps<{
             id: number;
             name: string;
             username: string;
+            role?: string | null;
         } | null;
     }>;
 }>();
@@ -61,6 +66,32 @@ const form = useForm({
 const submit = (action: 'resolved' | 'waived') => {
     form.action = action;
     form.patch(route('admin.violations.resolve', props.violation.id));
+};
+
+const markFalsePositive = () => {
+    if (!props.violation.false_positive_url) {
+        return;
+    }
+
+    router.patch(props.violation.false_positive_url, {}, {
+        preserveScroll: true,
+        preserveState: false,
+    });
+};
+
+const reinstateFalsePositive = () => {
+    if (!props.violation.reinstate_false_positive_url) {
+        return;
+    }
+
+    if (!window.confirm(`Return violation "${props.violation.rule_title}" with 4x push-ups?`)) {
+        return;
+    }
+
+    router.patch(props.violation.reinstate_false_positive_url, {}, {
+        preserveScroll: true,
+        preserveState: false,
+    });
 };
 
 const deleteViolation = () => {
@@ -119,10 +150,12 @@ const deleteViolation = () => {
                                             ? 'bg-amber-100 text-amber-800'
                                             : props.violation.status === 'resolved'
                                               ? 'bg-emerald-100 text-emerald-800'
-                                              : 'bg-stone-200 text-stone-700'
+                                              : props.violation.status === 'false_positive'
+                                                ? 'bg-sky-100 text-sky-800'
+                                                : 'bg-stone-200 text-stone-700'
                                     "
                                 >
-                                    {{ props.violation.status === 'open' ? 'Open' : props.violation.status === 'resolved' ? 'Resolved' : 'Waived' }}
+                                    {{ props.violation.status === 'open' ? 'Open' : labelViolationResolutionAction(props.violation.status) }}
                                 </span>
                             </div>
                         </div>
@@ -138,6 +171,9 @@ const deleteViolation = () => {
                             </h3>
                             <p class="mt-2 text-sm text-stone-600">
                                 {{ props.violation.occurred_at_label || 'Violation time was not recorded.' }}
+                            </p>
+                            <p class="mt-2 text-sm text-stone-600">
+                                {{ props.violation.push_up_count }} push-ups
                             </p>
                             <p class="mt-2 text-sm text-stone-600">
                                 {{
@@ -208,6 +244,16 @@ const deleteViolation = () => {
                             >
                                 Mark as waived
                             </button>
+
+                            <button
+                                v-if="props.violation.false_positive_url"
+                                type="button"
+                                class="inline-flex justify-center rounded-full border border-emerald-300 px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700 transition hover:border-emerald-500 hover:text-emerald-900"
+                                :disabled="form.processing"
+                                @click="markFalsePositive"
+                            >
+                                False positive
+                            </button>
                         </div>
                     </form>
 
@@ -222,6 +268,14 @@ const deleteViolation = () => {
                         <p class="mt-3 text-sm leading-6 text-stone-600">
                             {{ props.violation.latest_resolution?.notes || 'No resolution notes were provided.' }}
                         </p>
+                        <button
+                            v-if="props.violation.reinstate_false_positive_url"
+                            type="button"
+                            class="mt-5 inline-flex justify-center rounded-full bg-amber-500 px-5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-amber-600"
+                            @click="reinstateFalsePositive"
+                        >
+                            Return violation with 4x push-ups
+                        </button>
                     </div>
                 </section>
             </div>

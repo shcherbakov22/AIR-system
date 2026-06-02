@@ -255,6 +255,7 @@ class HomeController extends Controller
                     'occurred_at_label' => $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
                     'notes' => $violation->notes,
                     'start_push_up_url' => route('student.violations.push-up-sessions.store', $violation),
+                    'false_positive_url' => route('student.violations.false-positive', $violation),
                 ])
                 ->all(),
             'activeTaskSession' => $activeTaskSession

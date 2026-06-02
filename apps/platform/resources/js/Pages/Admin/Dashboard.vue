@@ -185,6 +185,21 @@ type DashboardStudent = {
         occurred_at_label?: string | null;
         notes?: string | null;
         start_push_up_url?: string | null;
+        false_positive_url?: string | null;
+    }>;
+    false_positive_reviews: Array<{
+        id: number;
+        rule_title: string;
+        push_up_count: number;
+        occurred_at_label?: string | null;
+        notes?: string | null;
+        claimed_at_label?: string | null;
+        claimed_by?: {
+            id: number;
+            name: string;
+            username: string;
+        } | null;
+        reinstate_url: string;
     }>;
     violation_rule_options: Array<{
         id: number;
@@ -915,6 +930,28 @@ const deleteViolation = (violationId: number) => {
         },
         preserveScroll: true,
         preserveState: true,
+    });
+};
+
+const markViolationFalsePositive = (url?: string | null) => {
+    if (!url) {
+        return;
+    }
+
+    router.patch(url, {}, {
+        preserveScroll: true,
+        preserveState: false,
+    });
+};
+
+const reinstateFalsePositiveViolation = (url: string, ruleTitle: string) => {
+    if (!window.confirm(`Return "${ruleTitle}" with 4x push-ups?`)) {
+        return;
+    }
+
+    router.patch(url, {}, {
+        preserveScroll: true,
+        preserveState: false,
     });
 };
 
@@ -1984,6 +2021,36 @@ const blockTooltip = (block: DashboardBlock): string => {
                         </button>
                     </div>
 
+                    <div v-if="student.false_positive_reviews.length > 0" class="mt-1 rounded-[0.75rem] bg-amber-50 px-1.5 py-1 ring-1 ring-amber-200">
+                        <div class="space-y-1">
+                            <div
+                                v-for="violation in student.false_positive_reviews"
+                                :key="violation.id"
+                                class="flex items-center justify-between gap-2 rounded-[0.75rem] bg-white px-2 py-1.5 ring-1 ring-amber-200"
+                            >
+                                <div class="min-w-0">
+                                    <p class="truncate text-[11px] font-medium text-amber-950">
+                                        False positive: {{ violation.rule_title }}
+                                    </p>
+                                    <p class="text-[10px] text-amber-700">
+                                        Claimed by {{ violation.claimed_by?.username ?? 'student' }}<span v-if="violation.claimed_at_label">, {{ violation.claimed_at_label }}</span>
+                                    </p>
+                                    <p v-if="violation.notes" class="mt-0.5 line-clamp-2 text-[10px] leading-snug text-amber-700">
+                                        {{ violation.notes }}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="inline-flex shrink-0 rounded-full border border-amber-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700 transition hover:border-amber-500 hover:text-amber-900"
+                                    @click="reinstateFalsePositiveViolation(violation.reinstate_url, violation.rule_title)"
+                                >
+                                    Return 4x
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div v-if="student.open_violations.length > 0" class="mt-1 rounded-[0.75rem] bg-rose-50 px-1.5 py-1 ring-1 ring-rose-200">
                         <div class="space-y-1">
                             <div
@@ -2010,6 +2077,15 @@ const blockTooltip = (block: DashboardBlock): string => {
                                     @click="queueStudentPushUps(violation.start_push_up_url)"
                                 >
                                     Do pushups
+                                </button>
+
+                                <button
+                                    v-if="violation.false_positive_url"
+                                    type="button"
+                                    class="inline-flex rounded-full border border-emerald-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700 transition hover:border-emerald-500 hover:text-emerald-900"
+                                    @click="markViolationFalsePositive(violation.false_positive_url)"
+                                >
+                                    False
                                 </button>
 
                                 <button
