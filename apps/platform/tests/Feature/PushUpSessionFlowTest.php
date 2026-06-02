@@ -10,6 +10,7 @@ use App\Models\StudentDevice;
 use App\Models\User;
 use App\Models\Violation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class PushUpSessionFlowTest extends TestCase
@@ -454,6 +455,101 @@ class PushUpSessionFlowTest extends TestCase
 
         $this->assertSame(0, $response['pending_count']);
         $this->assertNull($response['session']);
+    }
+
+    public function test_direct_station_firmware_manifest_and_download_are_token_protected(): void
+    {
+        config()->set('services.push_up_station.shared_token', 'station-secret');
+        config()->set('services.push_up_station.firmware_updates_enabled', true);
+        config()->set('services.push_up_station.firmware_version', '9.8.7');
+
+        $firmwarePath = tempnam(sys_get_temp_dir(), 'pushup-firmware-');
+        file_put_contents($firmwarePath, 'firmware-binary');
+        config()->set('services.push_up_station.firmware_path', $firmwarePath);
+
+        try {
+            $this
+                ->getJson(route('api.push-up-station.update.manifest', [
+                    'station_key' => 'esp32-station',
+                ]))
+                ->assertUnauthorized();
+
+            $manifest = $this
+                ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+                ->getJson(route('api.push-up-station.update.manifest', [
+                    'station_key' => 'esp32-station',
+                    'firmware_version' => '0.2.0',
+                ]))
+                ->assertOk()
+                ->json('firmware');
+
+            $this->assertTrue($manifest['enabled']);
+            $this->assertTrue($manifest['available']);
+            $this->assertSame('9.8.7', $manifest['version']);
+            $this->assertSame(strlen('firmware-binary'), $manifest['size']);
+            $this->assertSame(hash('sha256', 'firmware-binary'), $manifest['sha256']);
+
+            $this
+                ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+                ->get(route('api.push-up-station.firmware.download', [
+                    'station_key' => 'esp32-station',
+                ]))
+                ->assertOk()
+                ->assertHeader('X-Firmware-Version', '9.8.7')
+                ->assertHeader('X-Firmware-SHA256', hash('sha256', 'firmware-binary'));
+        } finally {
+            @unlink($firmwarePath);
+        }
+    }
+
+    public function test_direct_station_debug_and_remote_logs_are_token_protected(): void
+    {
+        config()->set('services.push_up_station.shared_token', 'station-secret');
+        Log::spy();
+
+        PushUpStation::create([
+            'station_key' => 'esp32-station',
+            'name' => 'ESP32 station',
+            'last_seen_at' => now(),
+        ]);
+
+        $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->getJson(route('api.push-up-station.debug', [
+                'station_key' => 'esp32-station',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('station.station_key', 'esp32-station')
+            ->assertJsonStructure(['firmware', 'pending_count']);
+
+        $this
+            ->withHeader('X-Push-Up-Station-Token', 'wrong-secret')
+            ->postJson(route('api.push-up-station.logs.store'), [
+                'station_key' => 'esp32-station',
+                'event' => 'ota_check',
+                'message' => 'Checked for update.',
+                'firmware_version' => '0.2.0',
+                'state' => 'IDLE',
+                'free_heap' => 123456,
+            ])
+            ->assertUnauthorized();
+
+        $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->postJson(route('api.push-up-station.logs.store'), [
+                'station_key' => 'esp32-station',
+                'level' => 'warning',
+                'event' => 'ota_skipped',
+                'message' => 'Skipped update while busy.',
+                'firmware_version' => '0.2.0',
+                'state' => 'WORK',
+                'free_heap' => 123456,
+                'context' => ['reason' => 'active_session'],
+            ])
+            ->assertOk()
+            ->assertJsonPath('accepted', true);
+
+        Log::shouldHaveReceived('log')->once();
     }
 
     public function test_student_can_queue_only_their_own_open_violation(): void
