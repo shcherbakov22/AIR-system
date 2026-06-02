@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\UserRole;
 use App\Models\PushUpSession;
 use App\Models\PushUpStation;
+use App\Models\PushUpStationCommand;
 use App\Models\Student;
 use App\Models\StudentDevice;
 use App\Models\User;
@@ -550,6 +551,127 @@ class PushUpSessionFlowTest extends TestCase
             ->assertJsonPath('accepted', true);
 
         Log::shouldHaveReceived('log')->once();
+    }
+
+    public function test_direct_station_can_poll_and_acknowledge_remote_commands(): void
+    {
+        config()->set('services.push_up_station.shared_token', 'station-secret');
+
+        $station = PushUpStation::create([
+            'station_key' => 'esp32-station',
+            'name' => 'ESP32 station',
+            'last_seen_at' => now(),
+        ]);
+
+        $command = $station->commands()->create([
+            'station_key' => 'esp32-station',
+            'command' => 'restart_esp',
+            'payload' => ['reason' => 'test'],
+            'status' => PushUpStationCommand::STATUS_PENDING,
+        ]);
+
+        $response = $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->getJson(route('api.push-up-station.commands.next', [
+                'station_key' => 'esp32-station',
+            ]))
+            ->assertOk()
+            ->json('command');
+
+        $this->assertSame($command->id, $response['id']);
+        $this->assertSame('restart_esp', $response['command']);
+        $this->assertDatabaseHas('push_up_station_commands', [
+            'id' => $command->id,
+            'status' => PushUpStationCommand::STATUS_SENT,
+        ]);
+
+        $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->postJson(route('api.push-up-station.commands.acknowledge', $command), [
+                'station_key' => 'esp32-station',
+                'status' => 'acknowledged',
+                'result' => 'restarting',
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('push_up_station_commands', [
+            'id' => $command->id,
+            'status' => PushUpStationCommand::STATUS_ACKNOWLEDGED,
+            'result' => 'restarting',
+        ]);
+    }
+
+    public function test_direct_station_completion_metrics_update_student_profile(): void
+    {
+        config()->set('services.push_up_station.shared_token', 'station-secret');
+
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $studentUser = User::factory()->create(['role' => UserRole::Student]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Counter Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Stay on task',
+            'penalty_units' => 10,
+            'occurred_at' => now(),
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $station = PushUpStation::create([
+            'station_key' => 'esp32-station',
+            'name' => 'ESP32 station',
+            'last_seen_at' => now(),
+        ]);
+
+        $session = PushUpSession::create([
+            'student_id' => $student->id,
+            'violation_id' => $violation->id,
+            'requested_by_user_id' => $admin->id,
+            'push_up_station_id' => $station->id,
+            'status' => 'running',
+            'required_push_ups' => 10,
+            'configuration' => [
+                'sets' => 1,
+                'reps' => 10,
+                'rest_seconds' => 30,
+                'penalty_reps' => 5,
+                'drop_threshold' => 22,
+                'up_gap' => 5,
+                'down_tolerance' => 5,
+            ],
+            'current_rep' => 8,
+            'current_set' => 1,
+        ]);
+
+        $this
+            ->withHeader('X-Push-Up-Station-Token', 'station-secret')
+            ->postJson(route('api.push-up-station.sessions.complete', $session), [
+                'station_key' => 'esp32-station',
+                'metrics' => [
+                    'rep_count' => 10,
+                    'average_top_distance' => 31.5,
+                    'average_down_distance' => 55.0,
+                    'average_amplitude' => 23.5,
+                    'average_return_distance' => 12.0,
+                    'average_rep_duration_ms' => 700,
+                    'noise_cm' => 3.0,
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('learned_profile.student_id', $student->id);
+
+        $this->assertDatabaseHas('push_up_student_profiles', [
+            'student_id' => $student->id,
+            'sample_count' => 1,
+        ]);
     }
 
     public function test_student_can_queue_only_their_own_open_violation(): void

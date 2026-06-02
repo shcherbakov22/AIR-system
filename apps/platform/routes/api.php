@@ -31,6 +31,8 @@ Route::prefix('push-up-station')->name('api.push-up-station.')->group(function (
     Route::get('/firmware', [PushUpStationDeviceController::class, 'downloadFirmware'])->name('firmware.download');
     Route::get('/debug', [PushUpStationDeviceController::class, 'debug'])->name('debug');
     Route::post('/logs', [PushUpStationDeviceController::class, 'storeLog'])->name('logs.store');
+    Route::get('/commands/next', [PushUpStationDeviceController::class, 'nextCommand'])->name('commands.next');
+    Route::post('/commands/{pushUpStationCommand}/acknowledge', [PushUpStationDeviceController::class, 'acknowledgeCommand'])->name('commands.acknowledge');
     Route::post('/claim-next', [PushUpStationDeviceController::class, 'claimNext'])->name('claim-next');
     Route::post('/sessions/{pushUpSession}/start', [PushUpStationDeviceController::class, 'start'])->name('sessions.start');
     Route::post('/sessions/{pushUpSession}/progress', [PushUpStationDeviceController::class, 'progress'])->name('sessions.progress');

@@ -36,7 +36,7 @@ class PushUpSessionService
 
     public function toPayload(PushUpSession $session): array
     {
-        $session->loadMissing(['student.user', 'violation', 'station']);
+        $session->loadMissing(['student.user', 'student.pushUpProfile', 'violation', 'station']);
 
         return [
             'id' => $session->id,
@@ -54,6 +54,7 @@ class PushUpSessionService
                 'display_name' => $session->student->display_name,
                 'username' => $session->student->user->username,
             ],
+            'student_profile' => app(PushUpStudentProfileService::class)->payloadForSession($session),
             'violation' => [
                 'id' => $session->violation->id,
                 'rule_title' => $session->violation->rule_title_snapshot,

@@ -14,6 +14,13 @@ class PushUpStation extends Model
     protected $fillable = [
         'station_key',
         'name',
+        'firmware_version',
+        'ip_address',
+        'state',
+        'sensor_status',
+        'free_heap',
+        'distance',
+        'debug_payload',
         'connected_by_user_id',
         'last_seen_at',
         'last_claimed_at',
@@ -24,6 +31,9 @@ class PushUpStation extends Model
         return [
             'last_seen_at' => 'datetime',
             'last_claimed_at' => 'datetime',
+            'free_heap' => 'integer',
+            'distance' => 'integer',
+            'debug_payload' => 'array',
         ];
     }
 
@@ -35,5 +45,15 @@ class PushUpStation extends Model
     public function sessions(): HasMany
     {
         return $this->hasMany(PushUpSession::class);
+    }
+
+    public function logs(): HasMany
+    {
+        return $this->hasMany(PushUpStationLog::class);
+    }
+
+    public function commands(): HasMany
+    {
+        return $this->hasMany(PushUpStationCommand::class);
     }
 }

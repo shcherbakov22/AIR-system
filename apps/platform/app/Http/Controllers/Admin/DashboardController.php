@@ -288,7 +288,10 @@ class DashboardController extends Controller
     protected function pushUpStationPayload(): ?array
     {
         $station = PushUpStation::query()
-            ->with(['sessions' => fn ($query) => $query
+            ->with([
+                'logs' => fn ($query) => $query->latest('id')->limit(8),
+                'commands' => fn ($query) => $query->latest('id')->limit(5),
+                'sessions' => fn ($query) => $query
                 ->with(['student.user'])
                 ->whereIn('status', [
                     PushUpSessionService::STATUS_CLAIMED,
@@ -311,8 +314,16 @@ class DashboardController extends Controller
         $activeSession = $station->sessions->first();
 
         return [
+            'id' => $station->id,
             'name' => $station->name ?: 'Push-up station',
+            'station_key' => $station->station_key,
             'is_active' => $isActive,
+            'firmware_version' => $station->firmware_version,
+            'ip_address' => $station->ip_address,
+            'state' => $station->state,
+            'sensor_status' => $station->sensor_status,
+            'free_heap' => $station->free_heap,
+            'distance' => $station->distance,
             'last_seen_at' => $station->last_seen_at?->toIso8601String(),
             'last_seen_at_label' => $station->last_seen_at?->format('d M, H:i:s'),
             'pending_count' => \App\Models\PushUpSession::query()
@@ -324,6 +335,21 @@ class DashboardController extends Controller
                 'student_name' => $activeSession->student->display_name,
                 'required_push_ups' => $activeSession->required_push_ups,
             ] : null,
+            'logs' => $station->logs->map(fn ($log) => [
+                'id' => $log->id,
+                'level' => $log->level,
+                'event' => $log->event,
+                'message' => $log->message,
+                'state' => $log->state,
+                'distance' => $log->distance,
+                'created_at_label' => $log->created_at?->format('H:i:s'),
+            ])->all(),
+            'commands' => $station->commands->map(fn ($command) => [
+                'id' => $command->id,
+                'command' => $command->command,
+                'status' => $command->status,
+                'created_at_label' => $command->created_at?->format('H:i:s'),
+            ])->all(),
         ];
     }
 

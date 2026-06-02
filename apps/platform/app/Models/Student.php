@@ -190,6 +190,11 @@ class Student extends Model
         return $this->hasMany(PushUpSession::class);
     }
 
+    public function pushUpProfile(): HasOne
+    {
+        return $this->hasOne(PushUpStudentProfile::class);
+    }
+
     public function canManageOwnSchedule(): bool
     {
         return $this->setting?->can_manage_own_schedule ?? true;

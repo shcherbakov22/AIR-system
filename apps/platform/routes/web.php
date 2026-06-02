@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ExtensionController as AdminExtensionController;
 use App\Http\Controllers\Admin\HiddenScheduleBlockTimeController as AdminHiddenScheduleBlockTimeController;
 use App\Http\Controllers\Admin\PushUpSessionController as AdminPushUpSessionController;
+use App\Http\Controllers\Admin\PushUpStationController as AdminPushUpStationController;
 use App\Http\Controllers\Admin\RuleDefinitionController as AdminRuleDefinitionController;
 use App\Http\Controllers\Admin\ScheduleTemplateController as AdminScheduleTemplateController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
@@ -163,6 +164,8 @@ Route::middleware('auth')->group(function () {
         Route::patch('/violations/{violation}/resolve', [AdminViolationController::class, 'resolve'])->name('violations.resolve');
         Route::delete('/violations/{violation}', [AdminViolationController::class, 'destroy'])->name('violations.destroy');
         Route::post('/violations/{violation}/push-up-sessions', [AdminPushUpSessionController::class, 'store'])->name('violations.push-up-sessions.store');
+        Route::post('/push-up-stations/{pushUpStation}/restart', [AdminPushUpStationController::class, 'restart'])->name('push-up-stations.restart');
+        Route::post('/push-up-stations/{pushUpStation}/end-session', [AdminPushUpStationController::class, 'endSession'])->name('push-up-stations.end-session');
         Route::get('/schedule-templates', [AdminScheduleTemplateController::class, 'index'])->name('schedule-templates.index');
         Route::get('/schedule-templates/create', [AdminScheduleTemplateController::class, 'create'])->name('schedule-templates.create');
         Route::post('/schedule-templates', [AdminScheduleTemplateController::class, 'store'])->name('schedule-templates.store');

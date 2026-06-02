@@ -199,8 +199,16 @@ const props = defineProps<{
         pending_count: number;
     };
     pushUpStation?: {
+        id: number;
         name: string;
+        station_key: string;
         is_active: boolean;
+        firmware_version?: string | null;
+        ip_address?: string | null;
+        state?: string | null;
+        sensor_status?: string | null;
+        free_heap?: number | null;
+        distance?: number | null;
         last_seen_at?: string | null;
         last_seen_at_label?: string | null;
         pending_count: number;
@@ -210,6 +218,21 @@ const props = defineProps<{
             student_name: string;
             required_push_ups: number;
         } | null;
+        logs: Array<{
+            id: number;
+            level: string;
+            event: string;
+            message?: string | null;
+            state?: string | null;
+            distance?: number | null;
+            created_at_label?: string | null;
+        }>;
+        commands: Array<{
+            id: number;
+            command: string;
+            status: string;
+            created_at_label?: string | null;
+        }>;
     } | null;
     monitorStudents: DashboardStudent[];
 }>();
@@ -659,6 +682,28 @@ const togglePushUpStationMenu = () => {
     }
 
     pushUpStationMenuOpen.value = !pushUpStationMenuOpen.value;
+};
+
+const queuePushUpStationRestart = () => {
+    if (!props.pushUpStation) {
+        return;
+    }
+
+    router.post(route('admin.push-up-stations.restart', props.pushUpStation.id), {}, {
+        preserveScroll: true,
+        only: ['pushUpStation'],
+    });
+};
+
+const queuePushUpStationEndSession = () => {
+    if (!props.pushUpStation) {
+        return;
+    }
+
+    router.post(route('admin.push-up-stations.end-session', props.pushUpStation.id), {}, {
+        preserveScroll: true,
+        only: ['pushUpStation'],
+    });
 };
 
 const preloadCaptureImage = (imageUrl?: string | null): Promise<void> => {
@@ -1456,7 +1501,7 @@ const blockTooltip = (block: DashboardBlock): string => {
 
                 <div
                     v-if="pushUpStationMenuOpen"
-                    class="absolute right-0 mt-2 w-72 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl"
+                    class="absolute right-0 mt-2 w-80 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl"
                 >
                     <div class="flex items-start justify-between gap-3">
                         <div>
@@ -1483,6 +1528,47 @@ const blockTooltip = (block: DashboardBlock): string => {
                             <span>Last seen</span>
                             <span class="font-semibold text-stone-900">{{ props.pushUpStation.last_seen_at_label ?? 'Never' }}</span>
                         </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Firmware</span>
+                            <span class="font-semibold text-stone-900">{{ props.pushUpStation.firmware_version ?? '-' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>IP</span>
+                            <span class="font-semibold text-stone-900">{{ props.pushUpStation.ip_address ?? '-' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>State</span>
+                            <span class="font-semibold text-stone-900">{{ props.pushUpStation.state ?? '-' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Sensor</span>
+                            <span class="font-semibold text-stone-900">{{ props.pushUpStation.sensor_status ?? '-' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Distance</span>
+                            <span class="font-semibold text-stone-900">{{ props.pushUpStation.distance ?? '-' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Heap</span>
+                            <span class="font-semibold text-stone-900">{{ props.pushUpStation.free_heap ?? '-' }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 flex gap-2">
+                        <button
+                            type="button"
+                            class="flex-1 rounded-md border border-stone-300 px-2 py-1 text-[11px] font-semibold text-stone-700"
+                            @click="queuePushUpStationRestart"
+                        >
+                            Restart ESP
+                        </button>
+                        <button
+                            type="button"
+                            class="flex-1 rounded-md border border-red-300 px-2 py-1 text-[11px] font-semibold text-red-700"
+                            @click="queuePushUpStationEndSession"
+                        >
+                            End session
+                        </button>
                     </div>
 
                     <div class="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
@@ -1505,6 +1591,29 @@ const blockTooltip = (block: DashboardBlock): string => {
                             </div>
                         </template>
                         <p v-else class="text-xs font-medium text-stone-500">No active push-up session.</p>
+                    </div>
+
+                    <div class="mt-3 rounded-xl border border-stone-200 bg-white p-3">
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">Recent logs</p>
+                        <div class="mt-2 max-h-28 space-y-1 overflow-y-auto text-[11px] text-stone-600">
+                            <p v-for="log in props.pushUpStation.logs" :key="log.id" class="truncate">
+                                <span class="font-semibold text-stone-800">{{ log.created_at_label }}</span>
+                                {{ log.event }}:
+                                <span>{{ log.message ?? log.state ?? '' }}</span>
+                            </p>
+                            <p v-if="props.pushUpStation.logs.length === 0" class="text-stone-400">No logs.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 rounded-xl border border-stone-200 bg-white p-3">
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">Commands</p>
+                        <div class="mt-2 space-y-1 text-[11px] text-stone-600">
+                            <p v-for="command in props.pushUpStation.commands" :key="command.id" class="flex justify-between gap-2">
+                                <span>{{ command.command }}</span>
+                                <span class="font-semibold text-stone-800">{{ command.status }}</span>
+                            </p>
+                            <p v-if="props.pushUpStation.commands.length === 0" class="text-stone-400">No commands.</p>
+                        </div>
                     </div>
                 </div>
             </div>

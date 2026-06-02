@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PushUpStation;
+use App\Models\PushUpStationCommand;
+use App\Models\PushUpStationLog;
 use App\Models\PushUpSession;
+use App\Services\PushUpStudentProfileService;
 use App\Services\PushUpSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,6 +49,7 @@ class PushUpStationDeviceController extends Controller
             'config_up_gap' => (int) ($payload['configuration']['up_gap'] ?? 6),
             'config_down_tolerance' => (int) ($payload['configuration']['down_tolerance'] ?? 3),
             'student_name' => $payload['student']['display_name'],
+            'student_profile' => $payload['student_profile'],
         ];
     }
 
@@ -65,6 +69,20 @@ class PushUpStationDeviceController extends Controller
         ];
     }
 
+    protected function updateStationStatus(PushUpStation $station, Request $request, array $validated = []): void
+    {
+        $payload = $request->all();
+        $station->forceFill([
+            'firmware_version' => $validated['firmware_version'] ?? $payload['firmware_version'] ?? $station->firmware_version,
+            'ip_address' => $validated['ip_address'] ?? $payload['ip_address'] ?? $request->ip(),
+            'state' => $validated['state'] ?? $payload['state'] ?? $station->state,
+            'sensor_status' => $validated['sensor_status'] ?? $payload['sensor_status'] ?? $station->sensor_status,
+            'free_heap' => $validated['free_heap'] ?? $payload['free_heap'] ?? $station->free_heap,
+            'distance' => $validated['distance'] ?? $payload['distance'] ?? $station->distance,
+            'debug_payload' => $payload,
+        ])->save();
+    }
+
     public function heartbeat(Request $request, PushUpSessionService $service): JsonResponse
     {
         $this->authorizeStation($request);
@@ -72,6 +90,12 @@ class PushUpStationDeviceController extends Controller
         $validated = $request->validate([
             'station_key' => ['required', 'string', 'max:120'],
             'station_name' => ['nullable', 'string', 'max:120'],
+            'firmware_version' => ['nullable', 'string', 'max:60'],
+            'state' => ['nullable', 'string', 'max:80'],
+            'sensor_status' => ['nullable', 'string', 'max:80'],
+            'ip_address' => ['nullable', 'string', 'max:80'],
+            'free_heap' => ['nullable', 'integer', 'min:0'],
+            'distance' => ['nullable', 'integer'],
         ]);
 
         $station = $service->heartbeat(
@@ -79,6 +103,7 @@ class PushUpStationDeviceController extends Controller
             $validated['station_name'] ?? null,
             null,
         );
+        $this->updateStationStatus($station, $request, $validated);
 
         return response()->json([
             'accepted' => true,
@@ -94,6 +119,12 @@ class PushUpStationDeviceController extends Controller
         $validated = $request->validate([
             'station_key' => ['required', 'string', 'max:120'],
             'station_name' => ['nullable', 'string', 'max:120'],
+            'firmware_version' => ['nullable', 'string', 'max:60'],
+            'state' => ['nullable', 'string', 'max:80'],
+            'sensor_status' => ['nullable', 'string', 'max:80'],
+            'ip_address' => ['nullable', 'string', 'max:80'],
+            'free_heap' => ['nullable', 'integer', 'min:0'],
+            'distance' => ['nullable', 'integer'],
         ]);
 
         $station = $service->heartbeat(
@@ -101,6 +132,7 @@ class PushUpStationDeviceController extends Controller
             $validated['station_name'] ?? null,
             null,
         );
+        $this->updateStationStatus($station, $request, $validated);
 
         return response()->json([
             'accepted' => true,
@@ -174,12 +206,20 @@ class PushUpStationDeviceController extends Controller
                 'id' => $station->id,
                 'station_key' => $station->station_key,
                 'name' => $station->name,
+                'firmware_version' => $station->firmware_version,
+                'ip_address' => $station->ip_address,
+                'state' => $station->state,
+                'sensor_status' => $station->sensor_status,
+                'free_heap' => $station->free_heap,
+                'distance' => $station->distance,
                 'last_seen_at' => $station->last_seen_at?->toAtomString(),
                 'last_claimed_at' => $station->last_claimed_at?->toAtomString(),
             ] : null,
             'pending_count' => $service->pendingCount(),
             'session' => $station ? $this->sessionPayload($service->currentSessionForStation($station), $service) : null,
             'firmware' => $this->firmwareManifestPayload(),
+            'commands' => $station ? $station->commands()->latest('id')->limit(10)->get() : [],
+            'logs' => $station ? $station->logs()->latest('id')->limit(30)->get() : [],
         ]);
     }
 
@@ -194,6 +234,7 @@ class PushUpStationDeviceController extends Controller
             'message' => ['nullable', 'string', 'max:1000'],
             'firmware_version' => ['nullable', 'string', 'max:60'],
             'state' => ['nullable', 'string', 'max:80'],
+            'sensor_status' => ['nullable', 'string', 'max:80'],
             'ip_address' => ['nullable', 'string', 'max:80'],
             'free_heap' => ['nullable', 'integer', 'min:0'],
             'distance' => ['nullable', 'integer'],
@@ -201,16 +242,92 @@ class PushUpStationDeviceController extends Controller
         ]);
 
         $level = $validated['level'] ?? 'info';
+        $station = PushUpStation::query()
+            ->where('station_key', $validated['station_key'])
+            ->first();
+
+        if ($station) {
+            $this->updateStationStatus($station, $request, $validated);
+        }
+
         $context = $validated['context'] ?? [];
         $context['station_key'] = $validated['station_key'];
         $context['event'] = $validated['event'];
         $context['firmware_version'] = $validated['firmware_version'] ?? null;
         $context['state'] = $validated['state'] ?? null;
+        $context['sensor_status'] = $validated['sensor_status'] ?? null;
         $context['ip_address'] = $validated['ip_address'] ?? null;
         $context['free_heap'] = $validated['free_heap'] ?? null;
         $context['distance'] = $validated['distance'] ?? null;
 
         Log::log($level, $validated['message'] ?? 'Push-up station event.', $context);
+        PushUpStationLog::create([
+            'push_up_station_id' => $station?->id,
+            'station_key' => $validated['station_key'],
+            'level' => $level,
+            'event' => $validated['event'],
+            'message' => $validated['message'] ?? null,
+            'firmware_version' => $validated['firmware_version'] ?? null,
+            'state' => $validated['state'] ?? null,
+            'ip_address' => $validated['ip_address'] ?? null,
+            'free_heap' => $validated['free_heap'] ?? null,
+            'distance' => $validated['distance'] ?? null,
+            'context' => $validated['context'] ?? null,
+        ]);
+
+        return response()->json(['accepted' => true]);
+    }
+
+    public function nextCommand(Request $request): JsonResponse
+    {
+        $this->authorizeStation($request);
+
+        $validated = $request->validate([
+            'station_key' => ['required', 'string', 'max:120'],
+        ]);
+
+        $command = PushUpStationCommand::query()
+            ->where('station_key', $validated['station_key'])
+            ->where('status', PushUpStationCommand::STATUS_PENDING)
+            ->orderBy('id')
+            ->first();
+
+        if (! $command) {
+            return response()->json(['accepted' => true, 'command' => null]);
+        }
+
+        $command->forceFill([
+            'status' => PushUpStationCommand::STATUS_SENT,
+            'sent_at' => now(),
+        ])->save();
+
+        return response()->json([
+            'accepted' => true,
+            'command' => [
+                'id' => $command->id,
+                'command' => $command->command,
+                'payload' => $command->payload ?? [],
+            ],
+        ]);
+    }
+
+    public function acknowledgeCommand(Request $request, PushUpStationCommand $pushUpStationCommand): JsonResponse
+    {
+        $this->authorizeStation($request);
+
+        $validated = $request->validate([
+            'station_key' => ['required', 'string', 'max:120'],
+            'status' => ['nullable', 'string', 'in:acknowledged,failed'],
+            'result' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        abort_unless($pushUpStationCommand->station_key === $validated['station_key'], 403);
+
+        $pushUpStationCommand->forceFill([
+            'status' => $validated['status'] ?? PushUpStationCommand::STATUS_ACKNOWLEDGED,
+            'acknowledged_at' => now(),
+            'result' => $validated['result'] ?? null,
+        ])->save();
 
         return response()->json(['accepted' => true]);
     }
@@ -253,19 +370,26 @@ class PushUpStationDeviceController extends Controller
         ]);
     }
 
-    public function complete(Request $request, PushUpSession $pushUpSession, PushUpSessionService $service): JsonResponse
+    public function complete(
+        Request $request,
+        PushUpSession $pushUpSession,
+        PushUpSessionService $service,
+        PushUpStudentProfileService $profileService,
+    ): JsonResponse
     {
         $this->authorizeStation($request);
 
         $validated = $request->validate([
             'station_key' => ['required', 'string', 'max:120'],
+            'metrics' => ['nullable', 'array'],
         ]);
 
         abort_unless($pushUpSession->station?->station_key === $validated['station_key'], 403);
 
         return response()->json([
             'accepted' => true,
-            'session' => $this->sessionPayload($service->complete($pushUpSession, null), $service),
+            'session' => $this->sessionPayload($completed = $service->complete($pushUpSession, null), $service),
+            'learned_profile' => isset($validated['metrics']) ? $profileService->learnFromSession($completed, $validated['metrics'])?->fresh()?->toArray() : null,
         ]);
     }
 
