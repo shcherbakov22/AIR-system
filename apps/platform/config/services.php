@@ -42,7 +42,7 @@ return [
     'push_up_station' => [
         'shared_token' => env('PUSH_UP_STATION_SHARED_TOKEN', 'dev-pushup-station-token'),
         'firmware_updates_enabled' => env('PUSH_UP_STATION_FIRMWARE_UPDATES_ENABLED', true),
-        'firmware_version' => env('PUSH_UP_STATION_FIRMWARE_VERSION', '0.3.0'),
+        'firmware_version' => env('PUSH_UP_STATION_FIRMWARE_VERSION', '0.3.1'),
         'firmware_path' => env(
             'PUSH_UP_STATION_FIRMWARE_PATH',
             storage_path('app/push-up-station/firmware.bin')
