@@ -69,6 +69,19 @@ Current guidance:
 - Repair commands and break-glass shell actions should create audit logs.
 - Student-facing violations remain owned by the normal enforcement/overseer logic.
 
+## AI Overseer Messages Must Match Applied Action
+
+Status: watching
+
+Details:
+- The model can return student-facing wording such as "violation removed" even when the normalized decision is escalated or the server refuses to auto-apply the action.
+- Saving the assistant message before applying side effects can produce false feedback for students.
+
+Current guidance:
+- Generate final decision messages after server-side actions run.
+- For `mentor_review`, preserve only messages that clearly mention mentor/review/escalation/unavailability; otherwise replace with explicit mentor-review wording.
+- Do not trust model text as the source of truth for whether a skip/removal actually happened.
+
 ## Chat Body Storage And Validation Must Match
 
 Status: resolved

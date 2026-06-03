@@ -74,7 +74,7 @@ class AiOverseerService
                 'decision' => $normalized['decision'],
                 'confidence' => $normalized['confidence'],
                 'student_reason' => $input['student_reason'] ?? null,
-                'student_message' => $normalized['student_message'],
+                'student_message' => null,
                 'mentor_summary' => $normalized['mentor_summary'],
                 'reason' => $normalized['reason'],
                 'context_snapshot' => $context,
@@ -84,18 +84,6 @@ class AiOverseerService
                 'decided_at' => now(),
             ]);
 
-            $decision->messages()->create([
-                'sender' => 'assistant',
-                'body' => $normalized['student_message'],
-                'is_final_decision' => true,
-                'metadata' => [
-                    'status' => $status,
-                    'decision' => $normalized['decision'],
-                    'confidence' => $normalized['confidence'],
-                    'reason' => $normalized['reason'],
-                ],
-            ]);
-
             if ($status === 'approved' && $normalized['decision'] === 'allow_skip_task') {
                 $this->applySkipApproval($decision, $requester);
             }
@@ -103,6 +91,26 @@ class AiOverseerService
             if ($status === 'approved' && $normalized['decision'] === 'remove_violation') {
                 $this->applyViolationRemovalIfAllowed($decision, $requester);
             }
+
+            $decision = $decision->fresh();
+            $studentMessage = $this->finalStudentMessage($decision, $normalized['student_message']);
+
+            $decision->update([
+                'student_message' => $studentMessage,
+            ]);
+
+            $decision->messages()->create([
+                'sender' => 'assistant',
+                'body' => $studentMessage,
+                'is_final_decision' => true,
+                'metadata' => [
+                    'status' => $decision->status,
+                    'decision' => $decision->decision,
+                    'confidence' => $decision->confidence,
+                    'reason' => $decision->reason,
+                    'action_taken' => $decision->action_taken,
+                ],
+            ]);
 
             if ($decision->fresh()->status === 'mentor_review') {
                 $this->notifyMentor($decision->fresh());
@@ -532,9 +540,52 @@ class AiOverseerService
         return in_array($decision, ['allow_skip_task', 'remove_violation'], true);
     }
 
+    private function finalStudentMessage(AiOverseerDecision $decision, string $modelStudentMessage): string
+    {
+        if ($decision->status === 'mentor_review') {
+            return $this->messageMentionsMentorReview($modelStudentMessage)
+                ? $modelStudentMessage
+                : 'I sent this to your mentor for review.';
+        }
+
+        if ($decision->status === 'denied') {
+            return match ($decision->decision) {
+                'deny_skip_task' => 'I cannot approve skipping this task.',
+                'keep_violation' => 'I cannot remove this violation.',
+                default => 'I cannot approve this request.',
+            };
+        }
+
+        if ($decision->status === 'approved') {
+            if ($decision->decision === 'allow_skip_task' && $decision->action_taken === 'schedule_block_marked_skipped') {
+                return $modelStudentMessage !== '' ? $modelStudentMessage : 'Approved. You may skip this block.';
+            }
+
+            if ($decision->decision === 'remove_violation' && in_array($decision->action_taken, ['automatic_violation_waived', 'mentor_approved_violation_waived'], true)) {
+                return $modelStudentMessage !== '' ? $modelStudentMessage : 'I removed that violation.';
+            }
+
+            return 'I sent this to your mentor for review.';
+        }
+
+        return $modelStudentMessage !== '' ? $modelStudentMessage : 'AI replied.';
+    }
+
+    private function messageMentionsMentorReview(string $message): bool
+    {
+        $normalized = str((string) $message)->lower()->toString();
+
+        return str_contains($normalized, 'mentor')
+            || str_contains($normalized, 'review')
+            || str_contains($normalized, 'unavailable')
+            || str_contains($normalized, 'escalat');
+    }
+
     private function applySkipApproval(AiOverseerDecision $decision, User $requester): void
     {
         if (! config('services.ai_overseer.auto_apply_skip', true) || ! $decision->schedule_run_block_id) {
+            $decision->update(['status' => 'mentor_review']);
+
             return;
         }
 
@@ -544,6 +595,8 @@ class AiOverseerService
             ->first();
 
         if (! $block || ! in_array($block->status, ['pending', 'paused'], true)) {
+            $decision->update(['status' => 'mentor_review']);
+
             return;
         }
 

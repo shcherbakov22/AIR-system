@@ -2,6 +2,20 @@
 
 Chronological operational notes for meaningful changes. This complements Git history by recording why work happened, what was verified, and deployment gotchas.
 
+## 2026-06-03 - AI Skip Requests Restored
+
+Changed:
+- Restored schedule block skip targets in the student AI chat sidebar.
+- Restored existing `skip_task` conversations in the AI chat conversation list.
+- Changed final AI overseer messages to be written after side effects are applied, so student-facing text matches the actual final status/action.
+
+Verified:
+- `php artisan test tests/Feature/AiOverseerDecisionTest.php` passed.
+- `npm run build` passed.
+
+Notes:
+- If an AI recommends removing a violation but the system cannot auto-apply it, the student now sees mentor-review wording instead of a false removal message.
+
 ## 2026-06-03 - Private Local Notes Added
 
 Changed:

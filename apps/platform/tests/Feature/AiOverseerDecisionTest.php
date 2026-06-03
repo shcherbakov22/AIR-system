@@ -198,6 +198,41 @@ class AiOverseerDecisionTest extends TestCase
         ]);
     }
 
+    public function test_student_ai_chat_lists_pending_schedule_blocks_and_skip_conversations(): void
+    {
+        $student = $this->createStudent();
+        [, $block] = $this->createScheduleBlock($student);
+
+        AiOverseerDecision::create([
+            'student_id' => $student->id,
+            'requested_by_user_id' => $student->user_id,
+            'schedule_run_block_id' => $block->id,
+            'request_type' => 'skip_task',
+            'status' => 'conversation',
+            'decision' => null,
+            'confidence' => 0,
+            'student_reason' => 'Can I skip this?',
+            'student_message' => 'Tell me what equivalent work you already completed.',
+            'mentor_summary' => 'Student is discussing a skip request.',
+            'reason' => 'More details needed.',
+            'context_snapshot' => [],
+            'raw_response' => [],
+            'model' => 'openai/gpt-oss-120b',
+            'prompt_version' => 'ai-overseer-v1',
+        ]);
+
+        $this->actingAs($student->user)
+            ->get(route('student.ai-overseer-decisions.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Student/AiOverseer/Index')
+                ->where('activeScheduleRun.blocks.0.id', $block->id)
+                ->where('activeScheduleRun.blocks.0.task_title', 'Reading')
+                ->where('decisions.0.request_type', 'skip_task')
+                ->where('decisions.0.target_label', 'Reading')
+            );
+    }
+
     public function test_low_confidence_violation_removal_is_escalated_to_mentor(): void
     {
         config(['services.ai_overseer.api_key' => 'test-key']);
@@ -267,6 +302,78 @@ class AiOverseerDecisionTest extends TestCase
             'student_id' => $student->id,
             'sender_user_id' => $student->user_id,
             'channel' => 'chat',
+        ]);
+        $this->assertDatabaseHas('violations', [
+            'id' => $violation->id,
+            'status' => 'open',
+        ]);
+    }
+
+    public function test_violation_removal_message_matches_mentor_review_when_auto_apply_is_not_allowed(): void
+    {
+        config(['services.ai_overseer.api_key' => 'test-key']);
+
+        Http::fake([
+            'https://openrouter.ai/*' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                'decision' => 'remove_violation',
+                                'confidence' => 85,
+                                'requires_mentor' => false,
+                                'reason' => 'The student explanation sounds plausible.',
+                                'student_message' => 'I removed that violation.',
+                                'mentor_summary' => 'The model wanted removal, but this is not an automatic violation type.',
+                            ]),
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $student = $this->createStudent();
+        $rule = RuleDefinition::create([
+            'title' => 'Custom rule',
+            'description' => 'A custom rule needs mentor review.',
+            'scope' => 'global',
+            'student_id' => null,
+            'default_penalty_units' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => $rule->id,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Custom rule',
+            'penalty_units' => 10,
+            'occurred_at' => now(),
+            'notes' => 'Needs mentor review.',
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($student->user)
+            ->post(route('student.ai-overseer-decisions.store'), [
+                'request_type' => 'remove_violation',
+                'violation_id' => $violation->id,
+                'student_reason' => 'This was unfair.',
+            ])
+            ->assertRedirect(route('student.ai-overseer-decisions.index', absolute: false))
+            ->assertSessionHas('success', 'I sent this to your mentor for review.');
+
+        $decision = AiOverseerDecision::query()->where('student_id', $student->id)->sole();
+
+        $this->assertSame('mentor_review', $decision->status);
+        $this->assertSame('remove_violation', $decision->decision);
+        $this->assertSame('I sent this to your mentor for review.', $decision->student_message);
+        $this->assertNotNull($decision->mentor_notified_at);
+        $this->assertDatabaseHas('ai_overseer_messages', [
+            'ai_overseer_decision_id' => $decision->id,
+            'sender' => 'assistant',
+            'body' => 'I sent this to your mentor for review.',
+            'is_final_decision' => true,
         ]);
         $this->assertDatabaseHas('violations', [
             'id' => $violation->id,

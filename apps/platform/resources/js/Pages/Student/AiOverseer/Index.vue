@@ -5,7 +5,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
-type RequestType = 'remove_violation';
+type RequestType = 'skip_task' | 'remove_violation';
 
 const props = defineProps<{
     decisions: Array<{
@@ -34,6 +34,19 @@ const props = defineProps<{
         push_up_count: number;
         occurred_at_label?: string | null;
     }>;
+    activeScheduleRun?: {
+        id: number;
+        status: string;
+        schedule_name: string;
+        blocks: Array<{
+            id: number;
+            position: number;
+            status: string;
+            task_title: string;
+            start_time?: string | null;
+            duration_minutes: number;
+        }>;
+    } | null;
     selectedTarget: {
         ai_overseer_decision_id?: number | null;
         violation_id?: number | null;
@@ -75,23 +88,35 @@ const selectViolation = (violation: (typeof props.openViolations)[number]) => {
     form.schedule_run_block_id = null;
 };
 
+const selectScheduleBlock = (block: NonNullable<typeof props.activeScheduleRun>['blocks'][number]) => {
+    selected.value = {
+        type: 'skip_task',
+        id: block.id,
+        label: block.task_title,
+        decisionId: null,
+    };
+    form.clearErrors();
+    form.ai_overseer_decision_id = null;
+    form.request_type = 'skip_task';
+    form.violation_id = null;
+    form.schedule_run_block_id = block.id;
+};
+
 const selectDecision = (decision: (typeof props.decisions)[number]) => {
     selected.value = {
-        type: 'remove_violation',
+        type: decision.request_type === 'skip_task' ? 'skip_task' : 'remove_violation',
         id: decision.id,
         label: decision.target_label || 'Violation review',
         decisionId: decision.id,
     };
     form.clearErrors();
     form.ai_overseer_decision_id = decision.id;
-    form.request_type = 'remove_violation';
+    form.request_type = decision.request_type === 'skip_task' ? 'skip_task' : 'remove_violation';
     form.schedule_run_block_id = null;
     form.violation_id = null;
 };
 
-const visibleDecisions = computed(() =>
-    props.decisions.filter((decision) => decision.request_type !== 'skip_task'),
-);
+const visibleDecisions = computed(() => props.decisions);
 
 watch(
     () => props.selectedTarget,
@@ -107,6 +132,13 @@ watch(
             const violation = props.openViolations.find((item) => item.id === target.violation_id);
             if (violation) {
                 selectViolation(violation);
+            }
+        }
+
+        if (target?.schedule_run_block_id) {
+            const block = props.activeScheduleRun?.blocks.find((item) => item.id === target.schedule_run_block_id);
+            if (block) {
+                selectScheduleBlock(block);
             }
         }
 
@@ -145,7 +177,11 @@ const activeMessages = computed(() => {
         },
     ];
 });
-const composerPlaceholder = computed(() => 'Ask about this violation, explain more, or ask for a decision...');
+const composerPlaceholder = computed(() =>
+    selected.value?.type === 'skip_task'
+        ? 'Explain why this schedule task should be safe to skip...'
+        : 'Ask about this violation, explain more, or ask for a decision...',
+);
 const canSubmit = computed(() =>
     selected.value !== null &&
     form.student_reason.trim().length > 0 &&
@@ -153,6 +189,7 @@ const canSubmit = computed(() =>
 );
 
 const requestLabel = (requestType: string): string => ({
+    skip_task: 'Skip request',
     remove_violation: 'Violation review',
 }[requestType] ?? requestType);
 
@@ -177,7 +214,7 @@ const submit = (intent: 'chat' | 'decide') => {
     form.student_reason = form.student_reason.trim();
     form.request_type = selected.value.type;
     form.ai_overseer_decision_id = selected.value.decisionId ?? null;
-    form.schedule_run_block_id = null;
+    form.schedule_run_block_id = !selected.value.decisionId && selected.value.type === 'skip_task' ? selected.value.id : null;
     form.violation_id = !selected.value.decisionId && selected.value.type === 'remove_violation' ? selected.value.id : null;
 
     form.post(route('student.ai-overseer-decisions.store'), {
@@ -217,6 +254,33 @@ const submit = (intent: 'chat' | 'decide') => {
                             No AI conversations yet.
                         </p>
                     </div>
+                </section>
+
+                <section class="rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                        Schedule
+                    </p>
+                    <div v-if="activeScheduleRun" class="mt-3 space-y-2">
+                        <button
+                            v-for="block in activeScheduleRun.blocks"
+                            :key="block.id"
+                            type="button"
+                            class="block w-full rounded-md border px-3 py-2 text-left text-sm transition"
+                            :class="selected?.type === 'skip_task' && selected.id === block.id ? 'border-stone-950 bg-stone-950 text-white' : 'border-stone-200 bg-white text-stone-800 hover:border-stone-400'"
+                            @click="selectScheduleBlock(block)"
+                        >
+                            <span class="block font-semibold">{{ block.task_title }}</span>
+                            <span class="mt-1 block text-xs opacity-75">
+                                #{{ block.position }}<span v-if="block.start_time">, {{ block.start_time }}</span>, {{ block.duration_minutes }} min
+                            </span>
+                        </button>
+                        <p v-if="activeScheduleRun.blocks.length === 0" class="text-sm text-stone-500">
+                            No pending schedule tasks.
+                        </p>
+                    </div>
+                    <p v-else class="mt-3 text-sm text-stone-500">
+                        No active schedule.
+                    </p>
                 </section>
 
                 <section class="rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
