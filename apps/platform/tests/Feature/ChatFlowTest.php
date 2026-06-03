@@ -87,6 +87,60 @@ class ChatFlowTest extends TestCase
         Storage::disk('local')->assertExists($message->attachment_path);
     }
 
+    public function test_chat_message_body_allows_fifty_thousand_characters(): void
+    {
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $body = str_repeat('a', 50000);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.chat.store'), [
+                'body' => $body,
+            ])
+            ->assertRedirect(route('student.chat.show', absolute: false))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('chat_messages', [
+            'sender_user_id' => $studentUser->id,
+            'body' => $body,
+        ]);
+    }
+
+    public function test_chat_message_body_rejects_more_than_fifty_thousand_characters(): void
+    {
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'ego',
+        ]);
+
+        Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Ego',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->from(route('student.chat.show'))
+            ->post(route('student.chat.store'), [
+                'body' => str_repeat('a', 50001),
+            ])
+            ->assertRedirect(route('student.chat.show', absolute: false))
+            ->assertSessionHasErrors('body');
+
+        $this->assertDatabaseCount('chat_messages', 0);
+    }
+
     public function test_mentor_chat_message_queues_visible_device_message_for_active_devices(): void
     {
         $mentor = User::factory()->create([

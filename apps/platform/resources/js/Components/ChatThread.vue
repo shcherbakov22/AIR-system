@@ -34,6 +34,7 @@ const props = withDefaults(defineProps<{
 });
 
 const hasHeader = computed(() => Boolean(props.title || props.subtitle));
+const chatMessageMaxLength = 50000;
 
 const page = usePage<PageProps>();
 const flashSuccess = computed(() => page.props.flash?.success ?? null);
@@ -247,6 +248,7 @@ watch(
                 <form v-if="!readOnly" class="space-y-3" @submit.prevent="submit">
                     <textarea
                         v-model="form.body"
+                        :maxlength="chatMessageMaxLength"
                         rows="3"
                         class="w-full rounded-[1.1rem] border-stone-300 px-4 py-3 text-sm shadow-sm focus:border-amber-700 focus:ring-amber-700"
                         placeholder="Write a message..."
