@@ -13,9 +13,15 @@ Core docs:
 - [Monitor Captures](C:\Users\user\codex\school-system-redo\docs\MONITOR_CAPTURES.md)
 - [Operations Guide](C:\Users\user\codex\school-system-redo\docs\OPERATIONS.md)
 - [AIR Repair Service Plan](C:\Users\user\codex\school-system-redo\docs\REPAIR_SERVICE_PLAN.md)
+- [Work Log](C:\Users\user\codex\school-system-redo\docs\WORKLOG.md)
+- [Issues and Gotchas](C:\Users\user\codex\school-system-redo\docs\ISSUES_AND_GOTCHAS.md)
 - [Legacy Interop](C:\Users\user\codex\school-system-redo\docs\LEGACY_INTEROP.md)
 - [Project Handoff](C:\Users\user\codex\school-system-redo\docs\HANDOFF.md)
 
 Supporting source docs:
 
 - [Platform App README](C:\Users\user\codex\school-system-redo\apps\platform\README.md)
+- [Platform Notes](C:\Users\user\codex\school-system-redo\apps\platform\NOTES.md)
+- [Companion Notes](C:\Users\user\codex\school-system-redo\apps\companion\NOTES.md)
+- [Extension Notes](C:\Users\user\codex\school-system-redo\apps\extension\NOTES.md)
+- [Hardware Bridge Notes](C:\Users\user\codex\school-system-redo\apps\hardware-bridge\NOTES.md)
