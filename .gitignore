@@ -8,6 +8,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+docs/PRIVATE_LOCAL_NOTES.md
 
 # Logs
 *.log

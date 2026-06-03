@@ -2,6 +2,19 @@
 
 Chronological operational notes for meaningful changes. This complements Git history by recording why work happened, what was verified, and deployment gotchas.
 
+## 2026-06-03 - Private Local Notes Added
+
+Changed:
+- Added an untracked private notes file at `docs/PRIVATE_LOCAL_NOTES.md` for local credentials, passwords, and environment-specific operational details.
+- Added `docs/PRIVATE_LOCAL_NOTES.md` to `.gitignore`.
+- Updated `AGENTS.md` so future agents must read the private notes file when present and must not commit or quote its secrets.
+
+Verified:
+- Documentation-only change; no runtime tests needed.
+
+Notes:
+- Actual secrets stay out of Git. Keep public operational lessons in this work log and `docs/ISSUES_AND_GOTCHAS.md`.
+
 ## 2026-06-03 - Work Log System Added
 
 Changed:

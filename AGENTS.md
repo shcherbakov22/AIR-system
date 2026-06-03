@@ -15,10 +15,17 @@ Priority order:
 
 Fallback to `rg`/file reads for string literals, configs, shell scripts, docs, or when graph results are insufficient.
 
+## Private Local Notes
+
+Before making any changes or running deployment/ops commands, read `docs/PRIVATE_LOCAL_NOTES.md` if it exists.
+
+That file is intentionally untracked and may contain SSH passwords, database credentials, tokens, local deployment details, and environment-specific gotchas. Use it for operational context, but do not commit it, quote secrets from it in final answers, or copy its secrets into tracked files.
+
 ## Work Log Discipline
 
 Before making code changes, read:
 
+- `docs/PRIVATE_LOCAL_NOTES.md` if it exists
 - `docs/WORKLOG.md`
 - `docs/ISSUES_AND_GOTCHAS.md`
 - the relevant folder note, if it exists:
