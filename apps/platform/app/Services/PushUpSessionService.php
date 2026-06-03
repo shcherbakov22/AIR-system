@@ -58,7 +58,7 @@ class PushUpSessionService
             'violation' => [
                 'id' => $session->violation->id,
                 'rule_title' => $session->violation->rule_title_snapshot,
-                'push_up_count' => $session->violation->penalty_units,
+                'push_up_count' => $session->violation->effectivePenaltyUnits(),
             ],
             'station' => $session->station
                 ? [
@@ -81,7 +81,7 @@ class PushUpSessionService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $latestRequiredPushUps = (int) $lockedViolation->penalty_units;
+            $latestRequiredPushUps = $lockedViolation->effectivePenaltyUnits();
             $latestConfiguration = $this->defaultConfiguration($latestRequiredPushUps);
 
             $existing = PushUpSession::query()
@@ -216,9 +216,16 @@ class PushUpSessionService
                 return null;
             }
 
+            $latestRequiredPushUps = $next->violation->effectivePenaltyUnits();
+            $latestConfiguration = $this->defaultConfiguration($latestRequiredPushUps);
+
             $next->update([
                 'status' => self::STATUS_CLAIMED,
                 'push_up_station_id' => $station->id,
+                'required_push_ups' => $latestRequiredPushUps,
+                'configuration' => $latestConfiguration,
+                'current_rep' => 0,
+                'current_set' => 1,
                 'claimed_at' => now(),
             ]);
 

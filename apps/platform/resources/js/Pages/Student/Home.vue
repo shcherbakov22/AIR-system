@@ -53,7 +53,9 @@ const props = defineProps<{
     openViolations: Array<{
         id: number;
         rule_title: string;
+        base_push_up_count?: number;
         push_up_count: number;
+        occurred_at?: string | null;
         occurred_at_label?: string | null;
         notes?: string | null;
         start_push_up_url?: string | null;
@@ -304,6 +306,17 @@ const formatClockTime = (timestampMs: number | null): string | null => {
         hour: 'numeric',
         minute: '2-digit',
     }).format(timestampMs);
+};
+
+const liveViolationPushUpCount = (violation: (typeof props.openViolations)[number]) => {
+    const baseCount = violation.base_push_up_count ?? violation.push_up_count;
+    const occurredAtMs = parseTimestamp(violation.occurred_at);
+
+    if (occurredAtMs === null) {
+        return violation.push_up_count;
+    }
+
+    return Math.max(0, baseCount) + Math.max(0, Math.floor((liveNowMs.value - occurredAtMs) / 60000));
 };
 
 const serverNowMs = ref(parseTimestamp(props.serverNow) ?? Date.now());
@@ -759,7 +772,7 @@ const showBlockingViolationDialog = () => {
     const lines = [
         'There are open violations:',
         ...props.openViolations.map((violation) =>
-            `- ${violation.rule_title} - ${violation.push_up_count} push-ups${violation.occurred_at_label ? ` (${violation.occurred_at_label})` : ''}`,
+            `- ${violation.rule_title} - ${liveViolationPushUpCount(violation)} push-ups${violation.occurred_at_label ? ` (${violation.occurred_at_label})` : ''}`,
         ),
         '',
         'Until a mentor closes them, you cannot continue the schedule or start your custom timer.',
@@ -1372,7 +1385,7 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                             >
                                 <span class="min-w-0">
                                     <span class="block truncate">
-                                        {{ violation.rule_title }} - {{ violation.push_up_count }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
+                                        {{ violation.rule_title }} - {{ liveViolationPushUpCount(violation) }} push-ups<span v-if="violation.occurred_at_label">, {{ violation.occurred_at_label }}</span>
                                     </span>
                                     <span v-if="violation.notes" class="mt-0.5 block line-clamp-2 text-xs text-rose-700">
                                         {{ violation.notes }}

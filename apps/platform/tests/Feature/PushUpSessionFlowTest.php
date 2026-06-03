@@ -58,6 +58,39 @@ class PushUpSessionFlowTest extends TestCase
         ], $session->configuration);
     }
 
+    public function test_queueing_push_up_session_adds_one_push_up_per_open_minute_without_changing_base_penalty(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $studentUser = User::factory()->create(['role' => UserRole::Student]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Counter Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Observe the time',
+            'penalty_units' => 12,
+            'occurred_at' => now()->subMinutes(4)->subSeconds(45),
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.violations.push-up-sessions.store', $violation))
+            ->assertRedirect();
+
+        $session = PushUpSession::query()->where('violation_id', $violation->id)->firstOrFail();
+
+        $this->assertSame(16, $session->required_push_ups);
+        $this->assertSame(16, $session->configuration['reps']);
+        $this->assertSame(12, $violation->fresh()->penalty_units);
+    }
+
     public function test_completing_push_up_session_resolves_violation(): void
     {
         $admin = User::factory()->create(['role' => UserRole::Admin]);
@@ -236,6 +269,73 @@ class PushUpSessionFlowTest extends TestCase
             'id' => $sessionId,
             'status' => 'completed',
         ]);
+    }
+
+    public function test_claiming_pending_push_up_session_refreshes_elapsed_open_violation_count(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $studentUser = User::factory()->create(['role' => UserRole::Student]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Counter Student',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $device = StudentDevice::create([
+            'student_id' => $student->id,
+            'device_key' => 'refresh-device',
+            'label' => 'Student PC',
+            'hostname' => 'student-pc',
+            'platform' => 'windows',
+            'app_version' => 'test',
+        ]);
+        $deviceToken = $device->issueToken();
+
+        $violation = Violation::create([
+            'student_id' => $student->id,
+            'rule_definition_id' => null,
+            'status' => 'open',
+            'rule_title_snapshot' => 'Stay on task',
+            'penalty_units' => 10,
+            'occurred_at' => now()->subMinutes(6),
+            'reported_by_user_id' => $admin->id,
+        ]);
+
+        PushUpSession::create([
+            'student_id' => $student->id,
+            'violation_id' => $violation->id,
+            'requested_by_user_id' => $admin->id,
+            'status' => 'pending',
+            'required_push_ups' => 10,
+            'configuration' => [
+                'sets' => 1,
+                'reps' => 10,
+                'rest_seconds' => 30,
+                'penalty_reps' => 5,
+                'drop_threshold' => 22,
+                'up_gap' => 5,
+                'down_tolerance' => 5,
+            ],
+            'current_rep' => 3,
+            'current_set' => 1,
+        ]);
+
+        $claim = $this
+            ->withHeader('Authorization', 'Bearer '.$deviceToken)
+            ->postJson(route('api.companion.push-up-station.claim-next'), [
+                'station_key' => 'refresh-station',
+                'station_name' => 'Refresh station',
+            ])
+            ->assertOk()
+            ->json();
+
+        $this->assertSame(16, $claim['session']['required_push_ups']);
+        $this->assertSame(0, $claim['session']['current_rep']);
+
+        $session = PushUpSession::query()->findOrFail($claim['session']['id']);
+        $this->assertSame(16, $session->configuration['reps']);
     }
 
     public function test_direct_station_token_can_claim_and_complete_push_up_session(): void

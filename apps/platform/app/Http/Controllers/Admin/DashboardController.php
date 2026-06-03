@@ -471,7 +471,7 @@ class DashboardController extends Controller
                 ->map(fn ($violation) => [
                     'id' => $violation->id,
                     'rule_title' => $violation->rule_title_snapshot,
-                    'push_up_count' => $violation->penalty_units,
+                    'push_up_count' => $violation->effectivePenaltyUnits(),
                     'occurred_at_label' => $violation->occurred_at?->format('d M, H:i'),
                     'notes' => $violation->notes,
                     'start_push_up_url' => route('admin.violations.push-up-sessions.store', $violation),

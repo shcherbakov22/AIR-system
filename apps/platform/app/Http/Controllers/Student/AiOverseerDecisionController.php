@@ -79,7 +79,7 @@ class AiOverseerDecisionController extends Controller
                 ->map(fn (Violation $violation) => [
                     'id' => $violation->id,
                     'rule_title' => $violation->rule_title_snapshot,
-                    'push_up_count' => $violation->penalty_units,
+                    'push_up_count' => $violation->effectivePenaltyUnits(),
                     'occurred_at_label' => $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
                 ])
                 ->all(),

@@ -31,6 +31,20 @@ class Violation extends Model
         ];
     }
 
+    public function elapsedOpenMinutes(): int
+    {
+        if ($this->status !== 'open' || ! $this->occurred_at) {
+            return 0;
+        }
+
+        return intdiv(max(0, $this->occurred_at->diffInSeconds(now())), 60);
+    }
+
+    public function effectivePenaltyUnits(): int
+    {
+        return max(0, (int) $this->penalty_units) + $this->elapsedOpenMinutes();
+    }
+
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);

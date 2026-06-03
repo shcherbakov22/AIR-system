@@ -527,7 +527,7 @@ class DashboardRoutingTest extends TestCase
                 ->where('monitorStudents.0.communication_gate.unread_student_chat.body', 'Please check this first.')
                 ->where('monitorStudents.0.communication_gate.chat_url', route('admin.chats.show', $student))
                 ->where('monitorStudents.0.open_violations.0.rule_title', 'Observe the time')
-                ->where('monitorStudents.0.open_violations.0.push_up_count', 10)
+                ->where('monitorStudents.0.open_violations.0.push_up_count', 11)
                 ->where('monitorStudents.0.open_violations.0.notes', 'Automatic violation for opening blocked program Steam.exe during task Coding.')
                 ->where('monitorStudents.0.current_push_up_count', 10)
                 ->where('monitorStudents.0.violation_rule_options.0.title', 'Observe the time')

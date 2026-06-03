@@ -83,7 +83,7 @@ class ViolationController extends Controller
             'rule_title' => $violation->rule_title_snapshot,
             'occurred_at_label' => $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
             'notes' => $violation->notes,
-            'push_up_count' => $violation->penalty_units,
+            'push_up_count' => $violation->effectivePenaltyUnits(),
             'student' => [
                 'id' => $violation->student->id,
                 'display_name' => $violation->student->display_name,

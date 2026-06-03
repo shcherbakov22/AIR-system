@@ -252,7 +252,7 @@ class ViolationManagementTest extends TestCase
             'status' => 'open',
             'rule_title_snapshot' => 'Stay on assigned work',
             'penalty_units' => 10,
-            'occurred_at' => '2026-03-08 09:00:00',
+            'occurred_at' => now(),
             'notes' => 'Left the assigned work page.',
             'reported_by_user_id' => $admin->id,
         ]);

@@ -251,7 +251,9 @@ class HomeController extends Controller
                 ->map(fn (Violation $violation) => [
                     'id' => $violation->id,
                     'rule_title' => $violation->rule_title_snapshot,
-                    'push_up_count' => $violation->penalty_units,
+                    'base_push_up_count' => $violation->penalty_units,
+                    'push_up_count' => $violation->effectivePenaltyUnits(),
+                    'occurred_at' => $violation->occurred_at?->toAtomString(),
                     'occurred_at_label' => $violation->occurred_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i'),
                     'notes' => $violation->notes,
                     'start_push_up_url' => route('student.violations.push-up-sessions.store', $violation),

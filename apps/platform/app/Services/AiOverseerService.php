@@ -739,7 +739,7 @@ class AiOverseerService
             'id' => $violation->id,
             'status' => $violation->status,
             'rule_title' => $violation->rule_title_snapshot,
-            'penalty_units' => $violation->penalty_units,
+            'penalty_units' => $violation->effectivePenaltyUnits(),
             'occurred_at' => $violation->occurred_at?->toAtomString(),
             'notes' => $violation->notes,
         ];
