@@ -32,8 +32,6 @@ export const labelViolationResolutionAction = (action: string): string => {
             return 'waived';
         case 'false_positive':
             return 'false positive';
-        case 'reinstated':
-            return 'reinstated';
         default:
             return action;
     }

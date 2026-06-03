@@ -727,68 +727,6 @@ class DashboardRoutingTest extends TestCase
             );
     }
 
-    public function test_admin_dashboard_shows_student_false_positive_claims_on_student_card(): void
-    {
-        $admin = User::factory()->create([
-            'role' => UserRole::Admin,
-            'username' => 'admin_false_positive_card',
-        ]);
-
-        $studentUser = User::factory()->create([
-            'role' => UserRole::Student,
-            'username' => 'student_false_positive_card',
-            'name' => 'Student False Positive Card',
-        ]);
-
-        $student = Student::create([
-            'user_id' => $studentUser->id,
-            'display_name' => 'Student False Positive Card',
-            'status' => 'active',
-            'notes' => null,
-        ]);
-
-        $ruleDefinition = RuleDefinition::create([
-            'title' => 'Stay on task',
-            'description' => 'Student must stay on the active task.',
-            'scope' => 'global',
-            'student_id' => null,
-            'default_penalty_units' => 0,
-            'is_active' => true,
-            'created_by_user_id' => $admin->id,
-        ]);
-
-        $violation = Violation::create([
-            'student_id' => $student->id,
-            'rule_definition_id' => $ruleDefinition->id,
-            'status' => 'false_positive',
-            'rule_title_snapshot' => 'Stay on task',
-            'penalty_units' => 10,
-            'occurred_at' => '2026-03-08 12:05:00',
-            'notes' => 'Student says this was wrong.',
-            'reported_by_user_id' => $admin->id,
-        ]);
-
-        $violation->resolutions()->create([
-            'action' => 'false_positive',
-            'notes' => 'Student marked this violation as a false positive.',
-            'recorded_at' => '2026-03-08 12:07:00',
-            'created_by_user_id' => $studentUser->id,
-        ]);
-
-        $this->actingAs($admin)
-            ->get(route('admin.dashboard'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Admin/Dashboard')
-                ->has('monitorStudents', 1)
-                ->where('monitorStudents.0.open_violations', [])
-                ->has('monitorStudents.0.false_positive_reviews', 1)
-                ->where('monitorStudents.0.false_positive_reviews.0.id', $violation->id)
-                ->where('monitorStudents.0.false_positive_reviews.0.rule_title', 'Stay on task')
-                ->where('monitorStudents.0.false_positive_reviews.0.claimed_by.username', 'student_false_positive_card')
-            );
-    }
-
     public function test_admin_dashboard_includes_idle_duration_when_student_has_no_active_task(): void
     {
         Carbon::setTestNow('2026-03-12 15:00:00');

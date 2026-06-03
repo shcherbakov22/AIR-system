@@ -479,39 +479,6 @@ class DashboardController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'false_positive_reviews' => $student->violations
-                ->where('status', 'false_positive')
-                ->filter(function ($violation) {
-                    $latestResolution = $violation->resolutions
-                        ->sortByDesc('recorded_at')
-                        ->first();
-
-                    return $latestResolution?->createdBy?->isStudent() ?? false;
-                })
-                ->map(function ($violation) {
-                    $latestResolution = $violation->resolutions
-                        ->sortByDesc('recorded_at')
-                        ->first();
-
-                    return [
-                        'id' => $violation->id,
-                        'rule_title' => $violation->rule_title_snapshot,
-                        'push_up_count' => $violation->penalty_units,
-                        'occurred_at_label' => $violation->occurred_at?->format('d M, H:i'),
-                        'notes' => $violation->notes,
-                        'claimed_at_label' => $latestResolution?->recorded_at?->format('d M, H:i'),
-                        'claimed_by' => $latestResolution?->createdBy
-                            ? [
-                                'id' => $latestResolution->createdBy->id,
-                                'name' => $latestResolution->createdBy->name,
-                                'username' => $latestResolution->createdBy->username,
-                            ]
-                            : null,
-                        'reinstate_url' => route('admin.violations.false-positive.reinstate', $violation),
-                    ];
-                })
-                ->values()
-                ->all(),
             'violation_rule_options' => $violationRuleOptions,
         ];
     }
@@ -580,8 +547,7 @@ class DashboardController extends Controller
                     ->latest('last_seen_at')
                     ->latest('id'),
                 'violations' => fn ($query) => $query
-                    ->with('resolutions.createdBy')
-                    ->whereIn('status', ['open', 'false_positive'])
+                    ->where('status', 'open')
                     ->latest('occurred_at'),
             ])
             ->orderBy('display_name')

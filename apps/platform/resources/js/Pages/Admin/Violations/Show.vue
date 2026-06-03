@@ -38,7 +38,6 @@ const props = defineProps<{
             } | null;
         } | null;
         false_positive_url?: string | null;
-        reinstate_false_positive_url?: string | null;
     };
     resolutions: Array<{
         id: number;
@@ -74,21 +73,6 @@ const markFalsePositive = () => {
     }
 
     router.patch(props.violation.false_positive_url, {}, {
-        preserveScroll: true,
-        preserveState: false,
-    });
-};
-
-const reinstateFalsePositive = () => {
-    if (!props.violation.reinstate_false_positive_url) {
-        return;
-    }
-
-    if (!window.confirm(`Return violation "${props.violation.rule_title}" with 4x push-ups?`)) {
-        return;
-    }
-
-    router.patch(props.violation.reinstate_false_positive_url, {}, {
         preserveScroll: true,
         preserveState: false,
     });
@@ -268,14 +252,6 @@ const deleteViolation = () => {
                         <p class="mt-3 text-sm leading-6 text-stone-600">
                             {{ props.violation.latest_resolution?.notes || 'No resolution notes were provided.' }}
                         </p>
-                        <button
-                            v-if="props.violation.reinstate_false_positive_url"
-                            type="button"
-                            class="mt-5 inline-flex justify-center rounded-full bg-amber-500 px-5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-amber-600"
-                            @click="reinstateFalsePositive"
-                        >
-                            Return violation with 4x push-ups
-                        </button>
                     </div>
                 </section>
             </div>

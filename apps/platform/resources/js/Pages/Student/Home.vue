@@ -57,7 +57,6 @@ const props = defineProps<{
         occurred_at_label?: string | null;
         notes?: string | null;
         start_push_up_url?: string | null;
-        false_positive_url?: string | null;
     }>;
     activeScheduleRun: {
         id: number;
@@ -228,16 +227,6 @@ const reportPeerSilence = (target: { store_url: string }) => {
     });
 };
 
-const markViolationFalsePositive = (url?: string | null) => {
-    if (!url) {
-        return;
-    }
-
-    router.patch(url, {}, {
-        preserveScroll: true,
-        preserveState: false,
-    });
-};
 const hasBlockingCommunication = computed(() => props.communicationGate.has_unread);
 const hasBlockingAssignments = computed(() => props.assignmentGate.has_unread);
 const hasUnreadMentorChat = computed(() => props.communicationGate.unread_mentor_chat !== null);
@@ -1396,14 +1385,6 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                                     @click="queueViolationPushUps(violation.start_push_up_url)"
                                 >
                                     Do pushups
-                                </button>
-                                <button
-                                    v-if="violation.false_positive_url"
-                                    type="button"
-                                    class="shrink-0 rounded-full border border-emerald-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700 transition hover:border-emerald-500 hover:text-emerald-900 disabled:opacity-50"
-                                    @click="markViolationFalsePositive(violation.false_positive_url)"
-                                >
-                                    False positive
                                 </button>
                                 <button
                                     type="button"

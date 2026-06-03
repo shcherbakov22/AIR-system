@@ -38,27 +38,6 @@ const props = defineProps<{
         start_push_up_url?: string | null;
         false_positive_url?: string | null;
     }>;
-    falsePositiveReviews: Array<{
-        id: number;
-        status: string;
-        rule_title: string;
-        push_up_count: number;
-        occurred_at_label?: string | null;
-        notes?: string | null;
-        student: {
-            id: number;
-            display_name: string;
-            username: string;
-        };
-        claimed_at_label?: string | null;
-        claimed_by?: {
-            id: number;
-            name: string;
-            username: string;
-            role: string;
-        } | null;
-        reinstate_url: string;
-    }>;
 }>();
 
 const page = usePage<PageProps>();
@@ -91,17 +70,6 @@ const deleteViolation = (violationId: number, ruleTitle: string) => {
 
 const markViolationFalsePositive = (url?: string | null) => {
     if (!url) {
-        return;
-    }
-
-    router.patch(url, {}, {
-        preserveScroll: true,
-        preserveState: false,
-    });
-};
-
-const reinstateFalsePositive = (url: string, ruleTitle: string) => {
-    if (!window.confirm(`Return violation "${ruleTitle}" with 4x push-ups?`)) {
         return;
     }
 
@@ -239,69 +207,6 @@ const queuePushUps = (url?: string | null) => {
                             </tr>
                         </tbody>
                     </table>
-                </div>
-            </div>
-
-            <div class="mt-5 overflow-hidden rounded-[1.75rem] bg-amber-50 shadow-sm ring-1 ring-amber-200">
-                <div class="border-b border-amber-200 px-4 py-4 sm:px-5">
-                    <h2 class="text-lg font-semibold text-amber-950">
-                        Student false-positive claims
-                    </h2>
-                </div>
-
-                <div v-if="props.falsePositiveReviews.length > 0" class="divide-y divide-amber-200">
-                    <article
-                        v-for="violation in props.falsePositiveReviews"
-                        :key="violation.id"
-                        class="flex flex-col gap-4 px-4 py-4 sm:px-5 lg:flex-row lg:items-start lg:justify-between"
-                    >
-                        <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <h3 class="text-sm font-semibold text-amber-950">
-                                    {{ violation.student.username }}
-                                </h3>
-                                <span class="text-sm text-amber-300">·</span>
-                                <p class="text-sm text-amber-800">
-                                    {{ violation.rule_title }}
-                                </p>
-                                <span class="text-sm text-amber-300">·</span>
-                                <p class="text-sm text-amber-700">
-                                    Claimed by {{ violation.claimed_by?.username ?? 'student' }}<span v-if="violation.claimed_at_label">, {{ violation.claimed_at_label }}</span>
-                                </p>
-                            </div>
-                            <p
-                                v-if="violation.notes"
-                                class="mt-2 text-sm leading-6 text-amber-800"
-                            >
-                                {{ violation.notes }}
-                            </p>
-                            <p class="mt-2 text-xs uppercase tracking-[0.18em] text-amber-700">
-                                Original penalty: {{ violation.push_up_count }} push-ups
-                            </p>
-                        </div>
-
-                        <div class="flex shrink-0 flex-wrap gap-3">
-                            <Link
-                                :href="route('admin.violations.show', violation.id)"
-                                class="inline-flex rounded-full border border-amber-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 transition hover:border-amber-500 hover:text-amber-900"
-                            >
-                                Review
-                            </Link>
-                            <button
-                                type="button"
-                                class="inline-flex rounded-full bg-amber-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-amber-600"
-                                @click="reinstateFalsePositive(violation.reinstate_url, violation.rule_title)"
-                            >
-                                Return 4x
-                            </button>
-                        </div>
-                    </article>
-                </div>
-
-                <div v-else class="px-4 py-10 text-center sm:px-5">
-                    <p class="text-sm uppercase tracking-[0.3em] text-amber-600">
-                        No student false-positive claims
-                    </p>
                 </div>
             </div>
 

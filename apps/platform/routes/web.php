@@ -47,7 +47,6 @@ use App\Http\Controllers\Student\ScheduleController as StudentScheduleController
 use App\Http\Controllers\Student\ScheduleRunController as StudentScheduleRunController;
 use App\Http\Controllers\Student\ScheduleRunTaskSessionController as StudentScheduleRunTaskSessionController;
 use App\Http\Controllers\Student\TaskSessionController as StudentTaskSessionController;
-use App\Http\Controllers\Student\ViolationController as StudentViolationController;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -164,7 +163,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/violations/{violation}', [AdminViolationController::class, 'show'])->name('violations.show');
         Route::patch('/violations/{violation}/resolve', [AdminViolationController::class, 'resolve'])->name('violations.resolve');
         Route::patch('/violations/{violation}/false-positive', [AdminViolationController::class, 'falsePositive'])->name('violations.false-positive');
-        Route::patch('/violations/{violation}/false-positive/reinstate', [AdminViolationController::class, 'reinstateFalsePositive'])->name('violations.false-positive.reinstate');
         Route::delete('/violations/{violation}', [AdminViolationController::class, 'destroy'])->name('violations.destroy');
         Route::post('/violations/{violation}/push-up-sessions', [AdminPushUpSessionController::class, 'store'])->name('violations.push-up-sessions.store');
         Route::post('/push-up-stations/{pushUpStation}/restart', [AdminPushUpStationController::class, 'restart'])->name('push-up-stations.restart');
@@ -223,7 +221,6 @@ Route::middleware('auth')->group(function () {
     Route::prefix('student')->name('student.')->middleware('student')->group(function () {
         Route::get('/home', StudentHomeController::class)->name('home');
         Route::post('/peer-silence-violations/{student}', [StudentPeerSilenceViolationController::class, 'store'])->name('peer-silence-violations.store');
-        Route::patch('/violations/{violation}/false-positive', [StudentViolationController::class, 'falsePositive'])->name('violations.false-positive');
         Route::post('/violations/{violation}/push-up-sessions', [StudentPushUpSessionController::class, 'store'])->name('violations.push-up-sessions.store');
         Route::get('/announcements', [StudentAnnouncementController::class, 'show'])->name('announcements.show');
         Route::get('/ai-overseer-decisions', [StudentAiOverseerDecisionController::class, 'index'])->name('ai-overseer-decisions.index');
