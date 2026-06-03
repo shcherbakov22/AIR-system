@@ -250,6 +250,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/schedule-runs/{scheduleRun}/resume', [StudentScheduleRunController::class, 'resume'])->name('schedule-runs.resume');
         Route::post('/schedule-runs/{scheduleRun}/complete', [StudentScheduleRunController::class, 'complete'])->name('schedule-runs.complete');
         Route::post('/schedule-runs/{scheduleRun}/blocks/{scheduleRunBlock}/start', [StudentScheduleRunTaskSessionController::class, 'store'])->name('schedule-run-blocks.start');
+        Route::post('/task-sessions/custom-timer', [StudentTaskSessionController::class, 'customTimer'])->name('task-sessions.custom-timer');
         Route::post('/task-sessions/{taskSession}/resume', [StudentTaskSessionController::class, 'resume'])->name('task-sessions.resume');
         Route::patch('/task-sessions/{taskSession}/unfinished', [StudentTaskSessionController::class, 'unfinished'])->name('task-sessions.unfinished');
         Route::patch('/task-sessions/{taskSession}/stop', [StudentTaskSessionController::class, 'stop'])->name('task-sessions.stop');

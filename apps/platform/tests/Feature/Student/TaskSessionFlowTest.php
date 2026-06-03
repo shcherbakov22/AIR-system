@@ -157,6 +157,129 @@ class TaskSessionFlowTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_student_can_start_custom_timer_without_an_open_schedule(): void
+    {
+        Carbon::setTestNow('2026-03-07 09:20:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_custom_timer_start',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_custom_timer_start',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Custom Timer Start',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $breakTemplate = TaskTemplate::create([
+            'title' => 'Break Timer',
+            'summary' => 'Short break.',
+            'instructions' => 'Return when finished.',
+            'default_duration_minutes' => 15,
+            'can_interrupt_schedule' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.task-sessions.custom-timer'), [
+                'task_template_id' => $breakTemplate->id,
+                'duration_minutes' => 7,
+            ])
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', 'Custom timer started.');
+
+        $this->assertDatabaseHas('task_sessions', [
+            'student_id' => $student->id,
+            'task_template_id' => $breakTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Break Timer',
+            'planned_duration_minutes' => 7,
+            'duration_seconds' => 0,
+        ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_student_can_interrupt_active_task_for_allowed_custom_timer(): void
+    {
+        Carbon::setTestNow('2026-03-07 11:00:00');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'username' => 'admin_custom_timer_interrupt',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => UserRole::Student,
+            'username' => 'student_custom_timer_interrupt',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $studentUser->id,
+            'display_name' => 'Student Custom Timer Interrupt',
+            'status' => 'active',
+            'notes' => null,
+        ]);
+
+        $taskAssignment = $this->createAssignedTask($admin, $student);
+        $activeTaskSession = TaskSession::create([
+            'student_id' => $student->id,
+            'task_assignment_id' => $taskAssignment->id,
+            'task_template_id' => $taskAssignment->task_template_id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Math Review',
+            'task_summary_snapshot' => 'Review the assigned work.',
+            'task_instructions_snapshot' => 'Complete the work carefully.',
+            'assignment_notes_snapshot' => 'Finish before lunch.',
+            'planned_duration_minutes' => 30,
+            'started_at' => CarbonImmutable::parse('2026-03-07 10:30:00'),
+            'started_by_user_id' => $studentUser->id,
+        ]);
+
+        $breakTemplate = TaskTemplate::create([
+            'title' => 'Water',
+            'summary' => 'Drink water.',
+            'instructions' => 'Take a short water break.',
+            'default_duration_minutes' => 5,
+            'can_interrupt_schedule' => true,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($studentUser)
+            ->post(route('student.task-sessions.custom-timer'), [
+                'task_template_id' => $breakTemplate->id,
+                'duration_minutes' => 3,
+            ])
+            ->assertRedirect(route('student.home', absolute: false))
+            ->assertSessionHas('success', 'Current task paused. Custom timer started.');
+
+        $this->assertDatabaseHas('task_sessions', [
+            'id' => $activeTaskSession->id,
+            'status' => 'unfinished',
+            'duration_seconds' => 1800,
+            'completion_notes' => 'Paused for a custom timer.',
+            'stopped_by_user_id' => $studentUser->id,
+        ]);
+
+        $this->assertDatabaseHas('task_sessions', [
+            'student_id' => $student->id,
+            'task_template_id' => $breakTemplate->id,
+            'status' => 'active',
+            'task_title_snapshot' => 'Water',
+            'planned_duration_minutes' => 3,
+            'duration_seconds' => 0,
+        ]);
+
+        Carbon::setTestNow();
+    }
+
     public function test_student_can_stop_an_active_task_session_and_complete_the_assignment(): void
     {
         Carbon::setTestNow('2026-03-07 11:00:00');

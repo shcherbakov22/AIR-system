@@ -184,12 +184,33 @@ const activeScheduleTaskIsRunning = computed(
         props.activeScheduleRun !== null &&
         props.activeTaskSession.schedule_run_id === props.activeScheduleRun.id,
 );
+const activeTaskIsSleeping = computed(() => props.activeTaskSession?.task_title.toLowerCase() === 'sleeping');
 const canPauseForOwnTimer = computed(
     () =>
         studentCanUseAdHocTimer.value &&
         props.activeScheduleRun !== null &&
         props.activeScheduleRun.status === 'active' &&
         (props.activeTaskSession === null || props.activeTaskSession.source_type === 'schedule'),
+);
+const canStartStandaloneCustomTimer = computed(
+    () =>
+        studentCanUseAdHocTimer.value &&
+        props.activeScheduleRun === null &&
+        props.activeTaskSession === null &&
+        props.pausedTaskSession === null,
+);
+const canInterruptActiveTaskForCustomTimer = computed(
+    () =>
+        studentCanUseAdHocTimer.value &&
+        props.activeScheduleRun === null &&
+        props.activeTaskSession !== null &&
+        (props.activeTaskSession.source_type !== 'ad_hoc' || activeTaskIsSleeping.value),
+);
+const canOpenCustomTimer = computed(
+    () =>
+        canPauseForOwnTimer.value ||
+        canStartStandaloneCustomTimer.value ||
+        canInterruptActiveTaskForCustomTimer.value,
 );
 const canFinishScheduleNow = computed(() =>
     props.activeScheduleRun !== null &&
@@ -198,7 +219,7 @@ const canFinishScheduleNow = computed(() =>
 );
 const pauseOwnTimerFormOpen = ref(false);
 const pauseTaskTemplates = computed(() => {
-    if (activeScheduleTaskIsRunning.value) {
+    if (activeScheduleTaskIsRunning.value || (canInterruptActiveTaskForCustomTimer.value && !activeTaskIsSleeping.value)) {
         return props.taskTemplates.filter((taskTemplate) => taskTemplate.can_interrupt_schedule);
     }
 
@@ -916,10 +937,6 @@ const togglePauseOwnTimerForm = () => {
 };
 
 const pauseScheduleForOwnTimer = () => {
-    if (!props.activeScheduleRun) {
-        return;
-    }
-
     if (showBlockingViolationDialog()) {
         return;
     }
@@ -934,7 +951,11 @@ const pauseScheduleForOwnTimer = () => {
 
     clampPauseOwnTimerDuration();
 
-    pauseOwnTimerForm.post(route('student.schedule-runs.pause', props.activeScheduleRun.id), {
+    const submitUrl = props.activeScheduleRun
+        ? route('student.schedule-runs.pause', props.activeScheduleRun.id)
+        : route('student.task-sessions.custom-timer');
+
+    pauseOwnTimerForm.post(submitUrl, {
         preserveScroll: true,
         onSuccess: () => {
             pauseOwnTimerFormOpen.value = false;
@@ -1206,11 +1227,11 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                             </button>
 
                             <div
-                                v-if="canPauseForOwnTimer || activeTaskSession || pausedTaskSession"
+                                v-if="canOpenCustomTimer || activeTaskSession || pausedTaskSession"
                                 class="flex flex-wrap items-center gap-2"
                             >
                                 <button
-                                    v-if="canPauseForOwnTimer"
+                                    v-if="canOpenCustomTimer"
                                     type="button"
                                     class="inline-block rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                                     :disabled="!hasTaskTemplates"
@@ -1238,12 +1259,12 @@ const canStartBlock = (block: NonNullable<typeof props.activeScheduleRun>['block
                             </div>
                         </div>
                         <div
-                            v-if="!hasTaskTemplates && canPauseForOwnTimer"
+                            v-if="!hasTaskTemplates && canOpenCustomTimer"
                             class="mt-3 rounded-[1rem] bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200"
                         >
                             {{
-                                activeScheduleTaskIsRunning
-                                    ? 'There are no tasks allowed while switching away from a running schedule task.'
+                                activeScheduleTaskIsRunning || canInterruptActiveTaskForCustomTimer
+                                    ? 'There are no tasks allowed while switching away from a running task.'
                                     : 'There are no tasks in the catalog for a custom timer yet.'
                             }}
                         </div>
